@@ -16,6 +16,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 // PreprocessTxFn defines a hook by which chains can preprocess transactions before broadcasting
@@ -26,6 +27,7 @@ type PreprocessTxFn func(chainID string, key keyring.KeyType, tx TxBuilder) erro
 type Context struct {
 	FromAddress       sdk.AccAddress
 	Client            TendermintRPC
+	EvmClient         *ethclient.Client
 	GRPCClient        *grpc.ClientConn
 	ChainID           string
 	Codec             codec.Codec
@@ -50,6 +52,7 @@ type Context struct {
 	TxConfig          TxConfig
 	AccountRetriever  AccountRetriever
 	NodeURI           string
+	EvmNodeURI        string
 	FeePayer          sdk.AccAddress
 	FeeGranter        sdk.AccAddress
 	Viper             *viper.Viper
@@ -123,6 +126,12 @@ func (ctx Context) WithNodeURI(nodeURI string) Context {
 	return ctx
 }
 
+// WithEVMNodeURI returns a copy of the context with an updated node URI.
+func (ctx Context) WithEvmNodeURI(nodeURI string) Context {
+	ctx.EvmNodeURI = nodeURI
+	return ctx
+}
+
 // WithHeight returns a copy of the context with an updated height.
 func (ctx Context) WithHeight(height int64) Context {
 	ctx.Height = height
@@ -133,6 +142,13 @@ func (ctx Context) WithHeight(height int64) Context {
 // instance.
 func (ctx Context) WithClient(client TendermintRPC) Context {
 	ctx.Client = client
+	return ctx
+}
+
+// WithClient returns a copy of the context with an updated RPC client
+// instance.
+func (ctx Context) WithEvmClient(client *ethclient.Client) Context {
+	ctx.EvmClient = client
 	return ctx
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 // ClientContextKey defines the context key used to retrieve a client.Context from
@@ -153,6 +154,20 @@ func ReadPersistentCommandFlags(clientCtx Context, flagSet *pflag.FlagSet) (Cont
 			}
 
 			clientCtx = clientCtx.WithClient(client)
+		}
+	}
+
+	if clientCtx.EvmClient == nil || flagSet.Changed(flags.FlagEvmNode) {
+		rpcURI, _ := flagSet.GetString(flags.FlagEvmNode)
+		if rpcURI != "" {
+			clientCtx = clientCtx.WithEvmNodeURI(rpcURI)
+
+			client, err := ethclient.Dial(rpcURI)
+			if err != nil {
+				return clientCtx, err
+			}
+
+			clientCtx = clientCtx.WithEvmClient(client)
 		}
 	}
 
