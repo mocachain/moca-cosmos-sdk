@@ -145,7 +145,7 @@ func (ctx Context) WithClient(client TendermintRPC) Context {
 	return ctx
 }
 
-// WithClient returns a copy of the context with an updated RPC client
+// WithEvmClient returns a copy of the context with an updated RPC client
 // instance.
 func (ctx Context) WithEvmClient(client *ethclient.Client) Context {
 	ctx.EvmClient = client

@@ -28,7 +28,7 @@ func (ctx Context) GetNode() (TendermintRPC, error) {
 	return ctx.Client, nil
 }
 
-// GetNode returns an RPC client. If the context's client is not defined, an
+// GetEvmNode returns an RPC client. If the context's client is not defined, an
 // error is returned.
 func (ctx Context) GetEvmNode() (*ethclient.Client, error) {
 	if ctx.EvmClient == nil {
