@@ -1469,8 +1469,8 @@ github.com/zeebo/assert v1.3.0/go.mod h1:Pq9JiuJQpG8JLJdtkwrJESF0Foym2/D9XMU5ciN
 github.com/zeebo/xxh3 v1.0.2/go.mod h1:5NWz9Sef7zIDm2JHfFlcQvNekmcEl9ekUZQQKCYaDcA=
 github.com/zkMeLabs/gogoproto v1.4.10-mechain.1 h1:E1dPXljwfXo8iCSvXrrT/Z0Nbsqj1LRnvaZyNOon/GE=
 github.com/zkMeLabs/gogoproto v1.4.10-mechain.1/go.mod h1:4MAjcvaAJ0XqShPii8ShVsYGPvdYg0330FbFhMIgDRY=
-github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.2 h1:CkgK9LBQ/NWdQgPteasjKbBSM7jq68jCra3guLsDCFw=
-github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.2/go.mod h1:3YdCLtX08jS0LaFrhl3bkjTqUd45dylQN84xKYjM32I=
+github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.3 h1:/hfZomiBxp1xqWaX5gWxsZanXWmpYHRxQrNmOb4Nt5A=
+github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.3/go.mod h1:3YdCLtX08jS0LaFrhl3bkjTqUd45dylQN84xKYjM32I=
 github.com/zkMeLabs/mechain-cometbft-db v0.8.1-alpha.1 h1:nq2MtEW59EqqqvV/Diarxxc5K9LJj3a21273xvpPJpw=
 github.com/zkMeLabs/mechain-cometbft-db v0.8.1-alpha.1/go.mod h1:ey1CiK4bYo1RBNJLRiVbYr5CMdSxci9S/AZRINLtppI=
 github.com/zkMeLabs/mechain-iavl v0.20.1 h1:2dreayjVdDHlDsnMTUZHEjLcBXwlsfZTz4FyvxF+uVo=
