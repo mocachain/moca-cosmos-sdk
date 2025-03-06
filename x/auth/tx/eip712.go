@@ -32,12 +32,16 @@ import (
 	"github.com/cosmos/gogoproto/jsonpb"
 )
 
-var domain = &apitypes.TypedDataDomain{
-	Name:              "Mechain Tx",
-	Version:           "1.0.0",
-	VerifyingContract: "mechain",
-	Salt:              "0",
-}
+var (
+	domain = &apitypes.TypedDataDomain{
+		Name:              "Mechain Tx",
+		Version:           "1.0.0",
+		VerifyingContract: "mechain",
+		Salt:              "0",
+	}
+
+	gnfdVerifyingContract = "0x5636c9188B328e41a46cffb92c41246b99f8B8A9" // keccak256("mechain")[12:]
+)
 
 // signModeEip712Handler defines the SIGN_MODE_DIRECT SignModeHandler
 type signModeEip712Handler struct{}
@@ -55,36 +59,42 @@ func (signModeEip712Handler) Modes() []signingtypes.SignMode {
 }
 
 // GetSignBytes implements SignModeHandler.GetSignBytes
-func (signModeEip712Handler) GetSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
+func (h signModeEip712Handler) GetSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
+	return getSignBytes(mode, signerData, tx, false)
+}
+
+// GetSignBytesRuntime implements SignModeHandler.GetSignBytesRuntime
+func (h signModeEip712Handler) GetSignBytesRuntime(ctx sdk.Context, mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
+	return getSignBytes(mode, signerData, tx, true)
+}
+
+func getSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx, isAltai bool) ([]byte, error) {
 	if mode != signingtypes.SignMode_SIGN_MODE_EIP_712 {
 		return nil, fmt.Errorf("expected %s, got %s", signingtypes.SignMode_SIGN_MODE_EIP_712, mode)
 	}
 
-	// get the EIP155 chainID from the signerData
 	chainID, err := sdk.ParseChainID(signerData.ChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse chainID: %s", signerData.ChainID)
 	}
 
-	// get the EIP712 types and signDoc from the tx
 	msgTypes, signDoc, err := GetMsgTypes(signerData, tx, chainID)
 	if err != nil {
-		return nil, errorsmod.Wrapf(err, "failed to get msg types")
+		return nil, errorsmod.Wrap(err, "failed to get msg types")
 	}
 
-	// pack the tx data in EIP712 object
-	typedData, err := WrapTxToTypedData(chainID.Uint64(), signDoc, msgTypes)
+	typedDataDomain := *domain
+	typedDataDomain.ChainId = math.NewHexOrDecimal256(chainID.Int64())
+	if isAltai {
+		typedDataDomain.VerifyingContract = gnfdVerifyingContract
+	}
+
+	typedData, err := WrapTxToTypedData(signDoc, msgTypes, typedDataDomain)
 	if err != nil {
-		return nil, errorsmod.Wrapf(err, "failed to pack tx data in EIP712 object")
+		return nil, errorsmod.Wrap(err, "failed to pack tx data in EIP712 object")
 	}
 
-	// compute the hash
-	sigHash, err := ComputeTypedDataHash(typedData)
-	if err != nil {
-		return nil, err
-	}
-
-	return sigHash, nil
+	return ComputeTypedDataHash(typedData)
 }
 
 func GetMsgTypes(signerData signing.SignerData, tx sdk.Tx, typedChainID *big.Int) (apitypes.Types, *types.SignDocEip712, error) {
@@ -205,9 +215,9 @@ func ComputeTypedDataHash(typedData apitypes.TypedData) ([]byte, error) {
 }
 
 func WrapTxToTypedData(
-	chainID uint64,
 	signDoc *types.SignDocEip712,
 	msgTypes apitypes.Types,
+	typedDataDomain apitypes.TypedDataDomain,
 ) (apitypes.TypedData, error) {
 	msgCodec := jsonpb.Marshaler{
 		EmitDefaults: true,
@@ -242,12 +252,10 @@ func WrapTxToTypedData(
 		})
 	}
 
-	tempDomain := *domain
-	tempDomain.ChainId = math.NewHexOrDecimal256(int64(chainID))
 	typedData := apitypes.TypedData{
 		Types:       msgTypes,
 		PrimaryType: "Tx",
-		Domain:      tempDomain,
+		Domain:      typedDataDomain,
 		Message:     txData,
 	}
 

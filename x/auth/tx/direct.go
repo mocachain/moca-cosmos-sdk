@@ -42,6 +42,11 @@ func (signModeDirectHandler) GetSignBytes(mode signingtypes.SignMode, data signi
 	return DirectSignBytes(bodyBz, authInfoBz, data.ChainID, data.AccountNumber)
 }
 
+// GetSignBytesRuntime implements SignModeHandler.GetSignBytesRuntime
+func (h signModeDirectHandler) GetSignBytesRuntime(ctx sdk.Context, mode signingtypes.SignMode, data signing.SignerData, tx sdk.Tx) ([]byte, error) {
+	return h.GetSignBytes(mode, data, tx)
+}
+
 // DirectSignBytes returns the SIGN_MODE_DIRECT sign bytes for the provided TxBody bytes, AuthInfo bytes, chain ID,
 // account number and sequence.
 func DirectSignBytes(bodyBytes, authInfoBytes []byte, chainID string, accnum uint64) ([]byte, error) {

@@ -24,6 +24,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	ethmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
@@ -434,7 +435,15 @@ func (f Factory) PrintEIP712MsgType(clientCtx client.Context, msgs ...sdk.Msg) e
 	if err != nil {
 		return fmt.Errorf("failed to get msg types: %s", err)
 	}
-	typedData, err := authtx.WrapTxToTypedData(chainID.Uint64(), signDoc, msgTypes)
+
+	typedDataDomain := apitypes.TypedDataDomain{
+		Name:              "Mechain Tx",
+		Version:           "1.0.0",
+		ChainId:           ethmath.NewHexOrDecimal256(chainID.Int64()),
+		VerifyingContract: "0x5636c9188B328e41a46cffb92c41246b99f8B8A9",
+		Salt:              "0",
+	}
+	typedData, err := authtx.WrapTxToTypedData(signDoc, msgTypes, typedDataDomain)
 	if err != nil {
 		return fmt.Errorf("failed to wrap tx to typedData: %s", err)
 	}
