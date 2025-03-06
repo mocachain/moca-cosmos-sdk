@@ -14,8 +14,8 @@ const (
 	StoreKey   = ModuleName
 
 	prefixLength      = 1
-	srcChainIdLength  = 2
-	destChainIDLength = 2
+	srcChainIdLength  = 4
+	destChainIDLength = 4
 	channelIDLength   = 1
 	sequenceLength    = 8
 
@@ -38,8 +38,8 @@ func BuildCrossChainPackageKey(srcChainID, destChainID sdk.ChainID, channelID sd
 	key := make([]byte, totalPackageKeyLength)
 
 	copy(key[:prefixLength], PrefixForIbcPackageKey)
-	binary.BigEndian.PutUint16(key[prefixLength:srcChainIdLength+prefixLength], uint16(srcChainID))
-	binary.BigEndian.PutUint16(key[prefixLength+srcChainIdLength:prefixLength+srcChainIdLength+destChainIDLength], uint16(destChainID))
+	binary.BigEndian.PutUint32(key[prefixLength:srcChainIdLength+prefixLength], uint32(srcChainID))
+	binary.BigEndian.PutUint32(key[prefixLength+srcChainIdLength:prefixLength+srcChainIdLength+destChainIDLength], uint32(destChainID))
 	copy(key[prefixLength+srcChainIdLength+destChainIDLength:], []byte{byte(channelID)})
 	binary.BigEndian.PutUint64(key[prefixLength+srcChainIdLength+destChainIDLength+channelIDLength:], sequence)
 
@@ -66,7 +66,7 @@ func BuildChannelSequenceKey(destChainID sdk.ChainID, channelID sdk.ChannelID, p
 	key := make([]byte, prefixLength+destChainIDLength+channelIDLength)
 
 	copy(key[:prefixLength], prefix)
-	binary.BigEndian.PutUint16(key[prefixLength:prefixLength+destChainIDLength], uint16(destChainID))
+	binary.BigEndian.PutUint32(key[prefixLength:prefixLength+destChainIDLength], uint32(destChainID))
 	copy(key[prefixLength+destChainIDLength:], []byte{byte(channelID)})
 	return key
 }
@@ -75,7 +75,7 @@ func BuildChannelPermissionKey(destChainID sdk.ChainID, channelID sdk.ChannelID)
 	key := make([]byte, prefixLength+destChainIDLength+channelIDLength)
 
 	copy(key[:prefixLength], PrefixForChannelPermissionKey)
-	binary.BigEndian.PutUint16(key[prefixLength:prefixLength+destChainIDLength], uint16(destChainID))
+	binary.BigEndian.PutUint32(key[prefixLength:prefixLength+destChainIDLength], uint32(destChainID))
 	copy(key[prefixLength+destChainIDLength:], []byte{byte(channelID)})
 	return key
 }
