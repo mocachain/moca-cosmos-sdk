@@ -20,7 +20,7 @@ func VerifySignature(ctx sdk.Context, pubKey cryptotypes.PubKey, signerData Sign
 	switch data := sigData.(type) {
 	case *signing.SingleSignatureData:
 		// EIP712 signatures are verified in a different way
-		// In mechain, we adapt another antehandler to reject non-EIP712 signatures
+		// In moca, we adapt another antehandler to reject non-EIP712 signatures
 		if data.SignMode == signing.SignMode_SIGN_MODE_EIP_712 {
 			// check signature length
 			if len(data.Signature) != ethcrypto.SignatureLength {

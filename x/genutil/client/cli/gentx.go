@@ -48,7 +48,7 @@ $ %s gentx 1000000stake \
 	0xcdd393723f1Af81faa3F3c87B51dAB72B6c68154 \
 	ac1e598ae0ccbeeaafa31bc6faefa85c2ae3138699cac79169cd718f1a38445201454ec092a86f200e08a15266bdc6e9 \
 	b68b819c2d431bd8ea800326bbcd91bbbbec5404b8f456b23c87de368c7f48507e7be120f32354ebf3df38c2b5808cebd4c07254f0b4626007c6d46fc05b260901 \
-	--home=/path/to/home/dir --keyring-backend=os --chain-id=mechain_1000000-1 \
+	--home=/path/to/home/dir --keyring-backend=os --chain-id=moca_1000000-1 \
     --moniker="myvalidator" \
     --commission-max-change-rate=0.01 \
     --commission-max-rate=1.0 \

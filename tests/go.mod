@@ -173,17 +173,17 @@ replace (
 	cosmossdk.io/api => ../api
 	// We always want to test against the latest version of the simapp.
 	cosmossdk.io/simapp => ../simapp
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-mechain.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 
-	github.com/cometbft/cometbft => github.com/zkMeLabs/mechain-cometbft v1.3.0-mechain.3
-	github.com/cometbft/cometbft-db => github.com/zkMeLabs/mechain-cometbft-db v0.8.1-alpha.1
+	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.3.0-moca.4
+	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v0.8.1-alpha.1
 	// We always want to test against the latest version of the SDK.
 	github.com/cosmos/cosmos-sdk => ../.
-	github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-mechain.1
+	github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-moca.1
 
-	github.com/cosmos/iavl => github.com/zkMeLabs/mechain-iavl v0.20.1
+	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v0.20.1
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409

@@ -45,7 +45,7 @@ const (
 	msgsFieldName = "msgs"
 	Bech32Prefix  = "cosmos"
 	// TestnetChainID defines the Evmos EIP155 chain ID for testnet
-	TestnetChainID = "mechain_1000000"
+	TestnetChainID = "moca_1000000"
 	// BaseDenom defines the Evmos mainnet denomination
 	BaseDenom = "stake"
 )

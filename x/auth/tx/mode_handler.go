@@ -13,7 +13,7 @@ var DefaultSignModes = []signingtypes.SignMode{
 	signingtypes.SignMode_SIGN_MODE_DIRECT_AUX,
 	signingtypes.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
 
-	// For mechain, we only enable EIP-712 by default.
+	// For moca, we only enable EIP-712 by default.
 	signingtypes.SignMode_SIGN_MODE_EIP_712,
 }
 

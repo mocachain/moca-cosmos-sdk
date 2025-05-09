@@ -437,10 +437,10 @@ func (f Factory) PrintEIP712MsgType(clientCtx client.Context, msgs ...sdk.Msg) e
 	}
 
 	typedDataDomain := apitypes.TypedDataDomain{
-		Name:              "Mechain Tx",
+		Name:              "Moca Tx",
 		Version:           "1.0.0",
 		ChainId:           ethmath.NewHexOrDecimal256(chainID.Int64()),
-		VerifyingContract: "0x5636c9188B328e41a46cffb92c41246b99f8B8A9",
+		VerifyingContract: "0x4b0Eef77EdFDEF30965F0F365f942E38810882bE", // keccak256("moca")[12:]
 		Salt:              "0",
 	}
 	typedData, err := authtx.WrapTxToTypedData(signDoc, msgTypes, typedDataDomain)

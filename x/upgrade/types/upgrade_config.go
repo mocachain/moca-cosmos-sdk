@@ -39,7 +39,7 @@ const (
 
 // The default upgrade config for networks
 var (
-	MainnetChainID = "mechain_5252-1"
+	MainnetChainID = "moca_5252-1"
 	MainnetConfig  = NewUpgradeConfig().SetPlan(&Plan{
 		Name:   Nagqu,
 		Height: 1,
@@ -78,7 +78,7 @@ var (
 		Info:   "Erdos hardfork",
 	})
 
-	TestnetChainID = "mechain_5151-1"
+	TestnetChainID = "moca_5151-1"
 	TestnetConfig  = NewUpgradeConfig().SetPlan(&Plan{
 		Name:   Nagqu,
 		Height: 471350,

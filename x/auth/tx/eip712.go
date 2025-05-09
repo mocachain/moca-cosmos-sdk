@@ -34,13 +34,13 @@ import (
 
 var (
 	domain = &apitypes.TypedDataDomain{
-		Name:              "Mechain Tx",
+		Name:              "Moca Tx",
 		Version:           "1.0.0",
-		VerifyingContract: "mechain",
+		VerifyingContract: "moca",
 		Salt:              "0",
 	}
 
-	gnfdVerifyingContract = "0x5636c9188B328e41a46cffb92c41246b99f8B8A9" // keccak256("mechain")[12:]
+	gnfdVerifyingContract = "0x4b0Eef77EdFDEF30965F0F365f942E38810882bE" // keccak256("moca")[12:]
 )
 
 // signModeEip712Handler defines the SIGN_MODE_DIRECT SignModeHandler
