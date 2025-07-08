@@ -3,6 +3,8 @@
 ## v0.1.0
 This is a maintenance release. The changelog includes all the changes since v0.0.2
 
+* [GHSA-p22h-3m2v-cmgh](https://github.com/cosmos/cosmos-sdk/security/advisories/GHSA-p22h-3m2v-cmgh) Fix x/distribution can halt when historical rewards overflow.
+
 * [#140](https://github.com/mocachain/moca-cosmos-sdk/pull/140) feat: introduce the greenfield-cosmos-sdk v1.7.1 upgrade
 
 ## v0.0.2
