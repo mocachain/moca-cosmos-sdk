@@ -7,10 +7,12 @@ import (
 
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/cometbft/cometbft/crypto/tmhash"
+	"github.com/cometbft/cometbft/votepool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cometbft/cometbft/votepool"
+	"cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -49,8 +51,8 @@ func TestValidateGenesisMultipleMessages(t *testing.T) {
 	blsProofBts1, _ := blsProofBuf1.Marshal()
 	blsProof1 := hex.EncodeToString(blsProofBts1)
 	msg1, err := stakingtypes.NewMsgCreateValidator(
-		sdk.AccAddress(pk1.Address()), pk1,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt(),
+		sdk.AccAddress(pk1.Address()).String(), pk1,
+		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, math.OneInt(),
 		sdk.AccAddress(pk1.Address()), sdk.AccAddress(pk1.Address()),
 		sdk.AccAddress(pk1.Address()), sdk.AccAddress(pk1.Address()), blsPk1, blsProof1)
 	require.NoError(t, err)
@@ -61,8 +63,8 @@ func TestValidateGenesisMultipleMessages(t *testing.T) {
 	blsProofBts2, _ := blsProofBuf2.Marshal()
 	blsProof2 := hex.EncodeToString(blsProofBts2)
 	msg2, err := stakingtypes.NewMsgCreateValidator(
-		sdk.AccAddress(pk2.Address()), pk2,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt(),
+		sdk.AccAddress(pk2.Address()).String(), pk2,
+		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, math.OneInt(),
 		sdk.AccAddress(pk2.Address()), sdk.AccAddress(pk2.Address()),
 		sdk.AccAddress(pk2.Address()), sdk.AccAddress(pk2.Address()), blsPk2, blsProof2)
 	require.NoError(t, err)
@@ -86,8 +88,8 @@ func TestValidateGenesisBadMessage(t *testing.T) {
 	blsProofBts, _ := blsProofBuf.Marshal()
 	blsProof := hex.EncodeToString(blsProofBts)
 	msg1 := stakingtypes.NewMsgEditValidator(
-		sdk.AccAddress(pk1.Address()), desc, nil, nil,
-		sdk.AccAddress(pk1.Address()), sdk.AccAddress(pk1.Address()), blsPk1, blsProof,
+		sdk.AccAddress(pk1.Address()).String(), desc, nil, nil,
+		sdk.AccAddress(pk1.Address()).String(), sdk.AccAddress(pk1.Address()).String(), blsPk1, blsProof,
 	)
 
 	txConfig := moduletestutil.MakeTestEncodingConfig(staking.AppModuleBasic{}, genutil.AppModuleBasic{}).TxConfig
@@ -114,7 +116,7 @@ func TestGenesisStateFromGenFile(t *testing.T) {
 
 	require.True(t, bankGenesis.Params.DefaultSendEnabled)
 	require.Equal(t, "1000nametoken,100000000stake", bankGenesis.Balances[0].GetCoins().String())
-	require.Equal(t, "0x68F07419B137B1F9e36bf559502f05912C4769D0", bankGenesis.Balances[0].GetAddress().String())
+	require.Equal(t, "0x68F07419B137B1F9e36bf559502f05912C4769D0", bankGenesis.Balances[0].Address)
 	require.Equal(t, "The native staking token of the Cosmos Hub.", bankGenesis.DenomMetadata[0].GetDescription())
 	require.Equal(t, "uatom", bankGenesis.DenomMetadata[0].GetBase())
 	require.Equal(t, "matom", bankGenesis.DenomMetadata[0].GetDenomUnits()[1].GetDenom())

@@ -14,13 +14,6 @@ func (msg MsgUpdateParams) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{authority}
 }
 
-// GetSignBytes returns the raw bytes for a MsgUpdateParams message that
-// the expected signer needs to sign.
-func (msg MsgUpdateParams) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&msg)
-	return sdk.MustSortJSON(bz)
-}
-
 // ValidateBasic performs basic MsgUpdateParams message validation.
 func (msg MsgUpdateParams) ValidateBasic() error {
 	return msg.Params.Validate()
@@ -33,11 +26,6 @@ func NewMsgSetMsgGasParams(authority string, updateSet []*MsgGasParams, deleteSe
 		UpdateSet: updateSet,
 		DeleteSet: deleteSet,
 	}
-}
-
-// GetSignBytes implements the LegacyMsg interface.
-func (msg MsgSetMsgGasParams) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&msg))
 }
 
 // GetSigners returns the expected signers for MsgSoftwareUpgrade.

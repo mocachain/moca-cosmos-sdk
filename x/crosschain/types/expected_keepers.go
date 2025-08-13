@@ -1,13 +1,15 @@
 package types
 
 import (
+	context "context"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type BankKeeper interface {
-	MintCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error
+	MintCoins(ctx context.Context, moduleName string, amt sdk.Coins) error
 }
 
 type StakingKeeper interface {
-	BondDenom(ctx sdk.Context) (res string)
+	BondDenom(ctx context.Context) (string, error)
 }

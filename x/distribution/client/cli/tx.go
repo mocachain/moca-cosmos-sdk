@@ -41,6 +41,7 @@ func NewTxCmd() *cobra.Command {
 		NewWithdrawAllRewardsCmd(),
 		NewSetWithdrawAddrCmd(),
 		NewFundCommunityPoolCmd(),
+		NewDepositValidatorRewardsPoolCmd(),
 	)
 
 	return distTxCmd
@@ -78,14 +79,16 @@ func newSplitAndApply(
 func NewWithdrawRewardsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "withdraw-rewards [validator-addr]",
-		Short: "Withdraw rewards from a given delegation address",
+		Short: "Withdraw rewards from a given delegation address, and optionally withdraw validator commission if the delegation address given is a validator operator",
 		Long: strings.TrimSpace(
-			fmt.Sprintf(`Withdraw rewards from a given delegation address.
+			fmt.Sprintf(`Withdraw rewards from a given delegation address,
+and optionally withdraw validator commission if the delegation address given is a validator operator.
 
 Example:
 $ %s tx distribution withdraw-rewards 0x91D7d.. --from mykey
+$ %s tx distribution withdraw-rewards 0x91D7d.. --from mykey --commission
 `,
-				version.AppName,
+				version.AppName, version.AppName,
 			),
 		),
 		Args: cobra.ExactArgs(1),
@@ -94,18 +97,22 @@ $ %s tx distribution withdraw-rewards 0x91D7d.. --from mykey
 			if err != nil {
 				return err
 			}
-			delAddr := clientCtx.GetFromAddress()
-			valAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
 
-			msgs := []sdk.Msg{types.NewMsgWithdrawDelegatorReward(delAddr, valAddr)}
-
+			msgs := []sdk.Msg{types.NewMsgWithdrawDelegatorReward(delAddr, args[0])}
+			if commission, _ := cmd.Flags().GetBool(FlagCommission); commission {
+				msgs = append(msgs, types.NewMsgWithdrawValidatorCommission(args[0]))
+			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgs...)
 		},
 	}
 
+	cmd.Flags().Bool(FlagCommission, false, "Withdraw the validator's commission in addition to the rewards")
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
@@ -131,12 +138,12 @@ $ %s tx distribution withdraw-commission 0x91D7d.. --from mykey
 			if err != nil {
 				return err
 			}
-			valAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
 
-			msgs := []sdk.Msg{types.NewMsgWithdrawValidatorCommission(valAddr)}
+			msgs := []sdk.Msg{types.NewMsgWithdrawValidatorCommission(args[0])}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgs...)
 		},
@@ -168,7 +175,7 @@ $ %[1]s tx distribution withdraw-all-rewards --from mykey
 			if err != nil {
 				return err
 			}
-			delAddr := clientCtx.GetFromAddress()
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
 
 			// The transaction cannot be generated offline since it requires a query
 			// to get all the validators.
@@ -177,7 +184,7 @@ $ %[1]s tx distribution withdraw-all-rewards --from mykey
 			}
 
 			queryClient := types.NewQueryClient(clientCtx)
-			delValsRes, err := queryClient.DelegatorValidators(cmd.Context(), &types.QueryDelegatorValidatorsRequest{DelegatorAddress: delAddr.String()})
+			delValsRes, err := queryClient.DelegatorValidators(cmd.Context(), &types.QueryDelegatorValidatorsRequest{DelegatorAddress: delAddr})
 			if err != nil {
 				return err
 			}
@@ -186,12 +193,12 @@ $ %[1]s tx distribution withdraw-all-rewards --from mykey
 			// build multi-message transaction
 			msgs := make([]sdk.Msg, 0, len(validators))
 			for _, valAddr := range validators {
-				val, err := sdk.AccAddressFromHexUnsafe(valAddr)
+				_, err := sdk.AccAddressFromHexUnsafe(valAddr)
 				if err != nil {
 					return err
 				}
 
-				msg := types.NewMsgWithdrawDelegatorReward(delAddr, val)
+				msg := types.NewMsgWithdrawDelegatorReward(delAddr, valAddr)
 				msgs = append(msgs, msg)
 			}
 
@@ -266,7 +273,7 @@ $ %s tx distribution fund-community-pool 100uatom --from mykey
 			if err != nil {
 				return err
 			}
-			depositorAddr := clientCtx.GetFromAddress()
+			depositorAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
 			amount, err := sdk.ParseCoinsNormalized(args[0])
 			if err != nil {
 				return err
@@ -274,6 +281,45 @@ $ %s tx distribution fund-community-pool 100uatom --from mykey
 
 			msg := types.NewMsgFundCommunityPool(amount, depositorAddr)
 
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+
+	return cmd
+}
+
+// NewDepositValidatorRewardsPoolCmd returns a CLI command handler for creating
+// a MsgDepositValidatorRewardsPool transaction.
+func NewDepositValidatorRewardsPoolCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "fund-validator-rewards-pool [val_addr] [amount]",
+		Args:  cobra.ExactArgs(2),
+		Short: "Fund the validator rewards pool with the specified amount",
+		Example: fmt.Sprintf(
+			"%s tx distribution fund-validator-rewards-pool cosmosvaloper1x20lytyf6zkcrv5edpkfkn8sz578qg5sqfyqnp 100uatom --from mykey",
+			version.AppName,
+		),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			depositorAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
+			if err != nil {
+				return err
+			}
+
+			amount, err := sdk.ParseCoinsNormalized(args[1])
+			if err != nil {
+				return err
+			}
+
+			msg := types.NewMsgDepositValidatorRewardsPool(depositorAddr, args[0], amount)
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}

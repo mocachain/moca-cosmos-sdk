@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cometbft/cometbft/node"
 	"github.com/spf13/cobra"
 
+	"cosmossdk.io/store/rootmulti"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 )
 
 // tmpMigratingDir is a temporary directory to facilitate the migration.
@@ -40,16 +38,8 @@ the new application db will use plain DB store types.
 			if err != nil {
 				return err
 			}
-			config, err := serverconfig.GetConfig(ctx.Viper)
-			if err != nil {
-				return err
-			}
-			genDocProvider := node.DefaultGenesisDocProviderFunc(ctx.Config)
-			genDoc, err := genDocProvider()
-			if err != nil {
-				return err
-			}
-			app := appCreator(ctx.Logger, db, nil, genDoc.ChainID, &config, ctx.Viper)
+
+			app := appCreator(ctx.Logger, db, nil, ctx.Viper)
 
 			if err = app.CommitMultiStore().LoadLatestVersion(); err != nil {
 				return err

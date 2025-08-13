@@ -9,9 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	tmtypes "github.com/cometbft/cometbft/types"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -20,7 +20,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	authTx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/client/cli"
@@ -32,17 +32,17 @@ func GenTxCmd(mbm module.BasicManager, txEncCfg client.TxEncodingConfig, genBalI
 	fsCreateValidator, defaultsDesc := cli.CreateValidatorMsgFlagSet(ipDefault)
 
 	cmd := &cobra.Command{
-		Use:   "gentx [amount] [validator] [delegator] [relayer] [challenger] [blskey] [blsProof]",
+		Use:   "gentx [key_name] [amount] [validator] [delegator] [relayer] [challenger] [blskey] [blsProof]",
 		Short: "Generate a genesis tx carrying a self delegation",
-		Args:  cobra.ExactArgs(7),
+		Args:  cobra.ExactArgs(8),
 		Long: fmt.Sprintf(`Generate a genesis transaction that creates a validator with a self-delegation,
-that is signed by the key in the Keyring referenced by a given name. A node ID and Bech32 consensus
+that is signed by the key in the Keyring referenced by a given name. A node ID and consensus
 pubkey may optionally be provided. If they are omitted, they will be retrieved from the priv_validator.json
 file. The following default parameters are included:
     %s
 
 Example:
-$ %s gentx 1000000stake \
+$ %s gentx my-key-name 1000000stake \
 	0x6D967dc83b625603c963713eABd5B43A281E595e \
 	0x6D967dc83b625603c963713eABd5B43A281E595e \
 	0xcdd393723f1Af81faa3F3c87B51dAB72B6c68154 \
@@ -86,13 +86,13 @@ $ %s gentx 1000000stake \
 				}
 			}
 
-			genDoc, err := tmtypes.GenesisDocFromFile(config.GenesisFile())
+			appGenesis, err := types.AppGenesisFromFile(config.GenesisFile())
 			if err != nil {
 				return errors.Wrapf(err, "failed to read genesis doc file %s", config.GenesisFile())
 			}
 
 			var genesisState map[string]json.RawMessage
-			if err = json.Unmarshal(genDoc.AppState, &genesisState); err != nil {
+			if err = json.Unmarshal(appGenesis.AppState, &genesisState); err != nil {
 				return errors.Wrap(err, "failed to unmarshal genesis state")
 			}
 
@@ -102,43 +102,49 @@ $ %s gentx 1000000stake \
 
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 
+			name := args[0]
+			_, err = clientCtx.Keyring.Key(name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to fetch '%s' from the keyring", name)
+			}
+
 			moniker := config.Moniker
 			if m, _ := cmd.Flags().GetString(cli.FlagMoniker); m != "" {
 				moniker = m
 			}
 
 			// set flags for creating a gentx
-			createValCfg, err := cli.PrepareConfigForTxCreateValidator(cmd.Flags(), moniker, nodeID, genDoc.ChainID, valPubKey)
+			createValCfg, err := cli.PrepareConfigForTxCreateValidator(cmd.Flags(), moniker, nodeID, appGenesis.ChainID, valPubKey)
 			if err != nil {
 				return errors.Wrap(err, "error creating configuration to create validator msg")
 			}
 
-			amount := args[0]
+			amount := args[1]
 			coins, err := sdk.ParseCoinsNormalized(amount)
 			if err != nil {
 				return errors.Wrap(err, "failed to parse coins")
 			}
-			validator, err := sdk.AccAddressFromHexUnsafe(args[1])
+			validator, err := sdk.AccAddressFromHexUnsafe(args[2])
 			if err != nil {
 				return err
 			}
-			delegator, err := sdk.AccAddressFromHexUnsafe(args[2])
+			delegator, err := sdk.AccAddressFromHexUnsafe(args[3])
 			if err != nil {
 				return err
 			}
-			relayer, err := sdk.AccAddressFromHexUnsafe(args[3])
+			relayer, err := sdk.AccAddressFromHexUnsafe(args[4])
 			if err != nil {
 				return err
 			}
-			challenger, err := sdk.AccAddressFromHexUnsafe(args[4])
+			challenger, err := sdk.AccAddressFromHexUnsafe(args[5])
 			if err != nil {
 				return err
 			}
-			blsPk := args[5]
+			blsPk := args[6]
 			if len(blsPk) != 2*sdk.BLSPubKeyLength {
 				return fmt.Errorf("invalid bls pubkey")
 			}
-			blsProof := args[6]
+			blsProof := args[7]
 			if len(blsProof) != 2*sdk.BLSSignatureLength {
 				return fmt.Errorf("invalid bls proof, len: %d", len(blsProof))
 			}
@@ -184,8 +190,10 @@ $ %s gentx 1000000stake \
 			w := bytes.NewBuffer([]byte{})
 			clientCtx = clientCtx.WithOutput(w)
 
-			if err = msg.ValidateBasic(); err != nil {
-				return err
+			if m, ok := msg.(sdk.HasValidateBasic); ok {
+				if err := m.ValidateBasic(); err != nil {
+					return err
+				}
 			}
 
 			if err = txBldr.PrintUnsignedTx(clientCtx, msg); err != nil {
@@ -198,11 +206,16 @@ $ %s gentx 1000000stake \
 				return errors.Wrap(err, "failed to read unsigned gen tx file")
 			}
 
-			// sig verification will skip in the genesis block,
-			// but still need a data to be set in Tx to skip the basic validation.
-			underlyingTx := authTx.UnWrapTx(stdTx)
-			underlyingTx.Signatures = [][]byte{[]byte(fmt.Sprintf("genesis create validator [%s]", createValCfg.Moniker))}
-			stdTx = underlyingTx
+			// sign the transaction and write it to the output file
+			txBuilder, err := clientCtx.TxConfig.WrapTxBuilder(stdTx)
+			if err != nil {
+				return fmt.Errorf("error creating tx builder: %w", err)
+			}
+
+			err = authclient.SignTx(txFactory, clientCtx, name, txBuilder, true, true)
+			if err != nil {
+				return errors.Wrap(err, "failed to sign std tx")
+			}
 
 			outputDocument, _ := cmd.Flags().GetString(flags.FlagOutputDocument)
 			if outputDocument == "" {
@@ -225,6 +238,7 @@ $ %s gentx 1000000stake \
 	cmd.Flags().String(flags.FlagOutputDocument, "", "Write the genesis transaction JSON document to the given file instead of the default location")
 	cmd.Flags().AddFlagSet(fsCreateValidator)
 	flags.AddTxFlagsToCmd(cmd)
+	_ = cmd.Flags().MarkHidden(flags.FlagOutput) // signing makes sense to output only json
 
 	return cmd
 }

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math"
 
-	db "github.com/cometbft/cometbft-db"
+	db "github.com/cosmos/cosmos-db"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -20,9 +20,9 @@ const DefaultPage = 1
 // if the `limit` is not supplied, paginate will use `DefaultLimit`
 const DefaultLimit = 100
 
-// MaxLimit is the maximum limit the paginate function can handle
+// PaginationMaxLimit is the maximum limit the paginate function can handle
 // which equals the maximum value that can be stored in uint64
-const MaxLimit = math.MaxUint64
+var PaginationMaxLimit uint64 = math.MaxUint64
 
 // CheckOffsetQueryNotAllowed is used for checking query which offset/count total parameter is not allowed
 func CheckOffsetQueryNotAllowed(ctx sdk.Context, req *PageRequest) error {
@@ -62,42 +62,23 @@ func ParsePagination(pageReq *PageRequest) (page, limit int, err error) {
 func Paginate(
 	prefixStore types.KVStore,
 	pageRequest *PageRequest,
-	onResult func(key []byte, value []byte) error,
+	onResult func(key, value []byte) error,
 ) (*PageResponse, error) {
-	// if the PageRequest is nil, use default PageRequest
-	if pageRequest == nil {
-		pageRequest = &PageRequest{}
-	}
+	pageRequest = initPageRequestDefaults(pageRequest)
 
-	offset := pageRequest.Offset
-	key := pageRequest.Key
-	limit := pageRequest.Limit
-	countTotal := pageRequest.CountTotal
-	reverse := pageRequest.Reverse
-
-	if offset > 0 && key != nil {
+	if pageRequest.Offset > 0 && pageRequest.Key != nil {
 		return nil, fmt.Errorf("invalid request, either offset or key is expected, got both")
 	}
 
-	if limit == 0 {
-		limit = DefaultLimit
-		// do not count total results when the limit is zero/not supplied
-		// countTotal = true
-	} else if limit > DefaultLimit {
-		// limit to protect the node would not be Query DoS
-		limit = DefaultLimit
-	}
+	iterator := getIterator(prefixStore, pageRequest.Key, pageRequest.Reverse)
+	defer iterator.Close()
 
-	if len(key) != 0 {
-		iterator := getIterator(prefixStore, key, reverse)
-		defer iterator.Close()
+	var count uint64
+	var nextKey []byte
 
-		var count uint64
-		var nextKey []byte
-
+	if len(pageRequest.Key) != 0 {
 		for ; iterator.Valid(); iterator.Next() {
-
-			if count == limit {
+			if count == pageRequest.Limit {
 				nextKey = iterator.Key()
 				break
 			}
@@ -117,18 +98,12 @@ func Paginate(
 		}, nil
 	}
 
-	iterator := getIterator(prefixStore, nil, reverse)
-	defer iterator.Close()
-
-	end := offset + limit
-
-	var count uint64
-	var nextKey []byte
+	end := pageRequest.Offset + pageRequest.Limit
 
 	for ; iterator.Valid(); iterator.Next() {
 		count++
 
-		if count <= offset {
+		if count <= pageRequest.Offset {
 			continue
 		}
 		if count <= end {
@@ -139,7 +114,7 @@ func Paginate(
 		} else if count == end+1 {
 			nextKey = iterator.Key()
 
-			if !countTotal {
+			if !pageRequest.CountTotal {
 				break
 			}
 		}
@@ -149,7 +124,7 @@ func Paginate(
 	}
 
 	res := &PageResponse{NextKey: nextKey}
-	if countTotal {
+	if pageRequest.CountTotal {
 		res.Total = count
 	}
 
@@ -170,4 +145,30 @@ func getIterator(prefixStore types.KVStore, start []byte, reverse bool) db.Itera
 		return prefixStore.ReverseIterator(nil, end)
 	}
 	return prefixStore.Iterator(start, nil)
+}
+
+// initPageRequestDefaults initializes a PageRequest's defaults when those are not set.
+func initPageRequestDefaults(pageRequest *PageRequest) *PageRequest {
+	// if the PageRequest is nil, use default PageRequest
+	if pageRequest == nil {
+		pageRequest = &PageRequest{}
+	}
+
+	pageRequestCopy := *pageRequest
+	if len(pageRequestCopy.Key) == 0 {
+		pageRequestCopy.Key = nil
+	}
+
+	if pageRequestCopy.Limit == 0 {
+		pageRequestCopy.Limit = DefaultLimit
+
+		// count total results when the limit is zero/not supplied
+		pageRequestCopy.CountTotal = true
+	} else if pageRequestCopy.Limit > DefaultLimit {
+		// limit to protect the node would not be Query DoS
+		pageRequestCopy.Limit = DefaultLimit
+	}
+
+
+	return &pageRequestCopy
 }

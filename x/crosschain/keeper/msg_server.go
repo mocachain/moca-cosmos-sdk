@@ -4,7 +4,6 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
@@ -26,8 +25,7 @@ func (k msgServer) UpdateParams(goCtx context.Context, req *types.MsgUpdateParam
 		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), req.Authority)
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := k.SetParams(ctx, req.Params); err != nil {
+	if err := k.SetParams(goCtx, req.Params); err != nil {
 		return nil, err
 	}
 
@@ -39,8 +37,7 @@ func (k msgServer) UpdateChannelPermissions(goCtx context.Context, req *types.Ms
 		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), req.Authority)
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := k.UpdatePermissions(ctx, req.ChannelPermissions); err != nil {
+	if err := k.UpdatePermissions(goCtx, req.ChannelPermissions); err != nil {
 		return nil, err
 	}
 
@@ -52,8 +49,7 @@ func (k msgServer) MintModuleTokens(goCtx context.Context, req *types.MsgMintMod
 		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), req.Authority)
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := k.MintModuleAccountTokens(ctx, req.Amount); err != nil {
+	if err := k.MintModuleAccountTokens(goCtx, req.Amount); err != nil {
 		return nil, err
 	}
 

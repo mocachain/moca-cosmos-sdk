@@ -6,28 +6,24 @@ import (
 	"testing"
 	"time"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/0xPolygon/polygon-edge/bls"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/bits-and-blooms/bitset"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/willf/bitset"
-
-	otestutil "github.com/cosmos/cosmos-sdk/x/oracle/testutil"
-
-	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
-
-	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/cosmos/cosmos-sdk/x/mint"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-
-	"github.com/cosmos/cosmos-sdk/x/oracle/keeper"
-
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/cosmos-sdk/x/mint"
+	"github.com/cosmos/cosmos-sdk/x/oracle/keeper"
+	otestutil "github.com/cosmos/cosmos-sdk/x/oracle/testutil"
 	"github.com/cosmos/cosmos-sdk/x/oracle/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
@@ -63,7 +59,7 @@ func (s *TestSuite) SetupTest() {
 	s.crossChainKeeper = crossChainKeeper
 	s.stakingKeeper = stakingKeeper
 
-	s.oracleKeeper = keeper.NewKeeper(encCfg.Codec, key, "fee", types.ModuleName, crossChainKeeper, bankKeeper, stakingKeeper)
+	s.oracleKeeper = keeper.NewKeeper(encCfg.Codec, runtime.NewKVStoreService(key), "fee", types.ModuleName, crossChainKeeper, bankKeeper, stakingKeeper)
 
 	s.oracleKeeper.SetParams(s.ctx, types.DefaultParams())
 
@@ -95,10 +91,11 @@ func (s *TestSuite) TestProcessClaim() {
 	s.crossChainKeeper.EXPECT().GetDestMantleChainID().Return(sdk.ChainID(5000)).AnyTimes()
 	s.crossChainKeeper.EXPECT().GetDestArbitrumChainID().Return(sdk.ChainID(42161)).AnyTimes()
 	s.crossChainKeeper.EXPECT().GetDestOptimismChainID().Return(sdk.ChainID(10)).AnyTimes()
+	s.crossChainKeeper.EXPECT().GetDestBaseChainID().Return(sdk.ChainID(8453)).AnyTimes()
 	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).Return(stakingtypes.HistoricalInfo{
 		Header: s.ctx.BlockHeader(),
 		Valset: newValidators,
-	}, true).AnyTimes()
+	}, nil).AnyTimes()
 
 	validatorMap := make(map[string]int, 0)
 	for idx, validator := range newValidators {
@@ -182,7 +179,7 @@ func (s *TestSuite) TestKeeper_IsRelayerValid() {
 	s.stakingKeeper.EXPECT().GetHistoricalInfo(gomock.Any(), gomock.Any()).Return(stakingtypes.HistoricalInfo{
 		Header: s.ctx.BlockHeader(),
 		Valset: vals,
-	}, true).AnyTimes()
+	}, nil).AnyTimes()
 
 	val0Addr := vals[0].RelayerAddress
 	val1Addr := vals[1].RelayerAddress
@@ -275,7 +272,7 @@ func (s *TestSuite) TestKeeper_IsRelayerValid() {
 
 // Creates a new validators and asserts the error check.
 func newValidator(t *testing.T, operator sdk.AccAddress, pubKey cryptotypes.PubKey) stakingtypes.Validator {
-	v, err := stakingtypes.NewSimpleValidator(operator, pubKey, stakingtypes.Description{})
+	v, err := stakingtypes.NewSimpleValidator(operator.String(), pubKey, stakingtypes.Description{})
 	require.NoError(t, err)
 	return v
 }

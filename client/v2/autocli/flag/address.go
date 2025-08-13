@@ -2,21 +2,44 @@ package flag
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"cosmossdk.io/client/v2/autocli/keyring"
+
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/codec/types"
+	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type addressStringType struct{}
 
-func (a addressStringType) NewValue(_ context.Context, _ *Builder) Value {
-	return &addressValue{}
+func (a addressStringType) NewValue(ctx *context.Context, b *Builder) Value {
+	return &addressValue{ctx: ctx}
 }
 
 func (a addressStringType) DefaultValue() string {
 	return ""
 }
 
+type validatorAddressStringType struct{}
+
+func (a validatorAddressStringType) NewValue(ctx *context.Context, b *Builder) Value {
+	return &addressValue{ctx: ctx}
+}
+
+func (a validatorAddressStringType) DefaultValue() string {
+	return ""
+}
+
 type addressValue struct {
+	ctx *context.Context
+
 	value string
 }
 
@@ -28,12 +51,105 @@ func (a addressValue) String() string {
 	return a.value
 }
 
+// Set implements the flag.Value interface for addressValue.
 func (a *addressValue) Set(s string) error {
+	// we get the keyring on set, as in NewValue the context is the parent context (before RunE)
+	keyring := getKeyringFromCtx(a.ctx)
+	addr, err := keyring.LookupAddressByKeyName(s)
+	if err == nil {
+		addrStr := sdk.AccAddress(addr).String()
+
+		a.value = addrStr
+		return nil
+	}
+
+	_, err = sdk.AccAddressFromHexUnsafe(s)
+	if err != nil {
+		return fmt.Errorf("invalid account address or key name: %w", err)
+	}
+
 	a.value = s
-	// TODO handle bech32 validation
+
 	return nil
 }
 
 func (a addressValue) Type() string {
-	return "bech32 account address key name"
+	return "account address or key name"
+}
+
+type consensusAddressStringType struct{}
+
+func (a consensusAddressStringType) NewValue(ctx *context.Context, b *Builder) Value {
+	return &consensusAddressValue{
+		addressValue: addressValue{
+			ctx: ctx,
+		},
+	}
+}
+
+func (a consensusAddressStringType) DefaultValue() string {
+	return ""
+}
+
+type consensusAddressValue struct {
+	addressValue
+}
+
+func (a consensusAddressValue) Get(protoreflect.Value) (protoreflect.Value, error) {
+	return protoreflect.ValueOfString(a.value), nil
+}
+
+func (a consensusAddressValue) String() string {
+	return a.value
+}
+
+func (a *consensusAddressValue) Set(s string) error {
+	// we get the keyring on set, as in NewValue the context is the parent context (before RunE)
+	keyring := getKeyringFromCtx(a.ctx)
+	addr, err := keyring.LookupAddressByKeyName(s)
+	if err == nil {
+		addrStr := sdk.AccAddress(addr).String()
+
+		a.value = addrStr
+		return nil
+	}
+
+	_, err = sdk.AccAddressFromHexUnsafe(s)
+	if err == nil {
+		a.value = s
+		return nil
+	}
+
+	// fallback to pubkey parsing
+	registry := types.NewInterfaceRegistry()
+	cryptocodec.RegisterInterfaces(registry)
+	cdc := codec.NewProtoCodec(registry)
+
+	var pk cryptotypes.PubKey
+	err2 := cdc.UnmarshalInterfaceJSON([]byte(s), &pk)
+	if err2 != nil {
+		return fmt.Errorf("input isn't a pubkey (%w) or is an invalid account address (%w)", err, err2)
+	}
+
+	a.value = sdk.AccAddress(pk.Address()).String()
+
+	return nil
+}
+
+func getKeyringFromCtx(ctx *context.Context) keyring.Keyring {
+	dctx := *ctx
+	if dctx != nil {
+		if clientCtx := dctx.Value(client.ClientContextKey); clientCtx != nil {
+			k, err := sdkkeyring.NewAutoCLIKeyring(clientCtx.(*client.Context).Keyring)
+			if err != nil {
+				panic(fmt.Errorf("failed to create keyring: %w", err))
+			}
+
+			return k
+		} else if k := dctx.Value(keyring.KeyringContextKey); k != nil {
+			return k.(*keyring.KeyringImpl)
+		}
+	}
+
+	return keyring.NoKeyring{}
 }

@@ -33,7 +33,7 @@ func RegisterCrypto(cdc *codec.LegacyAmino) {
 	cdc.RegisterInterface((*cryptotypes.PrivKey)(nil), &amino.InterfaceOptions{Priority: []string{"ethermint/PrivKeyEthSecp256k1"}})
 	cdc.RegisterConcrete(sr25519.PrivKey{},
 		sr25519.PrivKeyName, nil)
-	cdc.RegisterConcrete(&ed25519.PrivKey{}, //nolint:staticcheck
+	cdc.RegisterConcrete(&ed25519.PrivKey{},
 		ed25519.PrivKeyName, nil)
 	cdc.RegisterConcrete(&secp256k1.PrivKey{},
 		secp256k1.PrivKeyName, nil)

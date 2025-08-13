@@ -6,7 +6,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/cosmos/cosmos-sdk/store/prefix"
+	"cosmossdk.io/store/prefix"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/x/gashub/types"
@@ -39,7 +40,7 @@ func (k Keeper) MsgGasParams(goCtx context.Context, req *types.QueryMsgGasParams
 			}
 		}
 	} else {
-		store := ctx.KVStore(k.storeKey)
+		store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
 		mgpStore := prefix.NewStore(store, types.MsgGasParamsPrefix)
 		mgps, pageRes, err := query.GenericFilteredPaginate(k.cdc, mgpStore, req.Pagination, func(key []byte, result *types.MsgGasParams) (*types.MsgGasParams, error) {
 			return result, nil

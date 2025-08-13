@@ -13,7 +13,7 @@ import (
 )
 
 // EthQueryHandler defines a function type which handles EVM json-rpc requests
-type EthQueryHandler = func(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error)
+type EthQueryHandler = func(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error)
 
 // EthQueryRouter routes eth Query requests to handlers
 type EthQueryRouter struct {
@@ -72,32 +72,32 @@ func (e *EthQueryRouter) RegisterConstHandler() {
 	e.AddRoute(EthSendRawTransaction, chainIdHandler)              // return dummy result
 }
 
-func blockNumberHandler(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error) {
-	var res abci.ResponseEthQuery
+func blockNumberHandler(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error) {
+	var res *abci.ResponseEthQuery
 	res.Response = big.NewInt(ctx.BlockHeight()).Bytes()
 	return res, nil
 }
 
-func gasPriceHandler(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error) {
-	var res abci.ResponseEthQuery
+func gasPriceHandler(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error) {
+	var res *abci.ResponseEthQuery
 	res.Response = big.NewInt(5e9).Bytes()
 	return res, nil
 }
 
-func estimateGasHandler(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error) {
-	var res abci.ResponseEthQuery
+func estimateGasHandler(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error) {
+	var res *abci.ResponseEthQuery
 	res.Response = big.NewInt(21000).Bytes()
 	return res, nil
 }
 
-func getTransactionCountHandler(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error) {
-	var res abci.ResponseEthQuery
+func getTransactionCountHandler(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error) {
+	var res *abci.ResponseEthQuery
 	res.Response = big.NewInt(1).Bytes()
 	return res, nil
 }
 
-func chainIdHandler(ctx sdk.Context, req cmtrpctypes.RPCRequest) (abci.ResponseEthQuery, error) {
-	var res abci.ResponseEthQuery
+func chainIdHandler(ctx sdk.Context, req *cmtrpctypes.RPCRequest) (*abci.ResponseEthQuery, error) {
+	var res *abci.ResponseEthQuery
 	eip155ChainID, err := sdk.ParseChainID(ctx.ChainID())
 	if err != nil {
 		return res, errorsmod.Wrap(sdkerrors.ErrInvalidChainID, err.Error())

@@ -5,7 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
+	mathrand "math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,7 +42,7 @@ var invalidStrs = []string{
 	types.Bech32PrefixConsPub + "6789",
 }
 
-func (s *addressTestSuite) testMarshal(original interface{}, res interface{}, marshal func() ([]byte, error), unmarshal func([]byte) error) {
+func (s *addressTestSuite) testMarshal(original, res interface{}, marshal func() ([]byte, error), unmarshal func([]byte) error) {
 	bz, err := marshal()
 	s.Require().Nil(err)
 	s.Require().Nil(unmarshal(bz))
@@ -216,7 +216,7 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyz"
 func RandString(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+		b[i] = letterBytes[mathrand.Intn(len(letterBytes))]
 	}
 	return string(b)
 }
@@ -439,25 +439,25 @@ func (s *addressTestSuite) TestAddressTypesEquals() {
 	valAddr2 := types.ValAddress(addr2)
 
 	// equality
-	s.Require().True(accAddr1.Equals(accAddr1))
-	s.Require().True(consAddr1.Equals(consAddr1))
-	s.Require().True(valAddr1.Equals(valAddr1))
+	s.Require().True(accAddr1.Equals(accAddr1))   //nolint:gocritic // checking if these are the same
+	s.Require().True(consAddr1.Equals(consAddr1)) //nolint:gocritic // checking if these are the same
+	s.Require().True(valAddr1.Equals(valAddr1))   //nolint:gocritic // checking if these are the same
 
 	// emptiness
-	s.Require().True(types.AccAddress{}.Equals(types.AccAddress{}))
+	s.Require().True(types.AccAddress{}.Equals(types.AccAddress{})) //nolint:gocritic // checking if these are the same
 	s.Require().True(types.AccAddress{}.Equals(types.AccAddress(nil)))
 	s.Require().True(types.AccAddress(nil).Equals(types.AccAddress{}))
-	s.Require().True(types.AccAddress(nil).Equals(types.AccAddress(nil)))
+	s.Require().True(types.AccAddress(nil).Equals(types.AccAddress(nil))) //nolint:gocritic // checking if these are the same
 
-	s.Require().True(types.ConsAddress{}.Equals(types.ConsAddress{}))
+	s.Require().True(types.ConsAddress{}.Equals(types.ConsAddress{})) //nolint:gocritic // checking if these are the same
 	s.Require().True(types.ConsAddress{}.Equals(types.ConsAddress(nil)))
 	s.Require().True(types.ConsAddress(nil).Equals(types.ConsAddress{}))
-	s.Require().True(types.ConsAddress(nil).Equals(types.ConsAddress(nil)))
+	s.Require().True(types.ConsAddress(nil).Equals(types.ConsAddress(nil))) //nolint:gocritic // checking if these are the same
 
-	s.Require().True(types.ValAddress{}.Equals(types.ValAddress{}))
+	s.Require().True(types.ValAddress{}.Equals(types.ValAddress{})) //nolint:gocritic // checking if these are the same
 	s.Require().True(types.ValAddress{}.Equals(types.ValAddress(nil)))
 	s.Require().True(types.ValAddress(nil).Equals(types.ValAddress{}))
-	s.Require().True(types.ValAddress(nil).Equals(types.ValAddress(nil)))
+	s.Require().True(types.ValAddress(nil).Equals(types.ValAddress(nil))) //nolint:gocritic // checking if these are the same
 
 	s.Require().False(accAddr1.Equals(accAddr2))
 	s.Require().Equal(accAddr1.Equals(accAddr2), accAddr2.Equals(accAddr1))

@@ -14,7 +14,7 @@ func (s *KeeperTestSuite) TestGRPCQueryValidator() {
 	require := s.Require()
 
 	validator := testutil.NewValidator(s.T(), sdk.AccAddress(PKs[0].Address().Bytes()), PKs[0])
-	keeper.SetValidator(ctx, validator)
+	require.NoError(keeper.SetValidator(ctx, validator))
 	var req *types.QueryValidatorRequest
 	testCases := []struct {
 		msg      string
@@ -25,6 +25,15 @@ func (s *KeeperTestSuite) TestGRPCQueryValidator() {
 			"empty request",
 			func() {
 				req = &types.QueryValidatorRequest{}
+			},
+			false,
+		},
+		{
+			"with valid and not existing address",
+			func() {
+				req = &types.QueryValidatorRequest{
+					ValidatorAddr: "0x871755eDC6FA6ffC92D4b78B540f01D63e84dcf5",
+				}
 			},
 			false,
 		},

@@ -1,12 +1,11 @@
 package types
 
 import (
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	"cosmossdk.io/errors"
 )
 
 // x/gov module sentinel errors
 var (
-	ErrUnknownProposal       = errors.Register(ModuleName, 2, "unknown proposal")
 	ErrInactiveProposal      = errors.Register(ModuleName, 3, "inactive proposal")
 	ErrAlreadyActiveProposal = errors.Register(ModuleName, 4, "proposal already active")
 	// Errors 5 & 6 are legacy errors related to v1beta1.Proposal.
@@ -19,21 +18,23 @@ var (
 	ErrNoProposalMsgs          = errors.Register(ModuleName, 11, "no messages proposed")
 	ErrInvalidProposalMsg      = errors.Register(ModuleName, 12, "invalid proposal message")
 	ErrInvalidSigner           = errors.Register(ModuleName, 13, "expected gov account as only signer for proposal message")
-	ErrInvalidSignalMsg        = errors.Register(ModuleName, 14, "signal message is invalid")
 	ErrMetadataTooLong         = errors.Register(ModuleName, 15, "metadata too long")
 	ErrMinDepositTooSmall      = errors.Register(ModuleName, 16, "minimum deposit is too small")
-)
+	ErrInvalidProposer         = errors.Register(ModuleName, 18, "invalid proposer")
+	ErrVotingPeriodEnded       = errors.Register(ModuleName, 20, "voting period already ended")
+	ErrInvalidProposal         = errors.Register(ModuleName, 21, "invalid proposal")
+	ErrSummaryTooLong          = errors.Register(ModuleName, 22, "summary too long")
+	ErrInvalidDepositDenom     = errors.Register(ModuleName, 23, "invalid deposit denom")
 
-var (
-	ErrEmptyChange = errors.Register(ModuleName, 22, "crosschain: change is empty")
-	ErrEmptyValue  = errors.Register(ModuleName, 23, "crosschain: value  is empty")
-	ErrEmptyTarget = errors.Register(ModuleName, 24, "crosschain: target is empty")
+	ErrEmptyChange = errors.Register(ModuleName, 24, "crosschain: change is empty")
+	ErrEmptyValue  = errors.Register(ModuleName, 25, "crosschain: value  is empty")
+	ErrEmptyTarget = errors.Register(ModuleName, 26, "crosschain: target is empty")
 
-	ErrAddressSizeNotMatch     = errors.Register(ModuleName, 25, "number of old address not equal to new addresses")
-	ErrAddressNotValid         = errors.Register(ModuleName, 26, "address format is not valid")
-	ErrExceedParamsChangeLimit = errors.Register(ModuleName, 27, "exceed params change limit")
-	ErrInvalidSyncParamPackage = errors.Register(ModuleName, 28, "invalid sync params package")
-	ErrInvalidValue            = errors.Register(ModuleName, 29, "decode hex value failed")
+	ErrAddressSizeNotMatch     = errors.Register(ModuleName, 27, "number of old address not equal to new addresses")
+	ErrAddressNotValid         = errors.Register(ModuleName, 28, "address format is not valid")
+	ErrExceedParamsChangeLimit = errors.Register(ModuleName, 29, "exceed params change limit")
+	ErrInvalidSyncParamPackage = errors.Register(ModuleName, 30, "invalid sync params package")
+	ErrInvalidValue            = errors.Register(ModuleName, 31, "decode hex value failed")
 
-	ErrChainNotSupported = errors.Register(ModuleName, 30, "crosschain: chain is not supported")
+	ErrChainNotSupported = errors.Register(ModuleName, 32, "crosschain: chain is not supported")
 )

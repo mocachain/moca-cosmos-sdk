@@ -11,16 +11,22 @@ import (
 func (k Keeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 	var moduleHoldings sdk.DecCoins
 
-	k.SetFeePool(ctx, data.FeePool)
+	err := k.FeePool.Set(ctx, data.FeePool)
+	if err != nil {
+		panic(err)
+	}
 
-	if err := k.SetParams(ctx, data.Params); err != nil {
+	if err := k.Params.Set(ctx, data.Params); err != nil {
 		panic(err)
 	}
 
 	for _, dwi := range data.DelegatorWithdrawInfos {
 		delegatorAddress := sdk.MustAccAddressFromHex(dwi.DelegatorAddress)
 		withdrawAddress := sdk.MustAccAddressFromHex(dwi.WithdrawAddress)
-		k.SetDelegatorWithdrawAddr(ctx, delegatorAddress, withdrawAddress)
+		err = k.SetDelegatorWithdrawAddr(ctx, delegatorAddress, withdrawAddress)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	var previousProposer sdk.ConsAddress
@@ -32,14 +38,19 @@ func (k Keeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 		}
 	}
 
-	k.SetPreviousProposerConsAddr(ctx, previousProposer)
+	if err = k.SetPreviousProposerConsAddr(ctx, previousProposer); err != nil {
+		panic(err)
+	}
 
 	for _, rew := range data.OutstandingRewards {
 		valAddr, err := sdk.AccAddressFromHexUnsafe(rew.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
-		k.SetValidatorOutstandingRewards(ctx, valAddr, types.ValidatorOutstandingRewards{Rewards: rew.OutstandingRewards})
+		err = k.SetValidatorOutstandingRewards(ctx, valAddr, types.ValidatorOutstandingRewards{Rewards: rew.OutstandingRewards})
+		if err != nil {
+			panic(err)
+		}
 		moduleHoldings = moduleHoldings.Add(rew.OutstandingRewards...)
 	}
 	for _, acc := range data.ValidatorAccumulatedCommissions {
@@ -47,21 +58,30 @@ func (k Keeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 		if err != nil {
 			panic(err)
 		}
-		k.SetValidatorAccumulatedCommission(ctx, valAddr, acc.Accumulated)
+		err = k.SetValidatorAccumulatedCommission(ctx, valAddr, acc.Accumulated)
+		if err != nil {
+			panic(err)
+		}
 	}
 	for _, his := range data.ValidatorHistoricalRewards {
 		valAddr, err := sdk.AccAddressFromHexUnsafe(his.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
-		k.SetValidatorHistoricalRewards(ctx, valAddr, his.Period, his.Rewards)
+		err = k.SetValidatorHistoricalRewards(ctx, valAddr, his.Period, his.Rewards)
+		if err != nil {
+			panic(err)
+		}
 	}
 	for _, cur := range data.ValidatorCurrentRewards {
 		valAddr, err := sdk.AccAddressFromHexUnsafe(cur.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
-		k.SetValidatorCurrentRewards(ctx, valAddr, cur.Rewards)
+		err = k.SetValidatorCurrentRewards(ctx, valAddr, cur.Rewards)
+		if err != nil {
+			panic(err)
+		}
 	}
 	for _, del := range data.DelegatorStartingInfos {
 		valAddr, err := sdk.AccAddressFromHexUnsafe(del.ValidatorAddress)
@@ -70,14 +90,20 @@ func (k Keeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 		}
 		delegatorAddress := sdk.MustAccAddressFromHex(del.DelegatorAddress)
 
-		k.SetDelegatorStartingInfo(ctx, valAddr, delegatorAddress, del.StartingInfo)
+		err = k.SetDelegatorStartingInfo(ctx, valAddr, delegatorAddress, del.StartingInfo)
+		if err != nil {
+			panic(err)
+		}
 	}
 	for _, evt := range data.ValidatorSlashEvents {
 		valAddr, err := sdk.AccAddressFromHexUnsafe(evt.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
-		k.SetValidatorSlashEvent(ctx, valAddr, evt.Height, evt.Period, evt.ValidatorSlashEvent)
+		err = k.SetValidatorSlashEvent(ctx, valAddr, evt.Height, evt.Period, evt.ValidatorSlashEvent)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	moduleHoldings = moduleHoldings.Add(data.FeePool.CommunityPool...)
@@ -93,18 +119,25 @@ func (k Keeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 	if balances.IsZero() {
 		k.authKeeper.SetModuleAccount(ctx, moduleAcc)
 	}
-	if !balances.IsEqual(moduleHoldingsInt) {
+	if !balances.Equal(moduleHoldingsInt) {
 		panic(fmt.Sprintf("distribution module balance does not match the module holdings: %s <-> %s", balances, moduleHoldingsInt))
 	}
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper.
 func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
-	feePool := k.GetFeePool(ctx)
-	params := k.GetParams(ctx)
+	feePool, err := k.FeePool.Get(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		panic(err)
+	}
 
 	dwi := make([]types.DelegatorWithdrawInfo, 0)
-	k.IterateDelegatorWithdrawAddrs(ctx, func(del sdk.AccAddress, addr sdk.AccAddress) (stop bool) {
+	k.IterateDelegatorWithdrawAddrs(ctx, func(del, addr sdk.AccAddress) (stop bool) {
 		dwi = append(dwi, types.DelegatorWithdrawInfo{
 			DelegatorAddress: del.String(),
 			WithdrawAddress:  addr.String(),
@@ -112,7 +145,11 @@ func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 		return false
 	})
 
-	pp := k.GetPreviousProposerConsAddr(ctx)
+	pp, err := k.GetPreviousProposerConsAddr(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	outstanding := make([]types.ValidatorOutstandingRewardsRecord, 0)
 
 	k.IterateValidatorOutstandingRewards(ctx,

@@ -83,10 +83,10 @@ Where proposal.json contains:
 			if err != nil {
 				return err
 			}
-			msg, err := govv1.NewMsgSubmitProposal([]sdk.Msg{contentMsg}, deposit, from.String(), "", content.Title, content.Description)
-			if err != nil {
-				return err
-			}
+			msg, err := govv1.NewMsgSubmitProposal([]sdk.Msg{contentMsg}, deposit, from.String(), "", content.Title, content.Description, false)
+			// if err != nil {
+			// 	return err
+			// }
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

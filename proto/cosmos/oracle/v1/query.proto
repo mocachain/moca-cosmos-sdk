@@ -50,6 +50,8 @@ enum ClaimSrcChain {
   CLAIM_SRC_CHAIN_ARBITRUM = 7;
   // CLAIM_SRC_CHAIN_OPTIMISM defines OPTIMISM source chain
   CLAIM_SRC_CHAIN_OPTIMISM = 8;
+  // CLAIM_SRC_CHAIN_BASE defines BASE source chain
+  CLAIM_SRC_CHAIN_BASE = 9;
 }
 
 // QueryInturnRelayerRequest is the request type for the Query In-turn relayer RPC method.

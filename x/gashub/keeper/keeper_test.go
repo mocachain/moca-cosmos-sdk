@@ -5,13 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttime "github.com/cometbft/cometbft/types/time"
 	"github.com/stretchr/testify/suite"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -41,13 +42,13 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	testCtx := testutil.DefaultContextWithDB(suite.T(), key, storetypes.NewTransientStoreKey("transient_test"))
-	ctx := testCtx.Ctx.WithBlockHeader(tmproto.Header{Time: cmttime.Now()})
+	ctx := testCtx.Ctx.WithBlockHeader(cmtproto.Header{Time: cmttime.Now()})
 	encCfg := moduletestutil.MakeTestEncodingConfig()
 
 	suite.ctx = ctx
 	suite.gashubKeeper = keeper.NewKeeper(
 		encCfg.Codec,
-		key,
+		runtime.NewKVStoreService(key),
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
@@ -66,7 +67,7 @@ func (suite *KeeperTestSuite) TestGetAuthority() {
 	NewKeeperWithAuthority := func(authority string) keeper.Keeper {
 		return keeper.NewKeeper(
 			moduletestutil.MakeTestEncodingConfig().Codec,
-			storetypes.NewKVStoreKey(types.StoreKey),
+			runtime.NewKVStoreService(storetypes.NewKVStoreKey(types.StoreKey)),
 			authority,
 		)
 	}

@@ -8,16 +8,17 @@ import (
 	"github.com/0xPolygon/polygon-edge/bls"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/votepool"
 	"github.com/stretchr/testify/require"
 
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-
+	"cosmossdk.io/depinject"
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 
-	"github.com/cometbft/cometbft/votepool"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/configurator"
 	"github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -59,21 +60,27 @@ func TestSlashingMsgs(t *testing.T) {
 		slashingKeeper keeper.Keeper
 	)
 
-	app, err := sims.SetupWithConfiguration(configurator.NewAppConfig(
-		configurator.ParamsModule(),
-		configurator.AuthModule(),
-		configurator.AuthzModule(),
-		configurator.StakingModule(),
-		configurator.SlashingModule(),
-		configurator.TxModule(),
-		configurator.ConsensusModule(),
-		configurator.BankModule()),
+	app, err := sims.SetupWithConfiguration(
+		depinject.Configs(
+			configurator.NewAppConfig(
+				configurator.ParamsModule(),
+				configurator.AuthModule(),
+				configurator.AuthzModule(),
+				configurator.StakingModule(),
+				configurator.SlashingModule(),
+				configurator.TxModule(),
+				configurator.ConsensusModule(),
+				configurator.BankModule(),
+			),
+			depinject.Supply(log.NewNopLogger()),
+		),
 		startupCfg, &stakingKeeper, &bankKeeper, &slashingKeeper)
+	require.NoError(t, err)
 
 	baseApp := app.BaseApp
 
-	ctxCheck := baseApp.NewContext(true, tmproto.Header{})
-	require.True(t, sdk.Coins{genCoin}.IsEqual(bankKeeper.GetAllBalances(ctxCheck, addr1)))
+	ctxCheck := baseApp.NewContext(true)
+	require.True(t, sdk.Coins{genCoin}.Equal(bankKeeper.GetAllBalances(ctxCheck, addr1)))
 
 	require.NoError(t, err)
 
@@ -86,38 +93,37 @@ func TestSlashingMsgs(t *testing.T) {
 	blsProof := hex.EncodeToString(blsProofBts)
 
 	createValidatorMsg, err := stakingtypes.NewMsgCreateValidator(
-		addr1, valKey.PubKey(),
-		bondCoin, description, commission, sdk.OneInt(),
+		addr1.String(), valKey.PubKey(),
+		bondCoin, description, commission, math.OneInt(),
 		addr1, addr1, addr1, addr1, blsPk, blsProof,
 	)
 	require.NoError(t, err)
 
-	header := tmproto.Header{ChainID: sdktestutil.DefaultChainId, Height: app.LastBlockHeight() + 1}
-	txConfig := moduletestutil.MakeTestEncodingConfig().TxConfig
+	header := cmtproto.Header{ChainID: sdktestutil.DefaultChainId, Height: 0}
+	txConfig := moduletestutil.MakeTestTxConfig()
 	_, _, err = sims.SignCheckDeliver(t, txConfig, app.BaseApp, header, []sdk.Msg{createValidatorMsg}, sdktestutil.DefaultChainId, []uint64{0}, []uint64{0}, true, true, []cryptotypes.PrivKey{priv1}, sims.SetMockHeight(app.BaseApp, 0))
 	require.NoError(t, err)
-	ctxCheck = baseApp.NewContext(true, tmproto.Header{})
-	require.True(t, sdk.Coins{genCoin.Sub(bondCoin)}.IsEqual(bankKeeper.GetAllBalances(ctxCheck, addr1)))
+	ctxCheck = baseApp.NewContext(true)
+	require.True(t, sdk.Coins{genCoin.Sub(bondCoin)}.Equal(bankKeeper.GetAllBalances(ctxCheck, addr1)))
 
-	header = tmproto.Header{ChainID: sdktestutil.DefaultChainId, Height: app.LastBlockHeight() + 1}
-	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: app.LastBlockHeight() + 1})
 
-	ctxCheck = baseApp.NewContext(true, tmproto.Header{})
-	validator, found := stakingKeeper.GetValidator(ctxCheck, addr1)
-	require.True(t, found)
+	ctxCheck = baseApp.NewContext(true)
+	validator, err := stakingKeeper.GetValidator(ctxCheck, addr1)
+	require.NoError(t, err)
+
 	require.Equal(t, addr1.String(), validator.OperatorAddress)
 	require.Equal(t, stakingtypes.Bonded, validator.Status)
 	require.True(math.IntEq(t, bondTokens, validator.BondedTokens()))
 	unjailMsg := &types.MsgUnjail{ValidatorAddr: addr1.String()}
 
-	ctxCheck = app.BaseApp.NewContext(true, tmproto.Header{})
-	_, found = slashingKeeper.GetValidatorSigningInfo(ctxCheck, sdk.ConsAddress(valAddr))
-	require.True(t, found)
+	ctxCheck = app.BaseApp.NewContext(true)
+	_, err = slashingKeeper.GetValidatorSigningInfo(ctxCheck, sdk.ConsAddress(valAddr))
+	require.NoError(t, err)
 
 	// unjail should fail with unknown validator
-	header = tmproto.Header{ChainID: sdktestutil.DefaultChainId, Height: app.LastBlockHeight() + 1}
-	_, res, err := sims.SignCheckDeliver(t, txConfig, app.BaseApp, header, []sdk.Msg{unjailMsg}, sdktestutil.DefaultChainId, []uint64{0}, []uint64{1}, false, false, []cryptotypes.PrivKey{priv1}, sims.SetMockHeight(app.BaseApp, 0))
+	header = cmtproto.Header{ChainID: sdktestutil.DefaultChainId, Height: app.LastBlockHeight() + 1}
+	_, _, err = sims.SignCheckDeliver(t, txConfig, app.BaseApp, header, []sdk.Msg{unjailMsg}, sdktestutil.DefaultChainId, []uint64{0}, []uint64{1}, false, false, []cryptotypes.PrivKey{priv1}, sims.SetMockHeight(app.BaseApp, 0))
 	require.Error(t, err)
-	require.Nil(t, res)
 	require.True(t, errors.Is(types.ErrValidatorNotJailed, err))
 }

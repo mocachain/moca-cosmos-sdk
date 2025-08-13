@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdkmath "cosmossdk.io/math"
+	"cosmossdk.io/x/feegrant"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
@@ -17,14 +18,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/group"
 )
 
 func TestEIP712Handler(t *testing.T) {
-	privKey, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
-	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
+	privKey, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(t)
+	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(t)
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &banktypes.MsgSend{})
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
@@ -53,7 +53,6 @@ func TestEIP712Handler(t *testing.T) {
 	}
 
 	fee := txtypes.Fee{Amount: sdk.NewCoins(sdk.NewInt64Coin("atom", 150)), GasLimit: 20000}
-	tip := &txtypes.Tip{Amount: sdk.NewCoins(sdk.NewInt64Coin("tip-token", 10))}
 
 	err := txBuilder.SetMsgs(testMsg)
 	require.NoError(t, err)
@@ -61,7 +60,6 @@ func TestEIP712Handler(t *testing.T) {
 	txBuilder.SetFeeAmount(fee.Amount)
 	txBuilder.SetFeePayer(feePayerAddr)
 	txBuilder.SetGasLimit(fee.GasLimit)
-	txBuilder.SetTip(tip)
 
 	err = txBuilder.SetSignatures(sig, feePayerSig)
 	require.NoError(t, err)
@@ -122,8 +120,8 @@ func TestEIP712ModeHandler_nonDIRECT_MODE(t *testing.T) {
 }
 
 func TestMoreMsgs(t *testing.T) {
-	_, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
-	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
+	_, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(t)
+	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(t)
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &vesting.MsgCreateVestingAccount{})
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &govtypes.MsgSubmitProposal{})
@@ -187,6 +185,7 @@ func TestMoreMsgs(t *testing.T) {
 		"test",
 		"test",
 		"test",
+		false,
 	)
 	expiration := time.Now()
 	basic := feegrant.BasicAllowance{
@@ -228,8 +227,8 @@ func TestMoreMsgs(t *testing.T) {
 }
 
 func TestMultiMsgs(t *testing.T) {
-	_, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
-	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
+	_, pubkey, addr := testdata.KeyTestPubAddrEthSecp256k1(t)
+	_, feePayerPubKey, feePayerAddr := testdata.KeyTestPubAddrEthSecp256k1(t)
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &vesting.MsgCreateVestingAccount{})
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &govtypes.MsgSubmitProposal{})
@@ -293,6 +292,7 @@ func TestMultiMsgs(t *testing.T) {
 		"test",
 		"test",
 		"test",
+		false,
 	)
 	expiration := time.Now()
 	basic := feegrant.BasicAllowance{

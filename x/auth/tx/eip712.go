@@ -60,15 +60,10 @@ func (signModeEip712Handler) Modes() []signingtypes.SignMode {
 
 // GetSignBytes implements SignModeHandler.GetSignBytes
 func (h signModeEip712Handler) GetSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
-	return getSignBytes(mode, signerData, tx, false)
+	return getSignBytes(mode, signerData, tx)
 }
 
-// GetSignBytesRuntime implements SignModeHandler.GetSignBytesRuntime
-func (h signModeEip712Handler) GetSignBytesRuntime(ctx sdk.Context, mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
-	return getSignBytes(mode, signerData, tx, true)
-}
-
-func getSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx, isAltai bool) ([]byte, error) {
+func getSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx sdk.Tx) ([]byte, error) {
 	if mode != signingtypes.SignMode_SIGN_MODE_EIP_712 {
 		return nil, fmt.Errorf("expected %s, got %s", signingtypes.SignMode_SIGN_MODE_EIP_712, mode)
 	}
@@ -85,9 +80,6 @@ func getSignBytes(mode signingtypes.SignMode, signerData signing.SignerData, tx 
 
 	typedDataDomain := *domain
 	typedDataDomain.ChainId = math.NewHexOrDecimal256(chainID.Int64())
-	if isAltai {
-		typedDataDomain.VerifyingContract = gnfdVerifyingContract
-	}
 
 	typedData, err := WrapTxToTypedData(signDoc, msgTypes, typedDataDomain)
 	if err != nil {
@@ -117,11 +109,10 @@ func GetMsgTypes(signerData signing.SignerData, tx sdk.Tx, typedChainID *big.Int
 		Fee: types.Fee{
 			Amount:   protoTx.GetFee(),
 			GasLimit: protoTx.GetGas(),
-			Payer:    protoTx.FeePayer().String(),
-			Granter:  protoTx.FeeGranter().String(),
+			Payer:    string(protoTx.FeePayer()),
+			Granter:  string(protoTx.FeeGranter()),
 		},
 		Memo: protoTx.GetMemo(),
-		Tip:  protoTx.GetTip(),
 		Msgs: msgAnys,
 	}
 
@@ -627,7 +618,7 @@ var (
 	addressType      = reflect.TypeOf(common.Address{})
 	bigIntType       = reflect.TypeOf(big.Int{})
 	cosmosIntType    = reflect.TypeOf(sdkmath.Int{})
-	cosmosDecType    = reflect.TypeOf(sdk.Dec{})
+	cosmosDecType    = reflect.TypeOf(sdkmath.LegacyDec{})
 	cosmosAnyType    = reflect.TypeOf(&codectypes.Any{})
 	timeType         = reflect.TypeOf(time.Time{})
 	timePtrType      = reflect.TypeOf(&time.Time{})

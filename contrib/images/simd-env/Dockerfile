@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine AS build
+FROM golang:1.21-alpine AS build
 
 ARG GH_TOKEN=""
 
@@ -11,7 +11,10 @@ COPY math/go.mod math/go.sum /work/math/
 COPY api/go.mod api/go.sum /work/api/
 COPY core/go.mod core/go.sum /work/core/
 COPY depinject/go.mod depinject/go.sum /work/depinject/
-COPY tx/go.mod tx/go.sum /work/tx/
+COPY collections/go.mod collections/go.sum /work/collections/
+COPY store/go.mod store/go.sum /work/store/
+COPY log/go.mod log/go.sum /work/log/
+COPY x/tx/go.mod x/tx/go.sum /work/x/tx/
 
 RUN go env -w GOPRIVATE="github.com/zkMeLabs/*"
 RUN git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"

@@ -49,7 +49,11 @@ func (vtsd ValidateTxSizeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		}
 		n := len(sigs)
 
-		for i := range sigTx.GetSigners() {
+		signers, err := sigTx.GetSigners()
+		if err != nil {
+			return ctx, err
+		}
+		for i := range signers {
 			if i < n {
 				if isIncompleteSignature(sigs[i].Data) {
 					txSize += EthSecp256k1SigSize

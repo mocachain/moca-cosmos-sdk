@@ -72,6 +72,10 @@ Examples:
 				return err
 			}
 
+			if strings.EqualFold(args[0], clientCtx.GetFromAddress().String()) {
+				return errors.New("grantee and granter should be different")
+			}
+
 			grantee, err := sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
@@ -99,7 +103,16 @@ Examples:
 					return err
 				}
 
-				allowed, err := bech32toAccAddresses(allowList)
+				// check for duplicates
+				for i := 0; i < len(allowList); i++ {
+					for j := i + 1; j < len(allowList); j++ {
+						if allowList[i] == allowList[j] {
+							return fmt.Errorf("duplicate address %s in allow-list", allowList[i])
+						}
+					}
+				}
+
+				allowed, err := hexToAccAddresses(allowList)
 				if err != nil {
 					return err
 				}
@@ -297,17 +310,4 @@ func hexToAccAddresses(validators []string) ([]sdk.AccAddress, error) {
 		accs[i] = addr
 	}
 	return accs, nil
-}
-
-// bech32toAccAddresses returns []AccAddress from a list of Bech32 string addresses.
-func bech32toAccAddresses(accAddrs []string) ([]sdk.AccAddress, error) {
-	addrs := make([]sdk.AccAddress, len(accAddrs))
-	for i, addr := range accAddrs {
-		accAddr, err := sdk.AccAddressFromHexUnsafe(addr)
-		if err != nil {
-			return nil, err
-		}
-		addrs[i] = accAddr
-	}
-	return addrs, nil
 }

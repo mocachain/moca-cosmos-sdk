@@ -1,18 +1,18 @@
 package testdata
 
 import (
-	"encoding/json"
+	"testing"
 
-	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 	"pgregory.net/rapid"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256r1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 )
 
 // AddressGenerator creates and returns a random address generator using rapid.
@@ -45,19 +45,19 @@ func KeyTestPubAddr() (cryptotypes.PrivKey, cryptotypes.PubKey, sdk.AccAddress) 
 }
 
 // KeyTestPubAddrSecp256R1 generates a new secp256r1 keypair.
-func KeyTestPubAddrSecp256R1(require *require.Assertions) (cryptotypes.PrivKey, cryptotypes.PubKey, sdk.AccAddress) {
+func KeyTestPubAddrSecp256R1(t *testing.T) (cryptotypes.PrivKey, cryptotypes.PubKey, sdk.AccAddress) {
 	key, err := secp256r1.GenPrivKey()
-	require.NoError(err)
+	assert.NilError(t, err)
 	pub := key.PubKey()
 	addr := sdk.AccAddress(pub.Address())
 	return key, pub, addr
 }
 
 // KeyTestPubAddrEthSecp256k1 generates a new eth_secp256k1 keypair.
-func KeyTestPubAddrEthSecp256k1(require *require.Assertions) (cryptotypes.PrivKey, cryptotypes.PubKey, sdk.AccAddress) {
+func KeyTestPubAddrEthSecp256k1(t *testing.T) (cryptotypes.PrivKey, cryptotypes.PubKey, sdk.AccAddress) {
 	key, err := ethsecp256k1.GenPrivKey()
-	if require != nil {
-		require.NoError(err)
+	if t != nil {
+		assert.NilError(t, err)
 	}
 	pub := key.PubKey()
 	addr := sdk.AccAddress(pub.Address())
@@ -88,16 +88,6 @@ func NewTestMsg(addrs ...sdk.AccAddress) *TestMsg {
 }
 
 var _ sdk.Msg = (*TestMsg)(nil)
-
-func (msg *TestMsg) Route() string { return "TestMsg" }
-func (msg *TestMsg) Type() string  { return "Test message" }
-func (msg *TestMsg) GetSignBytes() []byte {
-	bz, err := json.Marshal(msg.Signers)
-	if err != nil {
-		panic(err)
-	}
-	return sdk.MustSortJSON(bz)
-}
 
 func (msg *TestMsg) GetSigners() []sdk.AccAddress {
 	signers := make([]sdk.AccAddress, 0, len(msg.Signers))

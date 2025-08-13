@@ -5,17 +5,15 @@ import (
 	"math"
 	"testing"
 
-	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmjson "github.com/cometbft/cometbft/libs/json"
-	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/depinject"
-	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
-
-	store "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
+	store "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	baseapptestutil "github.com/cosmos/cosmos-sdk/baseapp/testutil"
@@ -26,6 +24,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
+	"github.com/cosmos/cosmos-sdk/testutil/configurator"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -34,7 +33,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	_ "github.com/cosmos/cosmos-sdk/x/authz/module" // import consensus as a blank
+	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
+	_ "github.com/cosmos/cosmos-sdk/x/authz/module" // import authz as a blank
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
@@ -68,7 +68,7 @@ func TestBaseApp_BlockGas(t *testing.T) {
 		{"less than block gas meter", 10, false, false},
 		{"more than block gas meter", blockMaxGas, false, true},
 		{"more than block gas meter", uint64(float64(blockMaxGas) * 1.2), false, true},
-		{"consume MaxUint64", math.MaxUint64, false, true},
+		{"consume MaxUint64", math.MaxUint64, true, true},
 		{"consume MaxGasWanted", txtypes.MaxGasWanted, false, true},
 		{"consume block gas when panicked", 10, true, true},
 	}
@@ -81,25 +81,33 @@ func TestBaseApp_BlockGas(t *testing.T) {
 			appBuilder        *runtime.AppBuilder
 			txConfig          client.TxConfig
 			cdc               codec.Codec
-			pcdc              codec.ProtoCodecMarshaler
 			interfaceRegistry codectypes.InterfaceRegistry
 			err               error
 		)
 
-		appConfig := depinject.Configs(makeTestConfig())
-
-		err = depinject.Inject(appConfig,
+		err = depinject.Inject(
+			depinject.Configs(
+				configurator.NewAppConfig(
+					configurator.AuthModule(),
+					configurator.AuthzModule(),
+					configurator.TxModule(),
+					configurator.ParamsModule(),
+					configurator.ConsensusModule(),
+					configurator.BankModule(),
+					configurator.StakingModule(),
+				),
+				depinject.Supply(log.NewNopLogger()),
+			),
 			&bankKeeper,
 			&accountKeeper,
 			&authzKeeper,
 			&interfaceRegistry,
 			&txConfig,
 			&cdc,
-			&pcdc,
 			&appBuilder)
 		require.NoError(t, err)
 
-		bapp := appBuilder.Build(log.NewNopLogger(), dbm.NewMemDB(), nil, baseapp.SetChainID(testutil.DefaultChainId))
+		bapp := appBuilder.Build(dbm.NewMemDB(), nil, baseapp.SetChainID(testutil.DefaultChainId))
 		err = bapp.Load(true)
 		require.NoError(t, err)
 
@@ -112,23 +120,23 @@ func TestBaseApp_BlockGas(t *testing.T) {
 			})
 
 			genState := GenesisStateWithSingleValidator(t, cdc, appBuilder)
-			stateBytes, err := tmjson.MarshalIndent(genState, "", " ")
+			stateBytes, err := cmtjson.MarshalIndent(genState, "", " ")
 			require.NoError(t, err)
-			bapp.InitChain(abci.RequestInitChain{
+			bapp.InitChain(&abci.RequestInitChain{
 				ChainId:         testutil.DefaultChainId,
 				Validators:      []abci.ValidatorUpdate{},
 				ConsensusParams: simtestutil.DefaultConsensusParams,
 				AppStateBytes:   stateBytes,
 			})
 
-			ctx := bapp.NewContext(false, tmproto.Header{ChainID: testutil.DefaultChainId})
+			ctx := bapp.NewContext(false).WithChainID(testutil.DefaultChainId)
 
 			// tx fee
-			feeCoin := sdk.NewCoin("atom", sdk.NewInt(150))
+			feeCoin := sdk.NewCoin("atom", sdkmath.NewInt(150))
 			feeAmount := sdk.NewCoins(feeCoin)
 
 			// test account and fund
-			priv1, _, addr1 := testdata.KeyTestPubAddrEthSecp256k1(require.New(t))
+			priv1, _, addr1 := testdata.KeyTestPubAddrEthSecp256k1(t)
 			err = bankKeeper.MintCoins(ctx, minttypes.ModuleName, feeAmount)
 			require.NoError(t, err)
 			err = bankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, addr1, feeAmount)
@@ -148,39 +156,39 @@ func TestBaseApp_BlockGas(t *testing.T) {
 
 			require.NoError(t, txBuilder.SetMsgs(msg))
 			txBuilder.SetFeeAmount(feeAmount)
-			txBuilder.SetGasLimit(txtypes.MaxGasWanted) // tx validation checks that gasLimit can't be bigger than this
+			txBuilder.SetGasLimit(uint64(simtestutil.DefaultConsensusParams.Block.MaxGas))
 
 			senderAccountNumber := accountKeeper.GetAccount(ctx, addr1).GetAccountNumber()
 			privs, accNums, accSeqs := []cryptotypes.PrivKey{priv1}, []uint64{senderAccountNumber}, []uint64{0}
 			_, txBytes, err := createTestTx(txConfig, txBuilder, privs, accNums, accSeqs, ctx.ChainID())
 			require.NoError(t, err)
 
-			bapp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{ChainID: testutil.DefaultChainId, Height: 1}})
-			rsp := bapp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+			rsp, err := bapp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1, Txs: [][]byte{txBytes}})
+			require.NoError(t, err)
 
 			// check result
-			ctx = bapp.GetContextForDeliverTx(txBytes)
+			ctx = bapp.GetContextForFinalizeBlock(txBytes)
 			okValue := ctx.KVStore(bapp.UnsafeFindStoreKey(banktypes.ModuleName)).Get([]byte("ok"))
 
 			if tc.expErr {
 				if tc.panicTx {
-					require.Equal(t, sdkerrors.ErrPanic.ABCICode(), rsp.Code)
+					require.Equal(t, sdkerrors.ErrPanic.ABCICode(), rsp.TxResults[0].Code)
 				} else {
-					require.Equal(t, sdkerrors.ErrOutOfGas.ABCICode(), rsp.Code)
+					require.Equal(t, sdkerrors.ErrOutOfGas.ABCICode(), rsp.TxResults[0].Code)
 				}
 				require.Empty(t, okValue)
 			} else {
-				require.Equal(t, uint32(0), rsp.Code)
+				require.Equal(t, uint32(0), rsp.TxResults[0].Code)
 				require.Equal(t, []byte("ok"), okValue)
 			}
 			// check block gas is always consumed
-			baseGas := uint64(3530) // baseGas is the gas consumed before tx msg
+			baseGas := uint64(3480) // baseGas is the gas consumed before tx msg
 			expGasConsumed := addUint64Saturating(tc.gasToConsume, baseGas)
-			if expGasConsumed > txtypes.MaxGasWanted {
+			if expGasConsumed > uint64(simtestutil.DefaultConsensusParams.Block.MaxGas) {
 				// capped by gasLimit
-				expGasConsumed = txtypes.MaxGasWanted
+				expGasConsumed = uint64(simtestutil.DefaultConsensusParams.Block.MaxGas)
 			}
-			require.Equal(t, expGasConsumed, ctx.BlockGasMeter().GasConsumed())
+			require.Equal(t, int(expGasConsumed), int(ctx.BlockGasMeter().GasConsumed()))
 			// tx fee is always deducted
 			require.Equal(t, int64(0), bankKeeper.GetBalance(ctx, addr1, feeCoin.Denom).Amount.Int64())
 			// sender's sequence is always increased
@@ -191,7 +199,11 @@ func TestBaseApp_BlockGas(t *testing.T) {
 	}
 }
 
-func createTestTx(txConfig client.TxConfig, txBuilder client.TxBuilder, privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, []byte, error) {
+func createTestTx(txConfig client.TxConfig, txBuilder client.TxBuilder, privs []cryptotypes.PrivKey, accNums, accSeqs []uint64, chainID string) (xauthsigning.Tx, []byte, error) {
+	defaultSignMode, err := xauthsigning.APISignModeToInternal(txConfig.SignModeHandler().DefaultMode())
+	if err != nil {
+		return nil, nil, err
+	}
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	var sigsV2 []signing.SignatureV2
@@ -199,7 +211,7 @@ func createTestTx(txConfig client.TxConfig, txBuilder client.TxBuilder, privs []
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
 			Data: &signing.SingleSignatureData{
-				SignMode:  txConfig.SignModeHandler().DefaultMode(),
+				SignMode:  defaultSignMode,
 				Signature: nil,
 			},
 			Sequence: accSeqs[i],
@@ -207,7 +219,7 @@ func createTestTx(txConfig client.TxConfig, txBuilder client.TxBuilder, privs []
 
 		sigsV2 = append(sigsV2, sigV2)
 	}
-	err := txBuilder.SetSignatures(sigsV2...)
+	err = txBuilder.SetSignatures(sigsV2...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -220,9 +232,10 @@ func createTestTx(txConfig client.TxConfig, txBuilder client.TxBuilder, privs []
 			ChainID:       chainID,
 			AccountNumber: accNums[i],
 			Sequence:      accSeqs[i],
+			PubKey:        priv.PubKey(),
 		}
 		sigV2, err := tx.SignWithPrivKey(
-			txConfig.SignModeHandler().DefaultMode(), signerData,
+			context.TODO(), defaultSignMode, signerData,
 			txBuilder, priv, txConfig, accSeqs[i])
 		if err != nil {
 			return nil, nil, err

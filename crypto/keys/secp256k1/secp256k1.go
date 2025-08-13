@@ -10,7 +10,9 @@ import (
 
 	"github.com/cometbft/cometbft/crypto"
 	secp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"golang.org/x/crypto/ripemd160" //nolint: staticcheck
+	"golang.org/x/crypto/ripemd160" //nolint: staticcheck // keep around for backwards compatibility
+
+	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -138,7 +140,7 @@ func GenPrivKeyFromSecret(secret []byte) *PrivKey {
 	return &PrivKey{Key: privKey32}
 }
 
-// -------------------------------------
+//-------------------------------------
 
 var (
 	_ cryptotypes.PubKey   = &PubKey{}
@@ -186,7 +188,7 @@ func (pubKey PubKey) MarshalAmino() ([]byte, error) {
 // UnmarshalAmino overrides Amino binary marshaling.
 func (pubKey *PubKey) UnmarshalAmino(bz []byte) error {
 	if len(bz) != PubKeySize {
-		return errors.Wrap(errors.ErrInvalidPubKey, "invalid pubkey size")
+		return errorsmod.Wrap(errors.ErrInvalidPubKey, "invalid pubkey size")
 	}
 	pubKey.Key = bz
 

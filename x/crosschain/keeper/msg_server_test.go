@@ -1,7 +1,7 @@
 package keeper_test
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 )
 
@@ -23,7 +23,7 @@ func (s *TestSuite) TestUpdateParams() {
 			request: &types.MsgUpdateParams{
 				Authority: s.crossChainKeeper.GetAuthority(),
 				Params: types.Params{
-					InitModuleBalance: sdk.NewInt(-1),
+					InitModuleBalance: math.NewInt(-1),
 				},
 			},
 			expectErr: true,
@@ -33,7 +33,7 @@ func (s *TestSuite) TestUpdateParams() {
 			request: &types.MsgUpdateParams{
 				Authority: s.crossChainKeeper.GetAuthority(),
 				Params: types.Params{
-					InitModuleBalance: sdk.NewInt(1000),
+					InitModuleBalance: math.NewInt(1000),
 				},
 			},
 			expectErr: false,

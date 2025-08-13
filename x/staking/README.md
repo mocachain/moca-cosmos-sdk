@@ -75,14 +75,14 @@ Store entries prefixed with "Last" must remain unchanged until EndBlock.
 
 ### ValidatorUpdates
 
-ValidatorUpdates contains the validator updates returned to ABCI at the end of every block. 
-The values are overwritten in every block. 
+ValidatorUpdates contains the validator updates returned to ABCI at the end of every block.
+The values are overwritten in every block.
 
 * ValidatorUpdates `0x61 -> []abci.ValidatorUpdate`
 
 ### UnbondingID
 
-UnbondingID stores the ID of the latest unbonding operation. It enables to create unique IDs for unbonding operation, i.e., UnbondingID is incremented every time a new unbonding operation (validator unbonding, unbonding delegation, redelegation) is initiated.
+UnbondingID stores the ID of the latest unbonding operation. It enables creating unique IDs for unbonding operations, i.e., UnbondingID is incremented every time a new unbonding operation (validator unbonding, unbonding delegation, redelegation) is initiated.
 
 * UnbondingID: `0x37 -> uint64`
 
@@ -114,6 +114,10 @@ Validators can have one of three statuses
   tombstoning, an unbonding of all their delegations begins. All delegations must then wait the UnbondingTime
   before their tokens are moved to their accounts from the `BondedPool`.
 
+:::warning
+Tombstoning is permanent, once tombstoned a validator's consensus key can not be reused within the chain where the tombstoning happened.
+:::
+
 Validators objects should be primarily stored and accessed by the
 `OperatorAddr`, an SDK validator address for the operator of the validator. Two
 additional indices are maintained per validator object in order to fulfill
@@ -133,7 +137,7 @@ associated validator, where the public key of that validator can change in the
 future. Delegators can refer to the immutable operator of the validator, without
 concern for the changing public key.
 
-`ValidatorsByUnbondingID` is an additional index that enables lookups for 
+`ValidatorsByUnbondingID` is an additional index that enables lookups for
  validators by the unbonding IDs corresponding to their current unbonding.
 
 `ValidatorByConsAddr` is an additional index that enables lookups for slashing.
@@ -178,7 +182,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 #### Delegator Shares
 
-When one Delegates tokens to a Validator they are issued a number of delegator shares based on a
+When one delegates tokens to a Validator, they are issued a number of delegator shares based on a
 dynamic exchange rate, calculated as follows from the total number of tokens delegated to the
 validator and the number of shares issued so far:
 
@@ -192,7 +196,7 @@ hold and the inverse exchange rate:
 
 These `Shares` are simply an accounting mechanism. They are not a fungible asset. The reason for
 this mechanism is to simplify the accounting around slashing. Rather than iteratively slashing the
-tokens of every delegation entry, instead the Validators total bonded tokens can be slashed,
+tokens of every delegation entry, instead the Validator's total bonded tokens can be slashed,
 effectively reducing the value of each issued delegator share.
 
 ### UnbondingDelegation
@@ -213,8 +217,8 @@ detected.
  unbonding delegations associated with a given validator that need to be
  slashed.
 
- `UnbondingDelegationByUnbondingId` is an additional index that enables 
- lookups for unbonding delegations by the unbonding IDs of the containing 
+ `UnbondingDelegationByUnbondingId` is an additional index that enables
+ lookups for unbonding delegations by the unbonding IDs of the containing
  unbonding delegation entries.
 
 
@@ -250,8 +254,8 @@ The first map here is used for queries, to lookup all redelegations for a given
 delegator. The second map is used for slashing based on the `ValidatorSrcAddr`,
 while the third map is for slashing based on the `ValidatorDstAddr`.
 
-`RedelegationByUnbondingId` is an additional index that enables 
- lookups for redelegations by the unbonding IDs of the containing 
+`RedelegationByUnbondingId` is an additional index that enables
+ lookups for redelegations by the unbonding IDs of the containing
  redelegation entries.
 
 A redelegation object is created every time a redelegation occurs. To prevent
@@ -268,13 +272,13 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 ### Queues
 
-All queues objects are sorted by timestamp. The time used within any queue is
-first rounded to the nearest nanosecond then sorted. The sortable time format
+All queue objects are sorted by timestamp. The time used within any queue is
+firstly converted to UTC, rounded to the nearest nanosecond then sorted. The sortable time format
 used is a slight modification of the RFC3339Nano and uses the format string
 `"2006-01-02T15:04:05.000000000"`. Notably this format:
 
 * right pads all zeros
-* drops the time zone info (uses UTC)
+* drops the time zone info (we already use UTC)
 
 In all cases, the stored timestamp represents the maturation time of the queue
 element.
@@ -308,7 +312,7 @@ queue is kept.
 
 * ValidatorQueueTime: `0x43 | format(time) -> []sdk.ValAddress`
 
-The stored object as each key is an array of validator operator addresses from
+The stored object by each key is an array of validator operator addresses from
 which the validator object can be accessed. Typically it is expected that only
 a single validator record will be associated with a given timestamp however it is possible
 that multiple validators exist in the queue at the same location.
@@ -411,16 +415,16 @@ Delegation may be called.
   shares from the `BondedPool` to the `NotBondedPool` `ModuleAccount`
 * remove the validator if it is unbonded and there are no more delegation shares.
 * remove the validator if it is unbonded and there are no more delegation shares
-* get a unique `unbondingId` and map it to the `UnbondingDelegationEntry` in `UnbondingDelegationByUnbondingId` 
+* get a unique `unbondingId` and map it to the `UnbondingDelegationEntry` in `UnbondingDelegationByUnbondingId`
 * call the `AfterUnbondingInitiated(unbondingId)` hook
 * add the unbonding delegation to `UnbondingDelegationQueue` with the completion time set to `UnbondingTime`
 
-#### Cancel an `UnbondingDelegation` Entry 
+#### Cancel an `UnbondingDelegation` Entry
 
 When a `cancel unbond delegation` occurs both the `validator`, the `delegation` and an `UnbondingDelegationQueue` state will be updated.
 
 * if cancel unbonding delegation amount equals to the `UnbondingDelegation` entry `balance`, then the `UnbondingDelegation` entry deleted from `UnbondingDelegationQueue`.
-* if the `cancel unbonding delegation amount is less than the `UnbondingDelegation` entry balance, then the `UnbondingDelegation` entry will be updated with new balance in the `UnbondingDelegationQueue`. 
+* if the `cancel unbonding delegation amount is less than the `UnbondingDelegation` entry balance, then the `UnbondingDelegation` entry will be updated with new balance in the `UnbondingDelegationQueue`.
 * cancel `amount` is [Delegated](#delegations) back to  the original `validator`.
 
 #### Complete Unbonding
@@ -657,7 +661,7 @@ This message is expected to fail if:
 
 When this message is processed the following actions occur:
 
-* if the `unbondingDelegation` Entry balance is zero 
+* if the `unbondingDelegation` Entry balance is zero
     * in this condition `unbondingDelegation` entry will be removed from `unbondingDelegationQueue`.
     * otherwise `unbondingDelegationQueue` will be updated with new `unbondingDelegation` entry balance and initial balance
 * the validator's `DelegatorShares` and the delegation's `Shares` are both increased by the message `Amount`.
@@ -787,11 +791,11 @@ validators that still have remaining delegations, the `validator.Status` is
 switched from `types.Unbonding` to
 `types.Unbonded`.
 
-Unbonding operations can be put on hold by external modules via the `PutUnbondingOnHold(unbondingId)` method. 
- As a result, an unbonding operation (e.g., an unbonding delegation) that is on hold, cannot complete 
- even if it reaches maturity. For an unbonding operation with `unbondingId` to eventually complete 
- (after it reaches maturity), every call to `PutUnbondingOnHold(unbondingId)` must be matched 
- by a call to `UnbondingCanComplete(unbondingId)`. 
+Unbonding operations can be put on hold by external modules via the `PutUnbondingOnHold(unbondingId)` method.
+ As a result, an unbonding operation (e.g., an unbonding delegation) that is on hold, cannot complete
+ even if it reaches maturity. For an unbonding operation with `unbondingId` to eventually complete
+ (after it reaches maturity), every call to `PutUnbondingOnHold(unbondingId)` must be matched
+ by a call to `UnbondingCanComplete(unbondingId)`.
 
 #### Unbonding Delegations
 
@@ -968,7 +972,7 @@ simd query staking delegation [delegator-addr] [validator-addr] [flags]
 Example:
 
 ```bash
-simd query staking delegation 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
@@ -978,9 +982,9 @@ balance:
   amount: "10000000000"
   denom: stake
 delegation:
-  delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+  delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
   shares: "10000000000.000000000000000000"
-  validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+  validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 ##### delegations
@@ -996,7 +1000,7 @@ simd query staking delegations [delegator-addr] [flags]
 Example:
 
 ```bash
-simd query staking delegations 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+simd query staking delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 ```
 
 Example Output:
@@ -1007,16 +1011,16 @@ delegation_responses:
     amount: "10000000000"
     denom: stake
   delegation:
-    delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+    delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
     shares: "10000000000.000000000000000000"
-    validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+    validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 - balance:
     amount: "10000000000"
     denom: stake
   delegation:
-    delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+    delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
     shares: "10000000000.000000000000000000"
-    validator_address: 0xE8df73ff15769c9Bf1D82039eC9E04A41E5D088B
+    validator_address: cosmosvaloper1x20lytyf6zkcrv5edpkfkn8sz578qg5sqfyqnp
 pagination:
   next_key: null
   total: "0"
@@ -1035,7 +1039,7 @@ simd query staking delegations-to [validator-addr] [flags]
 Example:
 
 ```bash
-simd query staking delegations-to 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking delegations-to cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
@@ -1047,14 +1051,14 @@ Example Output:
   delegation:
     delegator_address: cosmos1q2qwwynhv8kh3lu5fkeex4awau9x8fwt45f5cp
     shares: "504000000.000000000000000000"
-    validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+    validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 - balance:
     amount: "78125000000"
     denom: uixo
   delegation:
     delegator_address: cosmos1qvppl3479hw4clahe0kwdlfvf8uvjtcd99m2ca
     shares: "78125000000.000000000000000000"
-    validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+    validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 pagination:
   next_key: null
   total: "0"
@@ -1119,7 +1123,7 @@ valset:
     website: ""
   jailed: false
   min_self_delegation: "1"
-  operator_address: 0xe1A408899D51Cac7F9687ed06c42ab2270ae4042
+  operator_address: cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc
   status: BOND_STATUS_BONDED
   tokens: "10000000"
   unbonding_height: "0"
@@ -1188,7 +1192,7 @@ simd query staking redelegation [delegator-addr] [src-validator-addr] [dst-valid
 Example:
 
 ```bash
-simd query staking redelegation 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860 0x1937EeaDAB6FDC722bA7c40094BcAc54bEAE11E8 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
@@ -1210,10 +1214,10 @@ redelegation_responses:
       initial_balance: "5000000000"
       shares_dst: "5000000000.000000000000000000"
   redelegation:
-    delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+    delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
     entries: null
-    validator_dst_address: 0x1937EeaDAB6FDC722bA7c40094BcAc54bEAE11E8
-    validator_src_address: 0x1937EeaDAB6FDC722bA7c40094BcAc54bEAE11E8
+    validator_dst_address: cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm
+    validator_src_address: cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm
 ```
 
 ##### redelegations
@@ -1229,7 +1233,7 @@ simd query staking redelegations [delegator-addr] [flags]
 Example:
 
 ```bash
-simd query staking redelegation 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+simd query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 ```
 
 Example Output:
@@ -1253,10 +1257,10 @@ redelegation_responses:
       initial_balance: "5000000000"
       shares_dst: "5000000000.000000000000000000"
   redelegation:
-    delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+    delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
     entries: null
-    validator_dst_address: 0x8f7C13E00736C1920C1F14836DAC1808f81C52B9
-    validator_src_address: 0x9E3F5d3Fe89a247f98022868FCFd34B332B371B8
+    validator_dst_address: cosmosvaloper1uccl5ugxrm7vqlzwqr04pjd320d2fz0z3hc6vm
+    validator_src_address: cosmosvaloper1zppjyal5emta5cquje8ndkpz0rs046m7zqxrpp
 - entries:
   - balance: "562770000000"
     redelegation_entry:
@@ -1265,10 +1269,10 @@ redelegation_responses:
       initial_balance: "562770000000"
       shares_dst: "562770000000.000000000000000000"
   redelegation:
-    delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+    delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
     entries: null
-    validator_dst_address: 0x8f7C13E00736C1920C1F14836DAC1808f81C52B9
-    validator_src_address: 0x9E3F5d3Fe89a247f98022868FCFd34B332B371B8
+    validator_dst_address: cosmosvaloper1uccl5ugxrm7vqlzwqr04pjd320d2fz0z3hc6vm
+    validator_src_address: cosmosvaloper1zppjyal5emta5cquje8ndkpz0rs046m7zqxrpp
 ```
 
 ##### redelegations-from
@@ -1284,7 +1288,7 @@ simd query staking redelegations-from [validator-addr] [flags]
 Example:
 
 ```bash
-simd query staking redelegations-from 0xaFaC4e0f1873C4B364c62D41b0Fd6f13C66cf121
+simd query staking redelegations-from cosmosvaloper1y4rzzrgl66eyhzt6gse2k7ej3zgwmngeleucjy
 ```
 
 Example Output:
@@ -1308,10 +1312,10 @@ redelegation_responses:
       initial_balance: "5000000000"
       shares_dst: "5000000000.000000000000000000"
   redelegation:
-    delegator_address: 0x3070Ff7D0d65649B663CDa12706f80E4917B5389
+    delegator_address: cosmos1pm6e78p4pgn0da365plzl4t56pxy8hwtqp2mph
     entries: null
-    validator_dst_address: 0x8f7C13E00736C1920C1F14836DAC1808f81C52B9
-    validator_src_address: 0xaFaC4e0f1873C4B364c62D41b0Fd6f13C66cf121
+    validator_dst_address: cosmosvaloper1uccl5ugxrm7vqlzwqr04pjd320d2fz0z3hc6vm
+    validator_src_address: cosmosvaloper1y4rzzrgl66eyhzt6gse2k7ej3zgwmngeleucjy
 - entries:
   - balance: "221000000"
     redelegation_entry:
@@ -1320,10 +1324,10 @@ redelegation_responses:
       initial_balance: "221000000"
       shares_dst: "221000000.000000000000000000"
   redelegation:
-    delegator_address: 0xDe3f6bF56B868182047F6FfccbAE9906f5a479E5
+    delegator_address: cosmos1zqv8qxy2zgn4c58fz8jt8jmhs3d0attcussrf6
     entries: null
-    validator_dst_address: 0x2be8cb2f6B96101C51865EF6342a625400dA38A6
-    validator_src_address: 0xaFaC4e0f1873C4B364c62D41b0Fd6f13C66cf121
+    validator_dst_address: cosmosvaloper10mseqwnwtjaqfrwwp2nyrruwmjp6u5jhah4c3y
+    validator_src_address: cosmosvaloper1y4rzzrgl66eyhzt6gse2k7ej3zgwmngeleucjy
 ```
 
 ##### unbonding-delegation
@@ -1339,19 +1343,19 @@ simd query staking unbonding-delegation [delegator-addr] [validator-addr] [flags
 Example:
 
 ```bash
-simd query staking unbonding-delegation 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking unbonding-delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
 
 ```bash
-delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 entries:
 - balance: "52000000"
   completion_time: "2021-11-02T11:35:55.391594709Z"
   creation_height: "55078"
   initial_balance: "52000000"
-validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 ##### unbonding-delegations
@@ -1367,7 +1371,7 @@ simd query staking unbonding-delegations [delegator-addr] [flags]
 Example:
 
 ```bash
-simd query staking unbonding-delegations 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+simd query staking unbonding-delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 ```
 
 Example Output:
@@ -1377,13 +1381,13 @@ pagination:
   next_key: null
   total: "0"
 unbonding_responses:
-- delegator_address: 0xd45Bb3F939C03e32166571Da68c11b96E1bBa860
+- delegator_address: cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
   entries:
   - balance: "52000000"
     completion_time: "2021-11-02T11:35:55.391594709Z"
     creation_height: "55078"
     initial_balance: "52000000"
-  validator_address: 0x80688208231D8df9cEA42e5DF1C3A43A2928BA3A
+  validator_address: cosmosvaloper1t8ehvswxjfn3ejzkjtntcyrqwvmvuknzmvtaaa
 
 ```
 
@@ -1400,7 +1404,7 @@ simd query staking unbonding-delegations-from [validator-addr] [flags]
 Example:
 
 ```bash
-simd query staking unbonding-delegations-from 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking unbonding-delegations-from cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
@@ -1410,20 +1414,20 @@ pagination:
   next_key: null
   total: "0"
 unbonding_responses:
-- delegator_address: 0xF55784230491d908e54BA607d036E070Abf530c8
+- delegator_address: cosmos1qqq9txnw4c77sdvzx0tkedsafl5s3vk7hn53fn
   entries:
   - balance: "150000000"
     completion_time: "2021-11-01T21:41:13.098141574Z"
     creation_height: "46823"
     initial_balance: "150000000"
-  validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
-- delegator_address: 0x57a23B9e62EDdFc02Af87c8a6AE85304064f343E
+  validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+- delegator_address: cosmos1peteje73eklqau66mr7h7rmewmt2vt99y24f5z
   entries:
   - balance: "24000000"
     completion_time: "2021-10-31T02:57:18.192280361Z"
     creation_height: "21516"
     initial_balance: "24000000"
-  validator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+  validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 ##### validator
@@ -1439,7 +1443,7 @@ simd query staking validator [validator-addr] [flags]
 Example:
 
 ```bash
-simd query staking validator 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+simd query staking validator cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 ```
 
 Example Output:
@@ -1466,7 +1470,7 @@ description:
   website: ""
 jailed: false
 min_self_delegation: "1"
-operator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+operator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 status: BOND_STATUS_BONDED
 tokens: "32948270000"
 unbonding_height: "0"
@@ -1517,7 +1521,7 @@ description:
     website: ""
   jailed: false
   min_self_delegation: "1"
-  operator_address: 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0
+  operator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
   status: BOND_STATUS_BONDED
   tokens: "32948270000"
   unbonding_height: "0"
@@ -1543,7 +1547,7 @@ description:
     website: http://noderunners.biz
   jailed: false
   min_self_delegation: "1"
-  operator_address: 0x47b5fD15fbA9476f6aB4B76Ef2ed85AeFe64d708
+  operator_address: cosmosvaloper1q5ku90atkhktze83j9xjaks2p7uruag5zp6wt7
   status: BOND_STATUS_BONDED
   tokens: "559343421"
   unbonding_height: "0"
@@ -1565,28 +1569,38 @@ The command `create-validator` allows users to create new validator initialized 
 Usage:
 
 ```bash
-simd tx staking create-validator [flags]
+simd tx staking create-validator [path/to/validator.json] [flags]
 ```
 
 Example:
 
 ```bash
-simd tx staking create-validator \
-  --amount=1000000stake \
-  --pubkey=$(simd tendermint show-validator) \
-  --moniker="my-moniker" \
-  --website="https://myweb.site" \
-  --details="description of your validator" \
+simd tx staking create-validator /path/to/validator.json \
   --chain-id="name_of_chain_id" \
-  --commission-rate="0.10" \
-  --commission-max-rate="0.20" \
-  --commission-max-change-rate="0.01" \
-  --min-self-delegation="1" \
   --gas="auto" \
   --gas-adjustment="1.2" \
   --gas-prices="0.025stake" \
   --from=mykey
 ```
+
+where `validator.json` contains:
+
+```json
+{
+  "pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"BnbwFpeONLqvWqJb3qaUbL5aoIcW3fSuAp9nT3z5f20="},
+  "amount": "1000000stake",
+  "moniker": "my-moniker",
+  "website": "https://myweb.site",
+  "security": "security-contact@gmail.com",
+  "details": "description of your validator",
+  "commission-rate": "0.10",
+  "commission-max-rate": "0.20",
+  "commission-max-change-rate": "0.01",
+  "min-self-delegation": "1"
+}
+```
+
+and pubkey can be obtained by using `simd tendermint show-validator` command.
 
 ##### delegate
 
@@ -1601,7 +1615,7 @@ simd tx staking delegate [validator-addr] [amount] [flags]
 Example:
 
 ```bash
-simd tx staking delegate 0x1937EeaDAB6FDC722bA7c40094BcAc54bEAE11E8 1000stake --from mykey
+simd tx staking delegate cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --from mykey
 ```
 
 ##### edit-validator
@@ -1633,7 +1647,7 @@ simd tx staking redelegate [src-validator-addr] [dst-validator-addr] [amount] [f
 Example:
 
 ```bash
-simd tx staking redelegate 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0 0x1937EeaDAB6FDC722bA7c40094BcAc54bEAE11E8 100stake --from mykey
+simd tx staking redelegate cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 100stake --from mykey
 ```
 
 ##### unbond
@@ -1649,10 +1663,10 @@ simd tx staking unbond [validator-addr] [amount] [flags]
 Example:
 
 ```bash
-simd tx staking unbond 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0 100stake --from mykey
+simd tx staking unbond cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake --from mykey
 ```
 
-##### cancel unbond 
+##### cancel unbond
 
 The command `cancel-unbond` allow users to cancel the unbonding delegation entry and delegate back to the original validator.
 
@@ -1665,7 +1679,7 @@ simd tx staking cancel-unbond [validator-addr] [amount] [creation-height]
 Example:
 
 ```bash
-simd tx staking cancel-unbond 0x80035D039aec57Fb139A050489dCCd3E0c7E4Ab0 100stake 123123 --from mykey
+simd tx staking cancel-unbond cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake 123123 --from mykey
 ```
 
 
@@ -1693,7 +1707,7 @@ Example Output:
 {
   "validators": [
     {
-      "operatorAddress": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+      "operatorAddress": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
       "consensusPubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"Auxs3865HpB/EfssYOzfqNhEJjzys2Fo6jD5B8tPgC8="},
       "status": "BOND_STATUS_BONDED",
       "tokens": "10000000",
@@ -1730,7 +1744,7 @@ cosmos.staking.v1beta1.Query/Validator
 Example:
 
 ```bash
-grpcurl -plaintext -d '{"validator_addr":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042"}' \
+grpcurl -plaintext -d '{"validator_addr":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/Validator
 ```
 
@@ -1739,7 +1753,7 @@ Example Output:
 ```bash
 {
   "validator": {
-    "operatorAddress": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+    "operatorAddress": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
     "consensusPubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"Auxs3865HpB/EfssYOzfqNhEJjzys2Fo6jD5B8tPgC8="},
     "status": "BOND_STATUS_BONDED",
     "tokens": "10000000",
@@ -1772,7 +1786,7 @@ cosmos.staking.v1beta1.Query/ValidatorDelegations
 Example:
 
 ```bash
-grpcurl -plaintext -d '{"validator_addr":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042"}' \
+grpcurl -plaintext -d '{"validator_addr":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/ValidatorDelegations
 ```
 
@@ -1783,8 +1797,8 @@ Example Output:
   "delegationResponses": [
     {
       "delegation": {
-        "delegatorAddress": "0xC7F40ead636a014F5D97e0255a27647E5f3d99ad",
-        "validatorAddress": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+        "delegatorAddress": "cosmos1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgy3ua5t",
+        "validatorAddress": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
         "shares": "10000000000000000000000000"
       },
       "balance": {
@@ -1810,7 +1824,7 @@ cosmos.staking.v1beta1.Query/ValidatorUnbondingDelegations
 Example:
 
 ```bash
-grpcurl -plaintext -d '{"validator_addr":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042"}' \
+grpcurl -plaintext -d '{"validator_addr":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/ValidatorUnbondingDelegations
 ```
 
@@ -1820,8 +1834,8 @@ Example Output:
 {
   "unbonding_responses": [
     {
-      "delegator_address": "0x20fE504054828E0Ed601c4ef37e444D8403C5eD1",
-      "validator_address": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+      "delegator_address": "cosmos1z3pzzw84d6xn00pw9dy3yapqypfde7vg6965fy",
+      "validator_address": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
       "entries": [
         {
           "creation_height": "25325",
@@ -1832,8 +1846,8 @@ Example Output:
       ]
     },
     {
-      "delegator_address": "0x4f2185f296164Ef617269EB22E8B3B8D19B4968a",
-      "validator_address": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+      "delegator_address": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77",
+      "validator_address": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
       "entries": [
         {
           "creation_height": "13100",
@@ -1863,7 +1877,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4", validator_addr":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042"}' \
+-d '{"delegator_addr": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77", validator_addr":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/Delegation
 ```
 
@@ -1875,8 +1889,8 @@ Example Output:
   {
     "delegation":
       {
-        "delegator_address":"0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4",
-        "validator_address":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+        "delegator_address":"cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77",
+        "validator_address":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
         "shares":"25083119936.000000000000000000"
       },
     "balance":
@@ -1900,7 +1914,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4", validator_addr":"0xe1A408899D51Cac7F9687ed06c42ab2270ae4042"}' \
+-d '{"delegator_addr": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77", validator_addr":"cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/UnbondingDelegation
 ```
 
@@ -1909,8 +1923,8 @@ Example Output:
 ```bash
 {
   "unbond": {
-    "delegator_address": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4",
-    "validator_address": "0xe1A408899D51Cac7F9687ed06c42ab2270ae4042",
+    "delegator_address": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77",
+    "validator_address": "cosmosvaloper1rne8lgs98p0jqe82sgt0qr4rdn4hgvmgp9ggcc",
     "entries": [
       {
         "creation_height": "136984",
@@ -1941,7 +1955,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4"}' \
+-d '{"delegator_addr": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/DelegatorDelegations
 ```
 
@@ -1950,7 +1964,7 @@ Example Output:
 ```bash
 {
   "delegation_responses": [
-    {"delegation":{"delegator_address":"0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4","validator_address":"0x6D99510CA2c712B5a518D24852ca28858Ae36f57","shares":"25083339023.000000000000000000"},"balance":{"denom":"stake","amount":"25083339023"}}
+    {"delegation":{"delegator_address":"cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77","validator_address":"cosmosvaloper1eh5mwu044gd5ntkkc2xgfg8247mgc56fww3vc8","shares":"25083339023.000000000000000000"},"balance":{"denom":"stake","amount":"25083339023"}}
   ],
   "pagination": {
     "next_key": null,
@@ -1971,7 +1985,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4"}' \
+-d '{"delegator_addr": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/DelegatorUnbondingDelegations
 ```
 
@@ -1981,8 +1995,8 @@ Example Output:
 {
   "unbonding_responses": [
     {
-      "delegator_address": "0xdF29D0DB0624A74bf18794b16D45A59BF62A36a4",
-      "validator_address": "0x62aFd6561DBbB8E989AbD0148AC46e4432E666bb",
+      "delegator_address": "cosmos1y8nyfvmqh50p6ldpzljk3yrglppdv3t8phju77",
+      "validator_address": "cosmosvaloper1sjllsnramtg3ewxqwwrwjxfgc4n4ef9uxyejze",
       "entries": [
         {
           "creation_height": "136984",
@@ -2018,7 +2032,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0x532D5f301C8Ef8a5cdd17c2B79d73B0ED91c673f", "src_validator_addr" : "0xE6B8fDD0B08dBc3bfa88cA123a2f88EC0bba86aB", "dst_validator_addr" : "0xB935B399817B7714E74A65e4f4C7Cce9F38AB0Fd"}' \
+-d '{"delegator_addr": "cosmos1ld5p7hn43yuh8ht28gm9pfjgj2fctujp2tgwvf", "src_validator_addr" : "cosmosvaloper1j7euyj85fv2jugejrktj540emh9353ltgppc3g", "dst_validator_addr" : "cosmosvaloper1yy3tnegzmkdcm7czzcy3flw5z0zyr9vkkxrfse"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/Redelegations
 ```
 
@@ -2029,9 +2043,9 @@ Example Output:
   "redelegation_responses": [
     {
       "redelegation": {
-        "delegator_address": "0x532D5f301C8Ef8a5cdd17c2B79d73B0ED91c673f",
-        "validator_src_address": "0xE6B8fDD0B08dBc3bfa88cA123a2f88EC0bba86aB",
-        "validator_dst_address": "0xB935B399817B7714E74A65e4f4C7Cce9F38AB0Fd",
+        "delegator_address": "cosmos1ld5p7hn43yuh8ht28gm9pfjgj2fctujp2tgwvf",
+        "validator_src_address": "cosmosvaloper1j7euyj85fv2jugejrktj540emh9353ltgppc3g",
+        "validator_dst_address": "cosmosvaloper1yy3tnegzmkdcm7czzcy3flw5z0zyr9vkkxrfse",
         "entries": null
       },
       "entries": [
@@ -2063,7 +2077,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0x532D5f301C8Ef8a5cdd17c2B79d73B0ED91c673f"}' \
+-d '{"delegator_addr": "cosmos1ld5p7hn43yuh8ht28gm9pfjgj2fctujp2tgwvf"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/DelegatorValidators
 ```
 
@@ -2073,7 +2087,7 @@ Example Output:
 {
   "validators": [
     {
-      "operator_address": "0x6D99510CA2c712B5a518D24852ca28858Ae36f57",
+      "operator_address": "cosmosvaloper1eh5mwu044gd5ntkkc2xgfg8247mgc56fww3vc8",
       "consensus_pubkey": {
         "@type": "/cosmos.crypto.ed25519.PubKey",
         "key": "UPwHWxH1zHJWGOa/m6JB3f5YjHMvPQPkVbDqqi+U7Uw="
@@ -2121,7 +2135,7 @@ Example:
 
 ```bash
 grpcurl -plaintext \
--d '{"delegator_addr": "0x6FfDEAe746ea83942ca044b53727C8B3Fa182E15", "validator_addr": "0x6D99510CA2c712B5a518D24852ca28858Ae36f57"}' \
+-d '{"delegator_addr": "cosmos1eh5mwu044gd5ntkkc2xgfg8247mgc56f3n8rr7", "validator_addr": "cosmosvaloper1eh5mwu044gd5ntkkc2xgfg8247mgc56fww3vc8"}' \
 localhost:9090 cosmos.staking.v1beta1.Query/DelegatorValidator
 ```
 
@@ -2130,7 +2144,7 @@ Example Output:
 ```bash
 {
   "validator": {
-    "operator_address": "0x6D99510CA2c712B5a518D24852ca28858Ae36f57",
+    "operator_address": "cosmosvaloper1eh5mwu044gd5ntkkc2xgfg8247mgc56fww3vc8",
     "consensus_pubkey": {
       "@type": "/cosmos.crypto.ed25519.PubKey",
       "key": "UPwHWxH1zHJWGOa/m6JB3f5YjHMvPQPkVbDqqi+U7Uw="
@@ -2205,7 +2219,7 @@ Example Output:
     },
   "valset": [
       {
-        "operator_address": "0xb821c27b893c08b4364C00f530E372AbbfE4af7f",
+        "operator_address": "cosmosvaloper196ax4vc0lwpxndu9dyhvca7jhxp70rmcqcnylw",
         "consensus_pubkey": {
           "@type": "/cosmos.crypto.ed25519.PubKey",
           "key": "/O7BtNW0pafwfvomgR4ZnfldwPXiFfJs9mHg3gwfv5Q="
@@ -2307,7 +2321,7 @@ The `DelegtaorDelegations` REST endpoint queries all delegations of a given dele
 Example:
 
 ```bash
-curl -X GET "http://localhost:1317/cosmos/staking/v1beta1/delegations/0xfF5dB7607dDEc861C97cAF49C7ee92398892734A" -H  "accept: application/json"
+curl -X GET "http://localhost:1317/cosmos/staking/v1beta1/delegations/cosmos1vcs68xf2tnqes5tg0khr0vyevm40ff6zdxatp5" -H  "accept: application/json"
 ```
 
 Example Output:
@@ -2317,8 +2331,8 @@ Example Output:
   "delegation_responses": [
     {
       "delegation": {
-        "delegator_address": "0xfF5dB7607dDEc861C97cAF49C7ee92398892734A",
-        "validator_address": "0xf032Bfe941877Ec8Bc9D378a58f4513111A394b5",
+        "delegator_address": "cosmos1vcs68xf2tnqes5tg0khr0vyevm40ff6zdxatp5",
+        "validator_address": "cosmosvaloper1quqxfrxkycr0uzt4yk0d57tcq3zk7srm7sm6r8",
         "shares": "256250000.000000000000000000"
       },
       "balance": {
@@ -2328,8 +2342,8 @@ Example Output:
     },
     {
       "delegation": {
-        "delegator_address": "0xfF5dB7607dDEc861C97cAF49C7ee92398892734A",
-        "validator_address": "0x9836dA6884230793669b83e05Afc9cC62A819B3A",
+        "delegator_address": "cosmos1vcs68xf2tnqes5tg0khr0vyevm40ff6zdxatp5",
+        "validator_address": "cosmosvaloper194v8uwee2fvs2s8fa5k7j03ktwc87h5ym39jfv",
         "shares": "255150000.000000000000000000"
       },
       "balance": {
@@ -2357,7 +2371,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/delegators/0x66b908e4cA38E5a6656FF65cFDD318F13C24Af86/redelegations?srcValidatorAddr=0x2ce8A3524730dAc8df46547D3e0F08c84aE9270E&dstValidatorAddr=0x62ce2B237A972eD8FE5a895b257fcf1b068f9833" \
+"http://localhost:1317/cosmos/staking/v1beta1/delegators/cosmos1thfntksw0d35n2tkr0k8v54fr8wxtxwxl2c56e/redelegations?srcValidatorAddr=cosmosvaloper1lzhlnpahvznwfv4jmay2tgaha5kmz5qx4cuznf&dstValidatorAddr=cosmosvaloper1vq8tw77kp8lvxq9u3c8eeln9zymn68rng8pgt4" \
 -H  "accept: application/json"
 ```
 
@@ -2368,9 +2382,9 @@ Example Output:
   "redelegation_responses": [
     {
       "redelegation": {
-        "delegator_address": "0x66b908e4cA38E5a6656FF65cFDD318F13C24Af86",
-        "validator_src_address": "0x2ce8A3524730dAc8df46547D3e0F08c84aE9270E",
-        "validator_dst_address": "0x62ce2B237A972eD8FE5a895b257fcf1b068f9833",
+        "delegator_address": "cosmos1thfntksw0d35n2tkr0k8v54fr8wxtxwxl2c56e",
+        "validator_src_address": "cosmosvaloper1lzhlnpahvznwfv4jmay2tgaha5kmz5qx4cuznf",
+        "validator_dst_address": "cosmosvaloper1vq8tw77kp8lvxq9u3c8eeln9zymn68rng8pgt4",
         "entries": null
       },
       "entries": [
@@ -2402,7 +2416,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/delegators/0x574b24147Cf58D2020B284D8b4841a228bFdaaBC/unbonding_delegations" \
+"http://localhost:1317/cosmos/staking/v1beta1/delegators/cosmos1nxv42u3lv642q0fuzu2qmrku27zgut3n3z7lll/unbonding_delegations" \
 -H  "accept: application/json"
 ```
 
@@ -2412,8 +2426,8 @@ Example Output:
 {
   "unbonding_responses": [
     {
-      "delegator_address": "0x574b24147Cf58D2020B284D8b4841a228bFdaaBC",
-      "validator_address": "0x354bB934aA9038AD3d73ecF502B1959b7443365E",
+      "delegator_address": "cosmos1nxv42u3lv642q0fuzu2qmrku27zgut3n3z7lll",
+      "validator_address": "cosmosvaloper1e7mvqlz50ch6gw4yjfemsc069wfre4qwmw53kq",
       "entries": [
         {
           "creation_height": "2442278",
@@ -2443,7 +2457,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/delegators/0x4FdB323Cf5Bb2BE99a61F87C31D3D235457acDe6/validators" \
+"http://localhost:1317/cosmos/staking/v1beta1/delegators/cosmos1xwazl8ftks4gn00y5x3c47auquc62ssune9ppv/validators" \
 -H  "accept: application/json"
 ```
 
@@ -2453,7 +2467,7 @@ Example Output:
 {
   "validators": [
     {
-      "operator_address": "0xD31fD488C6A8A604fe1abAE71d9e7BE0C045484b",
+      "operator_address": "cosmosvaloper1xwazl8ftks4gn00y5x3c47auquc62ssuvynw64",
       "consensus_pubkey": {
         "@type": "/cosmos.crypto.ed25519.PubKey",
         "key": "5v4n3px3PkfNnKflSgepDnsMQR1hiNXnqOC11Y72/PQ="
@@ -2501,7 +2515,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/delegators/0x4FdB323Cf5Bb2BE99a61F87C31D3D235457acDe6/validators/0xD31fD488C6A8A604fe1abAE71d9e7BE0C045484b" \
+"http://localhost:1317/cosmos/staking/v1beta1/delegators/cosmos1xwazl8ftks4gn00y5x3c47auquc62ssune9ppv/validators/cosmosvaloper1xwazl8ftks4gn00y5x3c47auquc62ssuvynw64" \
 -H  "accept: application/json"
 ```
 
@@ -2510,7 +2524,7 @@ Example Output:
 ```bash
 {
   "validator": {
-    "operator_address": "0xD31fD488C6A8A604fe1abAE71d9e7BE0C045484b",
+    "operator_address": "cosmosvaloper1xwazl8ftks4gn00y5x3c47auquc62ssuvynw64",
     "consensus_pubkey": {
       "@type": "/cosmos.crypto.ed25519.PubKey",
       "key": "5v4n3px3PkfNnKflSgepDnsMQR1hiNXnqOC11Y72/PQ="
@@ -2587,7 +2601,7 @@ Example Output:
     },
     "valset": [
       {
-        "operator_address": "0xb821c27b893c08b4364C00f530E372AbbfE4af7f",
+        "operator_address": "cosmosvaloper196ax4vc0lwpxndu9dyhvca7jhxp70rmcqcnylw",
         "consensus_pubkey": {
           "@type": "/cosmos.crypto.ed25519.PubKey",
           "key": "/O7BtNW0pafwfvomgR4ZnfldwPXiFfJs9mHg3gwfv5Q="
@@ -2616,7 +2630,7 @@ Example Output:
         "min_self_delegation": "1"
       },
       {
-        "operator_address": "0x80688208231D8df9cEA42e5DF1C3A43A2928BA3A",
+        "operator_address": "cosmosvaloper1t8ehvswxjfn3ejzkjtntcyrqwvmvuknzmvtaaa",
         "consensus_pubkey": {
           "@type": "/cosmos.crypto.ed25519.PubKey",
           "key": "uExZyjNLtr2+FFIhNDAMcQ8+yTrqE7ygYTsI7khkA5Y="
@@ -2722,7 +2736,7 @@ Example Output:
 {
   "validators": [
     {
-      "operator_address": "0xBb1d045e2a937664BA19bD112aE6DDa8E06cBAEc",
+      "operator_address": "cosmosvaloper1q3jsx9dpfhtyqqgetwpe5tmk8f0ms5qywje8tw",
       "consensus_pubkey": {
         "@type": "/cosmos.crypto.ed25519.PubKey",
         "key": "N7BPyek2aKuNZ0N/8YsrqSDhGZmgVaYUBuddY8pwKaE="
@@ -2751,7 +2765,7 @@ Example Output:
       "min_self_delegation": "1"
     },
     {
-      "operator_address": "0x47b5fD15fbA9476f6aB4B76Ef2ed85AeFe64d708",
+      "operator_address": "cosmosvaloper1q5ku90atkhktze83j9xjaks2p7uruag5zp6wt7",
       "consensus_pubkey": {
         "@type": "/cosmos.crypto.ed25519.PubKey",
         "key": "GDNpuKDmCg9GnhnsiU4fCWktuGUemjNfvpCZiqoRIYA="
@@ -2799,7 +2813,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/validators/0x3aF911887ABD693d7908a575864819C8764b3E06" \
+"http://localhost:1317/cosmos/staking/v1beta1/validators/cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q" \
 -H  "accept: application/json"
 ```
 
@@ -2808,7 +2822,7 @@ Example Output:
 ```bash
 {
   "validator": {
-    "operator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+    "operator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
     "consensus_pubkey": {
       "@type": "/cosmos.crypto.ed25519.PubKey",
       "key": "sIiexdJdYWn27+7iUHQJDnkp63gq/rzUq1Y+fxoGjXc="
@@ -2850,7 +2864,7 @@ The `ValidatorDelegations` REST endpoint queries delegate information for given 
 Example:
 
 ```bash
-curl -X GET "http://localhost:1317/cosmos/staking/v1beta1/validators/0x3aF911887ABD693d7908a575864819C8764b3E06/delegations" -H  "accept: application/json"
+curl -X GET "http://localhost:1317/cosmos/staking/v1beta1/validators/cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q/delegations" -H  "accept: application/json"
 ```
 
 Example Output:
@@ -2860,8 +2874,8 @@ Example Output:
   "delegation_responses": [
     {
       "delegation": {
-        "delegator_address": "0x1a2bCA2bBB79aa5EE655c93aC4736205706cA025",
-        "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+        "delegator_address": "cosmos190g5j8aszqhvtg7cprmev8xcxs6csra7xnk3n3",
+        "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
         "shares": "31000000000.000000000000000000"
       },
       "balance": {
@@ -2871,8 +2885,8 @@ Example Output:
     },
     {
       "delegation": {
-        "delegator_address": "0xED612EfCaE9E5E18A7D710F48A537c50C11670dD",
-        "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+        "delegator_address": "cosmos1ddle9tczl87gsvmeva3c48nenyng4n56qwq4ee",
+        "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
         "shares": "628470000.000000000000000000"
       },
       "balance": {
@@ -2882,8 +2896,8 @@ Example Output:
     },
     {
       "delegation": {
-        "delegator_address": "0xddd3747EF2a86c24Db20AeC46bD6f1baac07Bd22",
-        "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+        "delegator_address": "cosmos10fdvkczl76m040smd33lh9xn9j0cf26kk4s2nw",
+        "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
         "shares": "838120000.000000000000000000"
       },
       "balance": {
@@ -2893,8 +2907,8 @@ Example Output:
     },
     {
       "delegation": {
-        "delegator_address": "0x5E907d763704fD1d565E83fA7A06e212C47cF3F4",
-        "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+        "delegator_address": "cosmos1n8f5fknsv2yt7a8u6nrx30zqy7lu9jfm0t5lq8",
+        "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
         "shares": "500000000.000000000000000000"
       },
       "balance": {
@@ -2904,8 +2918,8 @@ Example Output:
     },
     {
       "delegation": {
-        "delegator_address": "0x4661D57c88ba90180CaA0Ac06cDA015E07b9b102",
-        "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+        "delegator_address": "cosmos16msryt3fqlxtvsy8u5ay7wv2p8mglfg9hrek2e",
+        "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
         "shares": "61310000.000000000000000000"
       },
       "balance": {
@@ -2933,7 +2947,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/validators/0x3aF911887ABD693d7908a575864819C8764b3E06/delegations/0x5E907d763704fD1d565E83fA7A06e212C47cF3F4" \
+"http://localhost:1317/cosmos/staking/v1beta1/validators/cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q/delegations/cosmos1n8f5fknsv2yt7a8u6nrx30zqy7lu9jfm0t5lq8" \
 -H  "accept: application/json"
 ```
 
@@ -2943,8 +2957,8 @@ Example Output:
 {
   "delegation_response": {
     "delegation": {
-      "delegator_address": "0x5E907d763704fD1d565E83fA7A06e212C47cF3F4",
-      "validator_address": "0x3aF911887ABD693d7908a575864819C8764b3E06",
+      "delegator_address": "cosmos1n8f5fknsv2yt7a8u6nrx30zqy7lu9jfm0t5lq8",
+      "validator_address": "cosmosvaloper16msryt3fqlxtvsy8u5ay7wv2p8mglfg9g70e3q",
       "shares": "500000000.000000000000000000"
     },
     "balance": {
@@ -2967,7 +2981,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/validators/0x69929bB581C99e02766561683cB6fB54c996CD28/delegations/0x6A924329cc7D3Ca1C6A0e1F137b638AE0b70A7DD/unbonding_delegation" \
+"http://localhost:1317/cosmos/staking/v1beta1/validators/cosmosvaloper13v4spsah85ps4vtrw07vzea37gq5la5gktlkeu/delegations/cosmos1ze2ye5u5k3qdlexvt2e0nn0508p04094ya0qpm/unbonding_delegation" \
 -H  "accept: application/json"
 ```
 
@@ -2976,8 +2990,8 @@ Example Output:
 ```bash
 {
   "unbond": {
-    "delegator_address": "0x6A924329cc7D3Ca1C6A0e1F137b638AE0b70A7DD",
-    "validator_address": "0x69929bB581C99e02766561683cB6fB54c996CD28",
+    "delegator_address": "cosmos1ze2ye5u5k3qdlexvt2e0nn0508p04094ya0qpm",
+    "validator_address": "cosmosvaloper13v4spsah85ps4vtrw07vzea37gq5la5gktlkeu",
     "entries": [
       {
         "creation_height": "153687",
@@ -3002,7 +3016,7 @@ Example:
 
 ```bash
 curl -X GET \
-"http://localhost:1317/cosmos/staking/v1beta1/validators/0x69929bB581C99e02766561683cB6fB54c996CD28/unbonding_delegations" \
+"http://localhost:1317/cosmos/staking/v1beta1/validators/cosmosvaloper13v4spsah85ps4vtrw07vzea37gq5la5gktlkeu/unbonding_delegations" \
 -H  "accept: application/json"
 ```
 
@@ -3012,8 +3026,8 @@ Example Output:
 {
   "unbonding_responses": [
     {
-      "delegator_address": "0xcBCb09544D77ECF0E45607Ad6bA552623C0b84E2",
-      "validator_address": "0x69929bB581C99e02766561683cB6fB54c996CD28",
+      "delegator_address": "cosmos1q9snn84jfrd9ge8t46kdcggpe58dua82vnj7uy",
+      "validator_address": "cosmosvaloper13v4spsah85ps4vtrw07vzea37gq5la5gktlkeu",
       "entries": [
         {
           "creation_height": "90998",
@@ -3024,8 +3038,8 @@ Example Output:
       ]
     },
     {
-      "delegator_address": "0xb6566d1Ea0eEAF4FcCf8430FD9158bB6d24b6C34",
-      "validator_address": "0x69929bB581C99e02766561683cB6fB54c996CD28",
+      "delegator_address": "cosmos1qf36e6wmq9h4twhdvs6pyq9qcaeu7ye0s3dqq2",
+      "validator_address": "cosmosvaloper13v4spsah85ps4vtrw07vzea37gq5la5gktlkeu",
       "entries": [
         {
           "creation_height": "47478",

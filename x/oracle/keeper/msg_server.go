@@ -166,7 +166,10 @@ func (k Keeper) distributeReward(ctx sdk.Context, relayer sdk.AccAddress, signed
 		otherRelayerReward = relayerFee.Mul(sdkmath.NewInt(100 - int64(relayerRewardShare))).Quo(sdkmath.NewInt(100)).Quo(sdkmath.NewInt(int64(len(otherRelayers))))
 	}
 
-	bondDenom := k.StakingKeeper.BondDenom(ctx)
+	bondDenom, err := k.StakingKeeper.BondDenom(ctx)
+	if err != nil {
+		return err
+	}
 	if otherRelayerReward.IsPositive() {
 		for _, signedRelayer := range otherRelayers {
 			err := k.BankKeeper.SendCoinsFromModuleToAccount(ctx,

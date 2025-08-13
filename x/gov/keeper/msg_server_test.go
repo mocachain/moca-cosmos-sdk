@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
+
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,15 +14,23 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
+const (
+	abc = "abc"
+	o1  = "-0.1"
+)
+
+var longAddressError = "address max length is 255"
+
 func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 	suite.reset()
 	govAcct := suite.govKeeper.GetGovernanceAccount(suite.ctx).GetAddress()
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
 	initialDeposit := coins
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -32,6 +42,96 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 		expErr    bool
 		expErrMsg string
 	}{
+		"invalid addr": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					"",
+					strings.Repeat("1", 300),
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "invalid proposer address",
+		},
+		"empty msgs and metadata": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					nil,
+					initialDeposit,
+					proposer.String(),
+					"",
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "no messages proposed",
+		},
+		"empty title": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					proposer.String(),
+					"",
+					"",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal title cannot be empty",
+		},
+		"empty description": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					proposer.String(),
+					"",
+					"Proposal",
+					"",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal summary cannot be empty",
+		},
+		"title != metadata.title": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					proposer.String(),
+					"{\"title\":\"Proposal\", \"description\":\"description of proposal\"}",
+					"Proposal2",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "metadata title 'Proposal' must equal proposal title 'Proposal2",
+		},
+		"summary != metadata.summary": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					proposer.String(),
+					"{\"title\":\"Proposal\", \"description\":\"description of proposal\"}",
+					"Proposal",
+					"description",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "metadata summary '' must equal proposal summary 'description'",
+		},
 		"metadata too long": {
 			preRun: func() (*v1.MsgSubmitProposal, error) {
 				return v1.NewMsgSubmitProposal(
@@ -41,10 +141,26 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					strings.Repeat("1", 300),
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr:    true,
 			expErrMsg: "metadata too long",
+		},
+		"summary too long": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit,
+					proposer.String(),
+					"",
+					"Proposal",
+					strings.Repeat("1", 300*40),
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "summary too long",
 		},
 		"many signers": {
 			preRun: func() (*v1.MsgSubmitProposal, error) {
@@ -55,6 +171,7 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr:    true,
@@ -69,6 +186,7 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr:    true,
@@ -83,10 +201,41 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr:    true,
 			expErrMsg: "proposal message not recognized by router",
+		},
+		"invalid deposited coin": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					[]sdk.Coin{sdk.NewCoin("invalid", sdkmath.NewInt(100))},
+					proposer.String(),
+					"",
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "deposited 100invalid, but gov accepts only the following denom(s): [stake]: invalid deposit denom",
+		},
+		"invalid deposited coin (multiple)": {
+			preRun: func() (*v1.MsgSubmitProposal, error) {
+				return v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					initialDeposit.Add(sdk.NewCoin("invalid", sdkmath.NewInt(100))),
+					proposer.String(),
+					"",
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "deposited 100invalid,100000stake, but gov accepts only the following denom(s): [stake]: invalid deposit denom",
 		},
 		"all good": {
 			preRun: func() (*v1.MsgSubmitProposal, error) {
@@ -97,6 +246,7 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr: false,
@@ -110,6 +260,7 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 			},
 			expErr: false,
@@ -132,14 +283,110 @@ func (suite *KeeperTestSuite) TestSubmitProposalReq() {
 	}
 }
 
+func (suite *KeeperTestSuite) TestCancelProposalReq() {
+	govAcct := suite.govKeeper.GetGovernanceAccount(suite.ctx).GetAddress()
+	addrs := suite.addrs
+	proposer := addrs[0]
+
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	bankMsg := &banktypes.MsgSend{
+		FromAddress: govAcct.String(),
+		ToAddress:   proposer.String(),
+		Amount:      coins,
+	}
+
+	msg, err := v1.NewMsgSubmitProposal(
+		[]sdk.Msg{bankMsg},
+		coins,
+		proposer.String(),
+		"", "title", "summary",
+		false,
+	)
+	suite.Require().NoError(err)
+
+	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(res.ProposalId)
+	proposalID := res.ProposalId
+
+	cases := map[string]struct {
+		preRun     func() uint64
+		expErr     bool
+		expErrMsg  string
+		proposalID uint64
+		depositor  sdk.AccAddress
+	}{
+		"wrong proposal id": {
+			preRun: func() uint64 {
+				return 0
+			},
+			depositor: proposer,
+			expErr:    true,
+			expErrMsg: "not found",
+		},
+		"valid proposal but invalid proposer": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			depositor: addrs[1],
+			expErr:    true,
+			expErrMsg: "invalid proposer",
+		},
+		"empty proposer": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			depositor: sdk.AccAddress{},
+			expErr:    true,
+			expErrMsg: "invalid proposer address: decoding address from hex string failed: empty address",
+		},
+		"all good": {
+			preRun: func() uint64 {
+				msg, err := v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					coins,
+					proposer.String(),
+					"",
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+				suite.Require().NoError(err)
+
+				res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
+				suite.Require().NoError(err)
+				suite.Require().NotNil(res.ProposalId)
+				return res.ProposalId
+			},
+			depositor: proposer,
+			expErr:    false,
+		},
+	}
+
+	for name, tc := range cases {
+		suite.Run(name, func() {
+			proposalID := tc.preRun()
+			cancelProposalReq := v1.NewMsgCancelProposal(proposalID, tc.depositor.String())
+			_, err := suite.msgSrvr.CancelProposal(suite.ctx, cancelProposalReq)
+			if tc.expErr {
+				suite.Require().Error(err)
+				suite.Require().Contains(err.Error(), tc.expErrMsg)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 func (suite *KeeperTestSuite) TestVoteReq() {
 	suite.reset()
 	govAcct := suite.govKeeper.GetGovernanceAccount(suite.ctx).GetAddress()
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -153,13 +400,14 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
-	proposalId := res.ProposalId
+	proposalID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun    func() uint64
@@ -169,6 +417,26 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 		metadata  string
 		voter     sdk.AccAddress
 	}{
+		"empty voter": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1.VoteOption_VOTE_OPTION_YES,
+			voter:     sdk.AccAddress{},
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid voter address",
+		},
+		"wrong vote option": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1.VoteOption(0x13),
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid vote option",
+		},
 		"vote on inactive proposal": {
 			preRun: func() uint64 {
 				msg, err := v1.NewMsgSubmitProposal(
@@ -178,6 +446,7 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -194,7 +463,7 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 		},
 		"metadata too long": {
 			preRun: func() uint64 {
-				return proposalId
+				return proposalID
 			},
 			option:    v1.VoteOption_VOTE_OPTION_YES,
 			voter:     proposer,
@@ -211,6 +480,7 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -228,8 +498,8 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			pId := tc.preRun()
-			voteReq := v1.NewMsgVote(tc.voter, pId, tc.option, tc.metadata)
+			pID := tc.preRun()
+			voteReq := v1.NewMsgVote(tc.voter, pID, tc.option, tc.metadata)
 			_, err := suite.msgSrvr.Vote(suite.ctx, voteReq)
 			if tc.expErr {
 				suite.Require().Error(err)
@@ -244,11 +514,12 @@ func (suite *KeeperTestSuite) TestVoteReq() {
 func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 	suite.reset()
 	govAcct := suite.govKeeper.GetGovernanceAccount(suite.ctx).GetAddress()
-	addrs := suite.addrs
-	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	proposer := simtestutil.AddTestAddrsIncremental(suite.bankKeeper, suite.stakingKeeper, suite.ctx, 1, sdkmath.NewInt(50000000))[0]
+
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -262,23 +533,118 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
-	proposalId := res.ProposalId
+	proposalID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun    func() uint64
 		vote      *v1.MsgVote
 		expErr    bool
 		expErrMsg string
-		option    v1.VoteOption
+		option    v1.WeightedVoteOptions
 		metadata  string
 		voter     sdk.AccAddress
 	}{
+		"empty voter": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDec(1)),
+			},
+			voter:     sdk.AccAddress{},
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid voter address",
+		},
+		"weights sum > 1": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDec(1)),
+				v1.NewWeightedVoteOption(v1.OptionAbstain, sdkmath.LegacyNewDec(1)),
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "total weight overflow 1.00: invalid vote option",
+		},
+		"duplicate vote options": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDecWithPrec(5, 1)),
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDecWithPrec(5, 1)),
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "duplicated vote option",
+		},
+		"zero weight": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDec(0)),
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: `option:VOTE_OPTION_YES weight:"0.000000000000000000" : invalid vote option`,
+		},
+		"negative weight": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDec(-1)),
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: `option:VOTE_OPTION_YES weight:"-1.000000000000000000" : invalid vote option`,
+		},
+		"empty options": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1.WeightedVoteOptions{},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid request",
+		},
+		"invalid vote option": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1.NewNonSplitVoteOption(v1.VoteOption(0x13)),
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid vote option",
+		},
+		"weight sum < 1": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1.WeightedVoteOptions{ // weight sum <1
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDecWithPrec(5, 1)),
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "total weight lower than 1.00: invalid vote option",
+		},
 		"vote on inactive proposal": {
 			preRun: func() uint64 {
 				msg, err := v1.NewMsgSubmitProposal(
@@ -288,6 +654,7 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -296,7 +663,7 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 				suite.Require().NotNil(res.ProposalId)
 				return res.ProposalId
 			},
-			option:    v1.VoteOption_VOTE_OPTION_YES,
+			option:    v1.NewNonSplitVoteOption(v1.VoteOption_VOTE_OPTION_YES),
 			voter:     proposer,
 			metadata:  "",
 			expErr:    true,
@@ -304,9 +671,9 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 		},
 		"metadata too long": {
 			preRun: func() uint64 {
-				return proposalId
+				return proposalID
 			},
-			option:    v1.VoteOption_VOTE_OPTION_YES,
+			option:    v1.NewNonSplitVoteOption(v1.VoteOption_VOTE_OPTION_YES),
 			voter:     proposer,
 			metadata:  strings.Repeat("a", 300),
 			expErr:    true,
@@ -321,6 +688,7 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -329,7 +697,33 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 				suite.Require().NotNil(res.ProposalId)
 				return res.ProposalId
 			},
-			option:   v1.VoteOption_VOTE_OPTION_YES,
+			option:   v1.NewNonSplitVoteOption(v1.VoteOption_VOTE_OPTION_YES),
+			voter:    proposer,
+			metadata: "",
+			expErr:   false,
+		},
+		"all good with split votes": {
+			preRun: func() uint64 {
+				msg, err := v1.NewMsgSubmitProposal(
+					[]sdk.Msg{bankMsg},
+					minDeposit,
+					proposer.String(),
+					"",
+					"Proposal",
+					"description of proposal",
+					false,
+				)
+				suite.Require().NoError(err)
+
+				res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
+				suite.Require().NoError(err)
+				suite.Require().NotNil(res.ProposalId)
+				return res.ProposalId
+			},
+			option: v1.WeightedVoteOptions{
+				v1.NewWeightedVoteOption(v1.OptionYes, sdkmath.LegacyNewDecWithPrec(5, 1)),
+				v1.NewWeightedVoteOption(v1.OptionAbstain, sdkmath.LegacyNewDecWithPrec(5, 1)),
+			},
 			voter:    proposer,
 			metadata: "",
 			expErr:   false,
@@ -338,8 +732,8 @@ func (suite *KeeperTestSuite) TestVoteWeightedReq() {
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			pId := tc.preRun()
-			voteReq := v1.NewMsgVoteWeighted(tc.voter, pId, v1.NewNonSplitVoteOption(tc.option), tc.metadata)
+			pID := tc.preRun()
+			voteReq := v1.NewMsgVoteWeighted(tc.voter, pID, tc.option, tc.metadata)
 			_, err := suite.msgSrvr.VoteWeighted(suite.ctx, voteReq)
 			if tc.expErr {
 				suite.Require().Error(err)
@@ -356,8 +750,9 @@ func (suite *KeeperTestSuite) TestDepositReq() {
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := sdk.Coins(params.MinDeposit)
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -371,21 +766,22 @@ func (suite *KeeperTestSuite) TestDepositReq() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
-	pId := res.ProposalId
+	pID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun     func() uint64
 		expErr     bool
-		proposalId uint64
+		proposalID uint64
 		depositor  sdk.AccAddress
 		deposit    sdk.Coins
-		options    v1.WeightedVoteOptions
+		expErrMsg  string
 	}{
 		"wrong proposal id": {
 			preRun: func() uint64 {
@@ -394,26 +790,53 @@ func (suite *KeeperTestSuite) TestDepositReq() {
 			depositor: proposer,
 			deposit:   coins,
 			expErr:    true,
-			options:   v1.NewNonSplitVoteOption(v1.OptionYes),
+			expErrMsg: "not found",
+		},
+		"empty depositor": {
+			preRun: func() uint64 {
+				return pID
+			},
+			depositor: sdk.AccAddress{},
+			deposit:   minDeposit,
+			expErr:    true,
+			expErrMsg: "invalid depositor address",
+		},
+		"invalid deposited coin ": {
+			preRun: func() uint64 {
+				return pID
+			},
+			depositor: proposer,
+			deposit:   []sdk.Coin{sdk.NewCoin("ibc/badcoin", sdkmath.NewInt(1000))},
+			expErr:    true,
+			expErrMsg: "deposited 1000ibc/badcoin, but gov accepts only the following denom(s): [stake]",
+		},
+		"invalid deposited coin (multiple)": {
+			preRun: func() uint64 {
+				return pID
+			},
+			depositor: proposer,
+			deposit:   minDeposit.Add(sdk.NewCoin("ibc/badcoin", sdkmath.NewInt(1000))),
+			expErr:    true,
+			expErrMsg: "deposited 1000ibc/badcoin,10000000stake, but gov accepts only the following denom(s): [stake]: invalid deposit denom",
 		},
 		"all good": {
 			preRun: func() uint64 {
-				return pId
+				return pID
 			},
 			depositor: proposer,
 			deposit:   minDeposit,
 			expErr:    false,
-			options:   v1.NewNonSplitVoteOption(v1.OptionYes),
 		},
 	}
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			proposalId := tc.preRun()
-			depositReq := v1.NewMsgDeposit(tc.depositor, proposalId, tc.deposit)
+			proposalID := tc.preRun()
+			depositReq := v1.NewMsgDeposit(tc.depositor, proposalID, tc.deposit)
 			_, err := suite.msgSrvr.Deposit(suite.ctx, depositReq)
 			if tc.expErr {
 				suite.Require().Error(err)
+				suite.Require().Contains(err.Error(), tc.expErrMsg)
 			} else {
 				suite.Require().NoError(err)
 			}
@@ -423,17 +846,77 @@ func (suite *KeeperTestSuite) TestDepositReq() {
 
 // legacy msg server tests
 func (suite *KeeperTestSuite) TestLegacyMsgSubmitProposal() {
-	addrs := suite.addrs
-	proposer := addrs[0]
-
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
+	proposer := simtestutil.AddTestAddrsIncremental(suite.bankKeeper, suite.stakingKeeper, suite.ctx, 1, sdkmath.NewInt(50000000))[0]
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
 	initialDeposit := coins
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 
 	cases := map[string]struct {
-		preRun func() (*v1beta1.MsgSubmitProposal, error)
-		expErr bool
+		preRun    func() (*v1beta1.MsgSubmitProposal, error)
+		expErr    bool
+		expErrMsg string
 	}{
+		"empty title": {
+			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
+				content := v1beta1.NewTextProposal("", "I am test")
+				return v1beta1.NewMsgSubmitProposal(
+					content,
+					initialDeposit,
+					proposer,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal title cannot be blank",
+		},
+		"empty description": {
+			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
+				content := v1beta1.NewTextProposal("test", "")
+				return v1beta1.NewMsgSubmitProposal(
+					content,
+					initialDeposit,
+					proposer,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal description cannot be blank",
+		},
+		"empty proposer": {
+			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
+				content := v1beta1.NewTextProposal("test", "I am test")
+				return v1beta1.NewMsgSubmitProposal(
+					content,
+					initialDeposit,
+					sdk.AccAddress{},
+				)
+			},
+			expErr:    true,
+			expErrMsg: "invalid proposer address: decoding address from hex string failed: empty address",
+		},
+		"title text length > max limit allowed": {
+			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
+				content := v1beta1.NewTextProposal(strings.Repeat("#", v1beta1.MaxTitleLength*2), "I am test")
+				return v1beta1.NewMsgSubmitProposal(
+					content,
+					initialDeposit,
+					proposer,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal title is longer than max length of 140: invalid proposal content",
+		},
+		"description text length > max limit allowed": {
+			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
+				content := v1beta1.NewTextProposal("test", strings.Repeat("#", v1beta1.MaxDescriptionLength*2))
+				return v1beta1.NewMsgSubmitProposal(
+					content,
+					initialDeposit,
+					proposer,
+				)
+			},
+			expErr:    true,
+			expErrMsg: "proposal description is longer than max length of 10000: invalid proposal content",
+		},
 		"all good": {
 			preRun: func() (*v1beta1.MsgSubmitProposal, error) {
 				return v1beta1.NewMsgSubmitProposal(
@@ -463,6 +946,7 @@ func (suite *KeeperTestSuite) TestLegacyMsgSubmitProposal() {
 			res, err := suite.legacyMsgSrvr.SubmitProposal(suite.ctx, msg)
 			if c.expErr {
 				suite.Require().Error(err)
+				suite.Require().Contains(err.Error(), c.expErrMsg)
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res.ProposalId)
@@ -476,8 +960,9 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -491,12 +976,14 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
+	proposalID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun    func() uint64
@@ -506,6 +993,26 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 		metadata  string
 		voter     sdk.AccAddress
 	}{
+		"empty voter": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1beta1.OptionYes,
+			voter:     sdk.AccAddress{},
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid voter address",
+		},
+		"wrong vote option": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1beta1.VoteOption(0x13),
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid vote option",
+		},
 		"vote on inactive proposal": {
 			preRun: func() uint64 {
 				msg, err := v1.NewMsgSubmitProposal(
@@ -515,6 +1022,7 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -538,6 +1046,7 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -555,8 +1064,8 @@ func (suite *KeeperTestSuite) TestLegacyMsgVote() {
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			pId := tc.preRun()
-			voteReq := v1beta1.NewMsgVote(tc.voter, pId, tc.option)
+			pID := tc.preRun()
+			voteReq := v1beta1.NewMsgVote(tc.voter, pID, tc.option)
 			_, err := suite.legacyMsgSrvr.Vote(suite.ctx, voteReq)
 			if tc.expErr {
 				suite.Require().Error(err)
@@ -574,8 +1083,9 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -589,22 +1099,147 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
+	proposalID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun    func() uint64
 		vote      *v1beta1.MsgVote
 		expErr    bool
 		expErrMsg string
-		option    v1beta1.VoteOption
+		option    v1beta1.WeightedVoteOptions
 		metadata  string
 		voter     sdk.AccAddress
 	}{
+		"empty voter": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(1),
+				},
+			},
+			voter:     sdk.AccAddress{},
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid voter address",
+		},
+		"weights sum > 1": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(1),
+				},
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionAbstain,
+					Weight: sdkmath.LegacyNewDec(1),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "total weight overflow 1.00: invalid vote option",
+		},
+		"duplicate vote options": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDecWithPrec(5, 1),
+				},
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDecWithPrec(5, 1),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "duplicated vote option",
+		},
+		"zero weight": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(0),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: `option:VOTE_OPTION_YES weight:"0.000000000000000000" : invalid vote option`,
+		},
+		"negative weight": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(-1),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: `option:VOTE_OPTION_YES weight:"-1.000000000000000000" : invalid vote option`,
+		},
+		"empty options": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option:    v1beta1.WeightedVoteOptions{},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid request",
+		},
+		"invalid vote option": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.VoteOption(0x13),
+					Weight: sdkmath.LegacyNewDecWithPrec(5, 1),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "invalid vote option",
+		},
+		"weight sum < 1": {
+			preRun: func() uint64 {
+				return proposalID
+			},
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDecWithPrec(5, 1),
+				},
+			},
+			voter:     proposer,
+			metadata:  "",
+			expErr:    true,
+			expErrMsg: "total weight lower than 1.00: invalid vote option",
+		},
 		"vote on inactive proposal": {
 			preRun: func() uint64 {
 				msg, err := v1.NewMsgSubmitProposal(
@@ -614,6 +1249,7 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -622,7 +1258,12 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 				suite.Require().NotNil(res.ProposalId)
 				return res.ProposalId
 			},
-			option:    v1beta1.OptionYes,
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(1),
+				},
+			},
 			voter:     proposer,
 			metadata:  "",
 			expErr:    true,
@@ -637,6 +1278,7 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 					"",
 					"Proposal",
 					"description of proposal",
+					false,
 				)
 				suite.Require().NoError(err)
 
@@ -645,7 +1287,12 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 				suite.Require().NotNil(res.ProposalId)
 				return res.ProposalId
 			},
-			option:   v1beta1.OptionYes,
+			option: v1beta1.WeightedVoteOptions{
+				v1beta1.WeightedVoteOption{
+					Option: v1beta1.OptionYes,
+					Weight: sdkmath.LegacyNewDec(1),
+				},
+			},
 			voter:    proposer,
 			metadata: "",
 			expErr:   false,
@@ -654,8 +1301,8 @@ func (suite *KeeperTestSuite) TestLegacyVoteWeighted() {
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			pId := tc.preRun()
-			voteReq := v1beta1.NewMsgVoteWeighted(tc.voter, pId, v1beta1.NewNonSplitVoteOption(v1beta1.VoteOption(tc.option)))
+			pID := tc.preRun()
+			voteReq := v1beta1.NewMsgVoteWeighted(tc.voter, pID, tc.option)
 			_, err := suite.legacyMsgSrvr.VoteWeighted(suite.ctx, voteReq)
 			if tc.expErr {
 				suite.Require().Error(err)
@@ -672,8 +1319,9 @@ func (suite *KeeperTestSuite) TestLegacyMsgDeposit() {
 	addrs := suite.addrs
 	proposer := addrs[0]
 
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100)))
-	minDeposit := suite.govKeeper.GetParams(suite.ctx).MinDeposit
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
+	params, _ := suite.govKeeper.Params.Get(suite.ctx)
+	minDeposit := params.MinDeposit
 	bankMsg := &banktypes.MsgSend{
 		FromAddress: govAcct.String(),
 		ToAddress:   proposer.String(),
@@ -687,21 +1335,22 @@ func (suite *KeeperTestSuite) TestLegacyMsgDeposit() {
 		"",
 		"Proposal",
 		"description of proposal",
+		false,
 	)
 	suite.Require().NoError(err)
 
 	res, err := suite.msgSrvr.SubmitProposal(suite.ctx, msg)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res.ProposalId)
-	pId := res.ProposalId
+	pID := res.ProposalId
 
 	cases := map[string]struct {
 		preRun     func() uint64
 		expErr     bool
-		proposalId uint64
+		expErrMsg  string
+		proposalID uint64
 		depositor  sdk.AccAddress
 		deposit    sdk.Coins
-		options    v1beta1.WeightedVoteOptions
 	}{
 		"wrong proposal id": {
 			preRun: func() uint64 {
@@ -710,26 +1359,35 @@ func (suite *KeeperTestSuite) TestLegacyMsgDeposit() {
 			depositor: proposer,
 			deposit:   coins,
 			expErr:    true,
-			options:   v1beta1.NewNonSplitVoteOption(v1beta1.OptionYes),
+			expErrMsg: "not found",
+		},
+		"empty depositer": {
+			preRun: func() uint64 {
+				return pID
+			},
+			depositor: sdk.AccAddress{},
+			deposit:   coins,
+			expErr:    true,
+			expErrMsg: "invalid depositor address: decoding address from hex string failed: empty address",
 		},
 		"all good": {
 			preRun: func() uint64 {
-				return pId
+				return pID
 			},
 			depositor: proposer,
 			deposit:   minDeposit,
 			expErr:    false,
-			options:   v1beta1.NewNonSplitVoteOption(v1beta1.OptionYes),
 		},
 	}
 
 	for name, tc := range cases {
 		suite.Run(name, func() {
-			proposalId := tc.preRun()
-			depositReq := v1beta1.NewMsgDeposit(tc.depositor, proposalId, tc.deposit)
+			proposalID := tc.preRun()
+			depositReq := v1beta1.NewMsgDeposit(tc.depositor, proposalID, tc.deposit)
 			_, err := suite.legacyMsgSrvr.Deposit(suite.ctx, depositReq)
 			if tc.expErr {
 				suite.Require().Error(err)
+				suite.Require().Contains(err.Error(), tc.expErrMsg)
 			} else {
 				suite.Require().NoError(err)
 			}
@@ -765,7 +1423,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 				}
 			},
 			expErr:    true,
-			expErrMsg: "invalid authority address",
+			expErrMsg: "invalid authority",
 		},
 		{
 			name: "invalid min deposit",
@@ -787,7 +1445,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 				params1 := params
 				params1.MinDeposit = sdk.Coins{{
 					Denom:  sdk.DefaultBondDenom,
-					Amount: sdk.NewInt(-100),
+					Amount: sdkmath.NewInt(-100),
 				}}
 
 				return &v1.MsgUpdateParams{
@@ -831,7 +1489,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "invalid quorum",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.Quorum = "abc"
+				params1.Quorum = abc
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -845,7 +1503,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "negative quorum",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.Quorum = "-0.1"
+				params1.Quorum = o1
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -873,7 +1531,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "invalid threshold",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.Threshold = "abc"
+				params1.Threshold = abc
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -887,7 +1545,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "negative threshold",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.Threshold = "-0.1"
+				params1.Threshold = o1
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -915,7 +1573,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "invalid veto threshold",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.VetoThreshold = "abc"
+				params1.VetoThreshold = abc
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -929,7 +1587,7 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 			name: "negative veto threshold",
 			input: func() *v1.MsgUpdateParams {
 				params1 := params
-				params1.VetoThreshold = "-0.1"
+				params1.VetoThreshold = o1
 
 				return &v1.MsgUpdateParams{
 					Authority: authority,
@@ -989,10 +1647,6 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 		suite.Run(tc.name, func() {
 			msg := tc.input()
 			exec := func(updateParams *v1.MsgUpdateParams) error {
-				if err := msg.ValidateBasic(); err != nil {
-					return err
-				}
-
 				if _, err := suite.msgSrvr.UpdateParams(suite.ctx, updateParams); err != nil {
 					return err
 				}
@@ -1012,43 +1666,43 @@ func (suite *KeeperTestSuite) TestMsgUpdateParams() {
 
 func (suite *KeeperTestSuite) TestSubmitProposal_InitialDeposit() {
 	const meetsDepositValue = baseDepositTestAmount * baseDepositTestPercent / 100
-	baseDepositRatioDec := sdk.NewDec(baseDepositTestPercent).Quo(sdk.NewDec(100))
+	baseDepositRatioDec := sdkmath.LegacyNewDec(baseDepositTestPercent).Quo(sdkmath.LegacyNewDec(100))
 
 	testcases := map[string]struct {
 		minDeposit             sdk.Coins
-		minInitialDepositRatio sdk.Dec
+		minInitialDepositRatio sdkmath.LegacyDec
 		initialDeposit         sdk.Coins
 		accountBalance         sdk.Coins
 
 		expectError bool
 	}{
 		"meets initial deposit, enough balance - success": {
-			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(baseDepositTestAmount))),
+			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(baseDepositTestAmount))),
 			minInitialDepositRatio: baseDepositRatioDec,
-			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue))),
-			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue))),
+			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue))),
+			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue))),
 		},
 		"does not meet initial deposit, enough balance - error": {
-			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(baseDepositTestAmount))),
+			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(baseDepositTestAmount))),
 			minInitialDepositRatio: baseDepositRatioDec,
-			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue-1))),
-			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue))),
+			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue-1))),
+			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue))),
 
 			expectError: true,
 		},
 		"meets initial deposit, not enough balance - error": {
-			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(baseDepositTestAmount))),
+			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(baseDepositTestAmount))),
 			minInitialDepositRatio: baseDepositRatioDec,
-			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue))),
-			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue-1))),
+			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue))),
+			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue-1))),
 
 			expectError: true,
 		},
 		"does not meet initial deposit and not enough balance - error": {
-			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(baseDepositTestAmount))),
+			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(baseDepositTestAmount))),
 			minInitialDepositRatio: baseDepositRatioDec,
-			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue-1))),
-			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue-1))),
+			initialDeposit:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue-1))),
+			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(meetsDepositValue-1))),
 
 			expectError: true,
 		},
@@ -1063,13 +1717,13 @@ func (suite *KeeperTestSuite) TestSubmitProposal_InitialDeposit() {
 			params := v1.DefaultParams()
 			params.MinDeposit = tc.minDeposit
 			params.MinInitialDepositRatio = tc.minInitialDepositRatio.String()
-			govKeeper.SetParams(ctx, params)
+			govKeeper.Params.Set(ctx, params)
 
-			msg, err := v1.NewMsgSubmitProposal(TestProposal, tc.initialDeposit, address.String(), "test", "Proposal", "description of proposal")
+			msg, err := v1.NewMsgSubmitProposal(TestProposal, tc.initialDeposit, address.String(), "test", "Proposal", "description of proposal", false)
 			suite.Require().NoError(err)
 
 			// System under test
-			_, err = suite.msgSrvr.SubmitProposal(sdk.WrapSDKContext(ctx), msg)
+			_, err = suite.msgSrvr.SubmitProposal(ctx, msg)
 
 			// Assertions
 			if tc.expectError {

@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
+	sdkmath "cosmossdk.io/math"
+
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-
-	"github.com/golang/mock/gomock"
 )
 
 func (suite *TestSuite) createAccounts(accs int) []sdk.AccAddress {
@@ -29,7 +31,7 @@ func (suite *TestSuite) TestGrant() {
 	oneHour := curBlockTime.Add(time.Hour)
 	oneYear := curBlockTime.AddDate(1, 0, 0)
 
-	coins := sdk.NewCoins(sdk.NewCoin("steak", sdk.NewInt(10)))
+	coins := sdk.NewCoins(sdk.NewCoin("steak", sdkmath.NewInt(10)))
 
 	grantee, granter := addrs[0], addrs[1]
 
@@ -39,6 +41,20 @@ func (suite *TestSuite) TestGrant() {
 		expErr   bool
 		errMsg   string
 	}{
+		{
+			name: "identical grantee and granter",
+			malleate: func() *authz.MsgGrant {
+				grant, err := authz.NewGrant(curBlockTime, banktypes.NewSendAuthorization(coins, nil), &oneYear)
+				suite.Require().NoError(err)
+				return &authz.MsgGrant{
+					Granter: grantee.String(),
+					Grantee: grantee.String(),
+					Grant:   grant,
+				}
+			},
+			expErr: true,
+			errMsg: "grantee and granter should be different",
+		},
 		{
 			name: "invalid granter",
 			malleate: func() *authz.MsgGrant {
@@ -66,6 +82,38 @@ func (suite *TestSuite) TestGrant() {
 			},
 			expErr: true,
 			errMsg: "invalid address hex length",
+		},
+		{
+			name: "invalid grant",
+			malleate: func() *authz.MsgGrant {
+				return &authz.MsgGrant{
+					Granter: granter.String(),
+					Grantee: grantee.String(),
+					Grant: authz.Grant{
+						Expiration: &oneYear,
+					},
+				}
+			},
+			expErr: true,
+			errMsg: "authorization is nil: invalid type",
+		},
+		{
+			name: "invalid grant, past time",
+			malleate: func() *authz.MsgGrant {
+				pastTime := curBlockTime.Add(-time.Hour)
+				grant, err := authz.NewGrant(curBlockTime, banktypes.NewSendAuthorization(coins, nil), &oneHour) // we only need the authorization
+				suite.Require().NoError(err)
+				return &authz.MsgGrant{
+					Granter: granter.String(),
+					Grantee: grantee.String(),
+					Grant: authz.Grant{
+						Authorization: grant.Authorization,
+						Expiration:    &pastTime,
+					},
+				}
+			},
+			expErr: true,
+			errMsg: "expiration must be after the current block time",
 		},
 		{
 			name: "grantee account does not exist on chain: valid grant",
@@ -130,6 +178,18 @@ func (suite *TestSuite) TestGrant() {
 				}
 			},
 		},
+		{
+			name: "valid grant with nil expiration time",
+			malleate: func() *authz.MsgGrant {
+				grant, err := authz.NewGrant(curBlockTime, banktypes.NewSendAuthorization(coins, nil), nil)
+				suite.Require().NoError(err)
+				return &authz.MsgGrant{
+					Granter: granter.String(),
+					Grantee: grantee.String(),
+					Grant:   grant,
+				}
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -157,6 +217,18 @@ func (suite *TestSuite) TestRevoke() {
 		errMsg   string
 	}{
 		{
+			name: "identical grantee and granter",
+			malleate: func() *authz.MsgRevoke {
+				return &authz.MsgRevoke{
+					Granter:    grantee.String(),
+					Grantee:    grantee.String(),
+					MsgTypeUrl: bankSendAuthMsgType,
+				}
+			},
+			expErr: true,
+			errMsg: "grantee and granter should be different",
+		},
+		{
 			name: "invalid granter",
 			malleate: func() *authz.MsgRevoke {
 				return &authz.MsgRevoke{
@@ -179,6 +251,18 @@ func (suite *TestSuite) TestRevoke() {
 			},
 			expErr: true,
 			errMsg: "invalid address hex length",
+		},
+		{
+			name: "no msg given",
+			malleate: func() *authz.MsgRevoke {
+				return &authz.MsgRevoke{
+					Granter:    granter.String(),
+					Grantee:    grantee.String(),
+					MsgTypeUrl: "",
+				}
+			},
+			expErr: true,
+			errMsg: "missing msg method name",
 		},
 		{
 			name: "valid grant",
@@ -223,7 +307,7 @@ func (suite *TestSuite) TestExec() {
 	addrs := suite.createAccounts(2)
 
 	grantee, granter := addrs[0], addrs[1]
-	coins := sdk.NewCoins(sdk.NewCoin("steak", sdk.NewInt(10)))
+	coins := sdk.NewCoins(sdk.NewCoin("steak", sdkmath.NewInt(10)))
 
 	msg := &banktypes.MsgSend{
 		FromAddress: granter.String(),
@@ -238,7 +322,7 @@ func (suite *TestSuite) TestExec() {
 		errMsg   string
 	}{
 		{
-			name: "invalid grantee",
+			name: "invalid grantee (empty)",
 			malleate: func() authz.MsgExec {
 				return authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{msg})
 			},
@@ -246,12 +330,20 @@ func (suite *TestSuite) TestExec() {
 			errMsg: "empty address",
 		},
 		{
-			name: "no existing grant",
+			name: "non existing grant",
 			malleate: func() authz.MsgExec {
 				return authz.NewMsgExec(grantee, []sdk.Msg{msg})
 			},
 			expErr: true,
 			errMsg: "authorization not found",
+		},
+		{
+			name: "no message case",
+			malleate: func() authz.MsgExec {
+				return authz.NewMsgExec(grantee, []sdk.Msg{})
+			},
+			expErr: true,
+			errMsg: "messages cannot be empty",
 		},
 		{
 			name: "valid case",

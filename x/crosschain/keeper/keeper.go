@@ -1,16 +1,17 @@
 package keeper
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 
+	storetypes "cosmossdk.io/core/store"
+	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 )
@@ -19,8 +20,8 @@ import (
 type Keeper struct {
 	cdc codec.BinaryCodec
 
-	cfg      *crossChainConfig
-	storeKey storetypes.StoreKey
+	cfg          *crossChainConfig
+	storeService storetypes.KVStoreService
 
 	authority string
 
@@ -30,13 +31,13 @@ type Keeper struct {
 
 // NewKeeper creates a new mint Keeper instance
 func NewKeeper(
-	cdc codec.BinaryCodec, key storetypes.StoreKey, authority string,
+	cdc codec.BinaryCodec, storeService storetypes.KVStoreService, authority string,
 	stakingKeeper types.StakingKeeper,
 	bankKeeper types.BankKeeper,
 ) Keeper {
 	return Keeper{
 		cdc:           cdc,
-		storeKey:      key,
+		storeService:  storeService,
 		cfg:           newCrossChainCfg(),
 		authority:     authority,
 		stakingKeeper: stakingKeeper,
@@ -45,8 +46,9 @@ func NewKeeper(
 }
 
 // Logger inits the logger for cross chain module
-func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", "x/"+types.ModuleName)
+func (k Keeper) Logger(ctx context.Context) log.Logger {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 func (k Keeper) GetAuthority() string {
@@ -61,10 +63,13 @@ func (k Keeper) InitGenesis(ctx sdk.Context, state *types.GenesisState, bankKeep
 	params := k.GetParams(ctx)
 
 	// for testing
-	if !params.InitModuleBalance.IsNil() && params.InitModuleBalance.GT(sdk.ZeroInt()) {
-		bondDenom := stakingKeeper.BondDenom(ctx)
+	if !params.InitModuleBalance.IsNil() && params.InitModuleBalance.GT(math.ZeroInt()) {
+		bondDenom, err := stakingKeeper.BondDenom(ctx)
+		if err != nil {
+			panic(err)
+		}
 
-		err := bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{sdk.Coin{
+		err = bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{sdk.Coin{
 			Denom:  bondDenom,
 			Amount: params.InitModuleBalance,
 		}})
@@ -75,9 +80,12 @@ func (k Keeper) InitGenesis(ctx sdk.Context, state *types.GenesisState, bankKeep
 }
 
 // GetParams returns the current x/crosschain module parameters.
-func (k Keeper) GetParams(ctx sdk.Context) (p types.Params) {
-	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.ParamsKey)
+func (k Keeper) GetParams(ctx context.Context) (p types.Params) {
+	store := k.storeService.OpenKVStore(ctx)
+	bz, err := store.Get(types.ParamsKey)
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return p
 	}
@@ -87,12 +95,12 @@ func (k Keeper) GetParams(ctx sdk.Context) (p types.Params) {
 }
 
 // SetParams sets the params of cross chain module
-func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
+func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
 
-	store := ctx.KVStore(k.storeKey)
+	store := k.storeService.OpenKVStore(ctx)
 	bz := k.cdc.MustMarshal(&params)
 	store.Set(types.ParamsKey, bz)
 
@@ -100,7 +108,7 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
 }
 
 // UpdatePermissions updates the permission of channels
-func (k Keeper) UpdatePermissions(ctx sdk.Context, permissions []*types.ChannelPermission) error {
+func (k Keeper) UpdatePermissions(ctx context.Context, permissions []*types.ChannelPermission) error {
 	for _, permission := range permissions {
 		if !k.IsDestChainSupported(sdk.ChainID(permission.DestChainId)) {
 			return fmt.Errorf("dest chain %d is not supported", permission.DestChainId)
@@ -118,7 +126,7 @@ func (k Keeper) UpdatePermissions(ctx sdk.Context, permissions []*types.ChannelP
 }
 
 // CreateRawIBCPackageWithFee creates a cross chain package with given cross chain fee
-func (k Keeper) CreateRawIBCPackageWithFee(ctx sdk.Context, destChainId sdk.ChainID, channelID sdk.ChannelID,
+func (k Keeper) CreateRawIBCPackageWithFee(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID,
 	packageType sdk.CrossChainPackageType, packageLoad []byte, relayerFee, ackRelayerFee *big.Int,
 ) (uint64, error) {
 	if packageType == sdk.SynCrossChainPackageType && k.GetChannelSendPermission(ctx, destChainId, channelID) != sdk.ChannelAllow {
@@ -127,15 +135,17 @@ func (k Keeper) CreateRawIBCPackageWithFee(ctx sdk.Context, destChainId sdk.Chai
 
 	sequence := k.GetSendSequence(ctx, destChainId, channelID)
 	key := types.BuildCrossChainPackageKey(k.GetSrcChainID(), destChainId, channelID, sequence)
-	kvStore := ctx.KVStore(k.storeKey)
-	if kvStore.Has(key) {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	kvStore := k.storeService.OpenKVStore(ctx)
+	haskey, _ := kvStore.Has(key)
+	if haskey {
 		return 0, fmt.Errorf("duplicated sequence")
 	}
 
 	// Assemble the package header
 	packageHeader := sdk.EncodePackageHeader(sdk.PackageHeader{
 		PackageType:   packageType,
-		Timestamp:     uint64(ctx.BlockTime().Unix()),
+		Timestamp:     uint64(sdkCtx.BlockTime().Unix()),
 		RelayerFee:    relayerFee,
 		AckRelayerFee: ackRelayerFee,
 	})
@@ -144,13 +154,13 @@ func (k Keeper) CreateRawIBCPackageWithFee(ctx sdk.Context, destChainId sdk.Chai
 
 	k.IncrSendSequence(ctx, destChainId, channelID)
 
-	err := ctx.EventManager().EmitTypedEvent(&types.EventCrossChain{
+	err := sdkCtx.EventManager().EmitTypedEvent(&types.EventCrossChain{
 		SrcChainId:    uint32(k.GetSrcChainID()),
 		DestChainId:   uint32(destChainId),
 		ChannelId:     uint32(channelID),
 		Sequence:      sequence,
 		PackageType:   uint32(packageType),
-		Timestamp:     uint64(ctx.BlockTime().Unix()),
+		Timestamp:     uint64(sdkCtx.BlockTime().Unix()),
 		PackageLoad:   hex.EncodeToString(packageLoad),
 		RelayerFee:    relayerFee.String(),
 		AckRelayerFee: ackRelayerFee.String(),
@@ -207,6 +217,9 @@ func (k Keeper) IsDestChainSupported(chainID sdk.ChainID) bool {
 	if k.cfg.destOptimismChainId != 0 && chainID == k.cfg.destOptimismChainId {
 		return true
 	}
+	if k.cfg.destBaseChainId != 0 && chainID == k.cfg.destBaseChainId {
+		return true
+	}
 	return false
 }
 
@@ -217,15 +230,18 @@ func (k Keeper) IsChannelSupported(channelId sdk.ChannelID) bool {
 }
 
 // SetChannelSendPermission sets the channel send permission
-func (k Keeper) SetChannelSendPermission(ctx sdk.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, permission sdk.ChannelPermission) {
-	kvStore := ctx.KVStore(k.storeKey)
+func (k Keeper) SetChannelSendPermission(ctx context.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, permission sdk.ChannelPermission) {
+	kvStore := k.storeService.OpenKVStore(ctx)
 	kvStore.Set(types.BuildChannelPermissionKey(destChainID, channelID), []byte{byte(permission)})
 }
 
 // GetChannelSendPermission gets the channel send permission by channel id
-func (k Keeper) GetChannelSendPermission(ctx sdk.Context, destChainID sdk.ChainID, channelID sdk.ChannelID) sdk.ChannelPermission {
-	kvStore := ctx.KVStore(k.storeKey)
-	bz := kvStore.Get(types.BuildChannelPermissionKey(destChainID, channelID))
+func (k Keeper) GetChannelSendPermission(ctx context.Context, destChainID sdk.ChainID, channelID sdk.ChannelID) sdk.ChannelPermission {
+	kvStore := k.storeService.OpenKVStore(ctx)
+	bz, err := kvStore.Get(types.BuildChannelPermissionKey(destChainID, channelID))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return sdk.ChannelForbidden
 	}
@@ -322,37 +338,50 @@ func (k Keeper) GetDestOptimismChainID() sdk.ChainID {
 	return k.cfg.destOptimismChainId
 }
 
+// SetDestOptimismChainID sets the destination chain id of optimism chain
+func (k Keeper) SetDestBaseChainID(destChainId sdk.ChainID) {
+	k.cfg.destOptimismChainId = destChainId
+}
+
+// GetDestOptimismChainID gets the destination chain id of optimism chain
+func (k Keeper) GetDestBaseChainID() sdk.ChainID {
+	return k.cfg.destOptimismChainId
+}
+
 // GetCrossChainPackage returns the ibc package by sequence
 func (k Keeper) GetCrossChainPackage(ctx sdk.Context, destChainId sdk.ChainID, channelId sdk.ChannelID, sequence uint64) ([]byte, error) {
-	kvStore := ctx.KVStore(k.storeKey)
+	kvStore := k.storeService.OpenKVStore(ctx)
 	key := types.BuildCrossChainPackageKey(k.GetSrcChainID(), destChainId, channelId, sequence)
-	return kvStore.Get(key), nil
+	return kvStore.Get(key)
 }
 
 // GetSendSequence returns the sending sequence of the channel
-func (k Keeper) GetSendSequence(ctx sdk.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64 {
+func (k Keeper) GetSendSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64 {
 	return k.getSequence(ctx, destChainId, channelID, types.PrefixForSendSequenceKey)
 }
 
 // IncrSendSequence increases the sending sequence of the channel
-func (k Keeper) IncrSendSequence(ctx sdk.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) {
+func (k Keeper) IncrSendSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) {
 	k.incrSequence(ctx, destChainId, channelID, types.PrefixForSendSequenceKey)
 }
 
 // GetReceiveSequence returns the receiving sequence of the channel
-func (k Keeper) GetReceiveSequence(ctx sdk.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64 {
+func (k Keeper) GetReceiveSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64 {
 	return k.getSequence(ctx, destChainId, channelID, types.PrefixForReceiveSequenceKey)
 }
 
 // IncrReceiveSequence increases the receiving sequence of the channel
-func (k Keeper) IncrReceiveSequence(ctx sdk.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) {
+func (k Keeper) IncrReceiveSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) {
 	k.incrSequence(ctx, destChainId, channelID, types.PrefixForReceiveSequenceKey)
 }
 
 // getSequence returns the sequence with a prefix
-func (k Keeper) getSequence(ctx sdk.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, prefix []byte) uint64 {
-	kvStore := ctx.KVStore(k.storeKey)
-	bz := kvStore.Get(types.BuildChannelSequenceKey(destChainID, channelID, prefix))
+func (k Keeper) getSequence(ctx context.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, prefix []byte) uint64 {
+	kvStore := k.storeService.OpenKVStore(ctx)
+	bz, err := kvStore.Get(types.BuildChannelSequenceKey(destChainID, channelID, prefix))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return 0
 	}
@@ -360,10 +389,13 @@ func (k Keeper) getSequence(ctx sdk.Context, destChainID sdk.ChainID, channelID 
 }
 
 // incrSequence increases the sequence with a prefix
-func (k Keeper) incrSequence(ctx sdk.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, prefix []byte) {
+func (k Keeper) incrSequence(ctx context.Context, destChainID sdk.ChainID, channelID sdk.ChannelID, prefix []byte) {
 	var sequence uint64
-	kvStore := ctx.KVStore(k.storeKey)
-	bz := kvStore.Get(types.BuildChannelSequenceKey(destChainID, channelID, prefix))
+	kvStore := k.storeService.OpenKVStore(ctx)
+	bz, err := kvStore.Get(types.BuildChannelSequenceKey(destChainID, channelID, prefix))
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		sequence = 0
 	} else {
@@ -380,9 +412,12 @@ func (k Keeper) GetCrossChainApp(channelID sdk.ChannelID) sdk.CrossChainApplicat
 	return k.cfg.channelIDToApp[channelID]
 }
 
-func (k Keeper) MintModuleAccountTokens(ctx sdk.Context, amount math.Int) error {
-	bondDenom := k.stakingKeeper.BondDenom(ctx)
-	err := k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{sdk.Coin{
+func (k Keeper) MintModuleAccountTokens(ctx context.Context, amount math.Int) error {
+	bondDenom, err := k.stakingKeeper.BondDenom(ctx)
+	if err != nil {
+		return err
+	}
+	err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{sdk.Coin{
 		Denom:  bondDenom,
 		Amount: amount,
 	}})

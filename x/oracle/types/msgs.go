@@ -41,11 +41,6 @@ func (m MsgClaim) Route() string { return sdk.MsgTypeURL(&m) }
 // Type implements the LegacyMsg interface.
 func (m MsgClaim) Type() string { return sdk.MsgTypeURL(&m) }
 
-// GetSignBytes implements the LegacyMsg interface.
-func (m MsgClaim) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
-}
-
 // ValidateBasic does a sanity check on the provided data.
 func (m *MsgClaim) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromHexUnsafe(m.FromAddress); err != nil {
@@ -126,11 +121,6 @@ type Package struct {
 	ChannelId sdk.ChannelID
 	Sequence  uint64
 	Payload   []byte
-}
-
-// GetSignBytes implements the LegacyMsg interface.
-func (m MsgUpdateParams) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
 }
 
 // GetSigners returns the expected signers for a MsgUpdateParams message.

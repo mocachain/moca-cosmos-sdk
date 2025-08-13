@@ -1,13 +1,13 @@
 package types
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	context "context"
+
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 // UpgradeHandler specifies the type of function that is called when an upgrade
 // is applied.
-// ex. Setting a new store in Keeper
 //
 // `fromVM` is a VersionMap of moduleName to fromVersion (unit64), where
 // fromVersion denotes the version from which we should migrate the module, the
@@ -22,9 +22,6 @@ import (
 // modified inside the upgrade handler, e.g. to skip running InitGenesis or
 // migrations for certain modules when calling the `module.Manager#RunMigrations`
 // function.
-type UpgradeHandler func(ctx sdk.Context, plan Plan, fromVM module.VersionMap) (module.VersionMap, error)
-
-// UpgradeInitializer specifies the function type to be called
-// when the app is restarted after an upgrade.
-// ex. RegisterInterface for module
-type UpgradeInitializer func() error
+//
+// Please also refer to docs/core/upgrade.md for more information.
+type UpgradeHandler func(ctx context.Context, plan Plan, fromVM module.VersionMap) (module.VersionMap, error)

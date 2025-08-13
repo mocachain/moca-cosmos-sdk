@@ -62,7 +62,7 @@ func (suite *PKSuite) TestEquals() {
 	require.False(suite.pk.Equals(pkOther))
 	require.True(pkOther.Equals(pkOther2))
 	require.True(pkOther2.Equals(pkOther))
-	require.True(pkOther.Equals(pkOther), "Equals must be reflexive")
+	require.True(pkOther.Equals(pkOther), "Equals must be reflexive") //nolint:gocritic // false positive
 }
 
 func (suite *PKSuite) TestMarshalProto() {
@@ -125,4 +125,15 @@ func (suite *PKSuite) TestSize() {
 
 	var nilPk *ecdsaPK
 	require.Equal(0, nilPk.Size(), "nil value must have zero size")
+}
+
+func (suite *PKSuite) TestJson() {
+	require := suite.Require()
+
+	bz, err := suite.pk.Key.MarshalJSON()
+	require.NoError(err)
+
+	pk := &ecdsaPK{}
+	require.NoError(pk.UnmarshalJSON(bz))
+	require.Equal(suite.pk.Key, pk)
 }

@@ -3,55 +3,56 @@ package simapp
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
-	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/x/crosschain"
-	"github.com/cosmos/cosmos-sdk/x/oracle"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/core/appmodule"
+	"cosmossdk.io/log"
+	"cosmossdk.io/x/evidence"
+	feegrantmodule "cosmossdk.io/x/feegrant/module"
+	"cosmossdk.io/x/upgrade"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
 	authzmodule "github.com/cosmos/cosmos-sdk/x/authz/module"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/capability"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
+	"github.com/cosmos/cosmos-sdk/x/crosschain"
 	"github.com/cosmos/cosmos-sdk/x/distribution"
-	"github.com/cosmos/cosmos-sdk/x/evidence"
-	feegrantmodule "github.com/cosmos/cosmos-sdk/x/feegrant/module"
 	"github.com/cosmos/cosmos-sdk/x/gashub"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	group "github.com/cosmos/cosmos-sdk/x/group/module"
 	"github.com/cosmos/cosmos-sdk/x/mint"
+	"github.com/cosmos/cosmos-sdk/x/oracle"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-	"github.com/cosmos/cosmos-sdk/x/upgrade"
 )
 
 func TestSimAppExportAndBlockedAddrs(t *testing.T) {
 	db := dbm.NewMemDB()
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger := log.NewTestLogger(t)
 	app := NewSimappWithCustomOptions(t, false, SetupOptions{
-		Logger:  logger,
+		Logger:  logger.With("instance", "first"),
 		DB:      db,
 		AppOpts: simtestutil.NewAppOptionsWithFlagHome(t.TempDir()),
 	})
 
-	// BlockedAddresses returns a map of addresses in app v1 and a map of modules name in app v2.
+	// BlockedAddresses returns a map of addresses in app v1 and a map of modules name in app di.
 	for acc := range BlockedAddresses() {
 		var addr sdk.AccAddress
 		if modAddr, err := sdk.AccAddressFromHexUnsafe(acc); err == nil {
@@ -67,22 +68,28 @@ func TestSimAppExportAndBlockedAddrs(t *testing.T) {
 		)
 	}
 
-	app.Commit()
+	// finalize block so we have CheckTx state set
+	_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: 1,
+	})
+	require.NoError(t, err)
 
-	logger2 := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	_, err = app.Commit()
+	require.NoError(t, err)
+
 	// Making a new app object with the db, so that initchain hasn't been called
-	app2 := NewSimApp(logger2, db, nil, true, SimAppChainID, serverconfig.DefaultConfig(), simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
-	_, err := app2.ExportAppStateAndValidators(false, []string{}, []string{})
+	app2 := NewSimApp(logger.With("instance", "second"), db, nil, true, simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
+	_, err = app2.ExportAppStateAndValidators(false, []string{}, []string{})
 	require.NoError(t, err, "ExportAppStateAndValidators should not have an error")
 }
 
 func TestRunMigrations(t *testing.T) {
 	db := dbm.NewMemDB()
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	app := NewSimApp(logger, db, nil, true, SimAppChainID, serverconfig.DefaultConfig(), simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
+	logger := log.NewTestLogger(t)
+	app := NewSimApp(logger.With("instance", "simapp"), db, nil, true, simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
 
 	// Create a new baseapp and configurator for the purpose of this test.
-	bApp := baseapp.NewBaseApp(app.Name(), logger, db, app.TxConfig().TxDecoder())
+	bApp := baseapp.NewBaseApp(app.Name(), logger.With("instance", "baseapp"), db, app.TxConfig().TxDecoder())
 	bApp.SetCommitMultiStoreTracer(nil)
 	bApp.SetInterfaceRegistry(app.InterfaceRegistry())
 	app.BaseApp = bApp
@@ -101,10 +108,17 @@ func TestRunMigrations(t *testing.T) {
 		if mod, ok := mod.(module.HasServices); ok {
 			mod.RegisterServices(configurator)
 		}
+
+		if mod, ok := mod.(appmodule.HasServices); ok {
+			err := mod.RegisterServices(configurator)
+			require.NoError(t, err)
+		}
+
+		require.NoError(t, configurator.Error())
 	}
 
 	// Initialize the chain
-	app.InitChain(abci.RequestInitChain{})
+	app.InitChain(&abci.RequestInitChain{})
 	app.Commit()
 
 	testCases := []struct {
@@ -178,7 +192,7 @@ func TestRunMigrations(t *testing.T) {
 			// version for bank as 1, and for all other modules, we put as
 			// their latest ConsensusVersion.
 			_, err = app.ModuleManager.RunMigrations(
-				app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()}), configurator,
+				app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()}), configurator,
 				module.VersionMap{
 					"bank":         1,
 					"auth":         auth.AppModule{}.ConsensusVersion(),
@@ -196,7 +210,6 @@ func TestRunMigrations(t *testing.T) {
 					"evidence":     evidence.AppModule{}.ConsensusVersion(),
 					"crisis":       crisis.AppModule{}.ConsensusVersion(),
 					"genutil":      genutil.AppModule{}.ConsensusVersion(),
-					"capability":   capability.AppModule{}.ConsensusVersion(),
 					"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 					"oracle":       oracle.AppModule{}.ConsensusVersion(),
 					"gashub":       gashub.AppModule{}.ConsensusVersion(),
@@ -215,9 +228,8 @@ func TestRunMigrations(t *testing.T) {
 
 func TestInitGenesisOnMigration(t *testing.T) {
 	db := dbm.NewMemDB()
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	app := NewSimApp(logger, db, nil, true, SimAppChainID, serverconfig.DefaultConfig(), simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
-	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+	app := NewSimApp(log.NewTestLogger(t), db, nil, true, simtestutil.NewAppOptionsWithFlagHome(t.TempDir()))
+	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
 
 	// Create a mock module. This module will serve as the new module we're
 	// adding during a migration.
@@ -226,7 +238,7 @@ func TestInitGenesisOnMigration(t *testing.T) {
 	mockModule := mock.NewMockAppModuleWithAllExtensions(mockCtrl)
 	mockDefaultGenesis := json.RawMessage(`{"key": "value"}`)
 	mockModule.EXPECT().DefaultGenesis(gomock.Eq(app.appCodec)).Times(1).Return(mockDefaultGenesis)
-	mockModule.EXPECT().InitGenesis(gomock.Any(), gomock.Eq(app.appCodec), gomock.Eq(mockDefaultGenesis)).Times(1).Return(nil)
+	mockModule.EXPECT().InitGenesis(gomock.Eq(ctx), gomock.Eq(app.appCodec), gomock.Eq(mockDefaultGenesis)).Times(1)
 	mockModule.EXPECT().ConsensusVersion().Times(1).Return(uint64(0))
 
 	app.ModuleManager.Modules["mock"] = mockModule
@@ -250,7 +262,6 @@ func TestInitGenesisOnMigration(t *testing.T) {
 			"evidence":     evidence.AppModule{}.ConsensusVersion(),
 			"crisis":       crisis.AppModule{}.ConsensusVersion(),
 			"genutil":      genutil.AppModule{}.ConsensusVersion(),
-			"capability":   capability.AppModule{}.ConsensusVersion(),
 			"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 			"oracle":       oracle.AppModule{}.ConsensusVersion(),
 			"gashub":       gashub.AppModule{}.ConsensusVersion(),
@@ -261,16 +272,16 @@ func TestInitGenesisOnMigration(t *testing.T) {
 
 func TestUpgradeStateOnGenesis(t *testing.T) {
 	db := dbm.NewMemDB()
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	app := NewSimappWithCustomOptions(t, false, SetupOptions{
-		Logger:  logger,
+		Logger:  log.NewTestLogger(t),
 		DB:      db,
 		AppOpts: simtestutil.NewAppOptionsWithFlagHome(t.TempDir()),
 	})
 
 	// make sure the upgrade keeper has version map in state
-	ctx := app.NewContext(false, tmproto.Header{})
-	vm := app.UpgradeKeeper.GetModuleVersionMap(ctx)
+	ctx := app.NewContext(false)
+	vm, err := app.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
 	for v, i := range app.ModuleManager.Modules {
 		if i, ok := i.(module.HasConsensusVersion); ok {
 			require.Equal(t, vm[v], i.ConsensusVersion())
@@ -279,3 +290,19 @@ func TestUpgradeStateOnGenesis(t *testing.T) {
 
 	require.NotNil(t, app.UpgradeKeeper.GetVersionSetter())
 }
+
+// TestMergedRegistry tests that fetching the gogo/protov2 merged registry
+// doesn't fail after loading all file descriptors.
+func TestMergedRegistry(t *testing.T) {
+	r, err := proto.MergedRegistry()
+	require.NoError(t, err)
+	require.Greater(t, r.NumFiles(), 0)
+}
+
+func TestProtoAnnotations(t *testing.T) {
+	r, err := proto.MergedRegistry()
+	require.NoError(t, err)
+	err = msgservice.ValidateProtoAnnotations(r)
+	require.NoError(t, err)
+}
+

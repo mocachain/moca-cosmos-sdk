@@ -5,9 +5,13 @@ import (
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/suite"
 
+	"cosmossdk.io/depinject"
+	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
@@ -35,6 +39,7 @@ type SimTestSuite struct {
 	accountKeeper types.AccountKeeper
 	bankKeeper    keeper.Keeper
 	cdc           codec.Codec
+	txConfig      client.TxConfig
 	app           *runtime.App
 }
 
@@ -43,19 +48,23 @@ func (suite *SimTestSuite) SetupTest() {
 		appBuilder *runtime.AppBuilder
 		err        error
 	)
-	suite.app, err = simtestutil.Setup(configurator.NewAppConfig(
-		configurator.AuthModule(),
-		configurator.AuthzModule(),
-		configurator.ParamsModule(),
-		configurator.BankModule(),
-		configurator.StakingModule(),
-		configurator.ConsensusModule(),
-		configurator.TxModule(),
-	), &suite.accountKeeper, &suite.bankKeeper, &suite.cdc, &appBuilder)
+	suite.app, err = simtestutil.Setup(
+		depinject.Configs(
+			configurator.NewAppConfig(
+				configurator.AuthModule(),
+				configurator.AuthzModule(),
+				configurator.ParamsModule(),
+				configurator.BankModule(),
+				configurator.StakingModule(),
+				configurator.ConsensusModule(),
+				configurator.TxModule(),
+			),
+			depinject.Supply(log.NewNopLogger()),
+		), &suite.accountKeeper, &suite.bankKeeper, &suite.cdc, &suite.txConfig, &appBuilder)
 
 	suite.NoError(err)
 
-	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
+	suite.ctx = suite.app.BaseApp.NewContext(false)
 }
 
 // TestWeightedOperations tests the weights of the operations.
@@ -63,7 +72,7 @@ func (suite *SimTestSuite) TestWeightedOperations() {
 	cdc := suite.cdc
 	appParams := make(simtypes.AppParams)
 
-	weightesOps := simulation.WeightedOperations(appParams, cdc, suite.accountKeeper, suite.bankKeeper)
+	weightesOps := simulation.WeightedOperations(appParams, cdc, suite.txConfig, suite.accountKeeper, suite.bankKeeper)
 
 	// setup 3 accounts
 	s := rand.NewSource(1)
@@ -75,8 +84,8 @@ func (suite *SimTestSuite) TestWeightedOperations() {
 		opMsgRoute string
 		opMsgName  string
 	}{
-		{100, types.ModuleName, types.TypeMsgSend},
-		{10, types.ModuleName, types.TypeMsgMultiSend},
+		{100, types.ModuleName, sdk.MsgTypeURL(&types.MsgSend{})},
+		{10, types.ModuleName, sdk.MsgTypeURL(&types.MsgMultiSend{})},
 	}
 
 	for i, w := range weightesOps {
@@ -100,29 +109,24 @@ func (suite *SimTestSuite) TestSimulateMsgSend() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, 3)
 
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{
-			ChainID: sdktestutil.DefaultChainId,
-			Height:  suite.app.LastBlockHeight() + 1,
-			AppHash: suite.app.LastCommitID().Hash,
-		},
+	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: suite.app.LastBlockHeight() + 1,
+		Hash:   suite.app.LastCommitID().Hash,
 	})
 
 	// execute operation
-	op := simulation.SimulateMsgSend(suite.accountKeeper, suite.bankKeeper)
+	op := simulation.SimulateMsgSend(suite.txConfig, suite.accountKeeper, suite.bankKeeper)
 	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
 	suite.Require().NoError(err)
 
 	var msg types.MsgSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
+	err = proto.Unmarshal(operationMsg.Msg, &msg)
+	suite.Require().NoError(err)
 	suite.Require().True(operationMsg.OK)
 	suite.Require().Equal("65337742stake", msg.Amount.String())
 	suite.Require().Equal("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a", msg.FromAddress)
 	suite.Require().Equal("0x6b11EA2aF9b83C6E0BBCe6254d776F82BB6b6C13", msg.ToAddress)
-	suite.Require().Equal(types.TypeMsgSend, msg.Type())
-	suite.Require().Equal(types.ModuleName, msg.Route())
+	suite.Require().Equal(sdk.MsgTypeURL(&types.MsgSend{}), sdk.MsgTypeURL(&msg))
 	suite.Require().Len(futureOperations, 0)
 }
 
@@ -134,24 +138,20 @@ func (suite *SimTestSuite) TestSimulateMsgMultiSend() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, 3)
 
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{
-			ChainID: sdktestutil.DefaultChainId,
-			Height:  suite.app.LastBlockHeight() + 1,
-			AppHash: suite.app.LastCommitID().Hash,
-		},
+	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: suite.app.LastBlockHeight() + 1,
+		Hash:   suite.app.LastCommitID().Hash,
 	})
 
 	// execute operation
-	op := simulation.SimulateMsgMultiSend(suite.accountKeeper, suite.bankKeeper)
+	op := simulation.SimulateMsgMultiSend(suite.txConfig, suite.accountKeeper, suite.bankKeeper)
 	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
 	require := suite.Require()
 	require.NoError(err)
 
 	var msg types.MsgMultiSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
+	err = proto.Unmarshal(operationMsg.Msg, &msg)
+	suite.Require().NoError(err)
 	require.True(operationMsg.OK)
 	require.Len(msg.Inputs, 1)
 	require.Equal("0x520ecc4903A9F355246c1FF384E694b6dFFcE2Ec", msg.Inputs[0].Address)
@@ -159,8 +159,7 @@ func (suite *SimTestSuite) TestSimulateMsgMultiSend() {
 	require.Len(msg.Outputs, 2)
 	require.Equal("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a", msg.Outputs[1].Address)
 	require.Equal("107287087stake", msg.Outputs[1].Coins.String())
-	require.Equal(types.TypeMsgMultiSend, msg.Type())
-	require.Equal(types.ModuleName, msg.Route())
+	suite.Require().Equal(sdk.MsgTypeURL(&types.MsgMultiSend{}), sdk.MsgTypeURL(&msg))
 	require.Len(futureOperations, 0)
 }
 
@@ -174,17 +173,14 @@ func (suite *SimTestSuite) TestSimulateModuleAccountMsgSend() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, accCount)
 
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{
-			ChainID: sdktestutil.DefaultChainId,
-			Height:  suite.app.LastBlockHeight() + 1,
-			AppHash: suite.app.LastCommitID().Hash,
-		},
-	})
+	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: suite.app.LastBlockHeight() + 1,
+		Hash:   suite.app.LastCommitID().Hash,
+	},
+	)
 
 	// execute operation
-	op := simulation.SimulateMsgSendToModuleAccount(suite.accountKeeper, suite.bankKeeper, moduleAccCount)
+	op := simulation.SimulateMsgSendToModuleAccount(suite.txConfig, suite.accountKeeper, suite.bankKeeper, moduleAccCount)
 
 	s = rand.NewSource(1)
 	r = rand.New(s)
@@ -193,12 +189,11 @@ func (suite *SimTestSuite) TestSimulateModuleAccountMsgSend() {
 	suite.Require().Error(err)
 
 	var msg types.MsgSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
+	err = proto.Unmarshal(operationMsg.Msg, &msg)
+	suite.Require().NoError(err)
 	suite.Require().False(operationMsg.OK)
 	suite.Require().Equal(operationMsg.Comment, "invalid transfers")
-	suite.Require().Equal(types.TypeMsgSend, msg.Type())
-	suite.Require().Equal(types.ModuleName, msg.Route())
+	suite.Require().Equal(sdk.MsgTypeURL(&types.MsgSend{}), sdk.MsgTypeURL(&msg))
 	suite.Require().Len(futureOperations, 0)
 }
 
@@ -212,28 +207,23 @@ func (suite *SimTestSuite) TestSimulateMsgMultiSendToModuleAccount() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, accCount)
 
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{
-			ChainID: sdktestutil.DefaultChainId,
-			Height:  suite.app.LastBlockHeight() + 1,
-			AppHash: suite.app.LastCommitID().Hash,
-		},
+	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: suite.app.LastBlockHeight() + 1,
+		Hash:   suite.app.LastCommitID().Hash,
 	})
 
 	// execute operation
-	op := simulation.SimulateMsgMultiSendToModuleAccount(suite.accountKeeper, suite.bankKeeper, mAccCount)
+	op := simulation.SimulateMsgMultiSendToModuleAccount(suite.txConfig, suite.accountKeeper, suite.bankKeeper, mAccCount)
 
 	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
 	suite.Require().Error(err)
 
 	var msg types.MsgMultiSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
+	err = proto.Unmarshal(operationMsg.Msg, &msg)
+	suite.Require().NoError(err)
 	suite.Require().False(operationMsg.OK) // sending tokens to a module account should fail
 	suite.Require().Equal(operationMsg.Comment, "invalid transfers")
-	suite.Require().Equal(types.TypeMsgMultiSend, msg.Type())
-	suite.Require().Equal(types.ModuleName, msg.Route())
+	suite.Require().Equal(sdk.MsgTypeURL(&types.MsgMultiSend{}), sdk.MsgTypeURL(&msg))
 	suite.Require().Len(futureOperations, 0)
 }
 
@@ -247,7 +237,7 @@ func (suite *SimTestSuite) getTestingAccounts(r *rand.Rand, n int) []simtypes.Ac
 	for _, account := range accounts {
 		acc := suite.accountKeeper.NewAccountWithAddress(suite.ctx, account.Address)
 		suite.accountKeeper.SetAccount(suite.ctx, acc)
-		suite.Require().NoError(testutil.FundAccount(suite.bankKeeper, suite.ctx, account.Address, initCoins))
+		suite.Require().NoError(testutil.FundAccount(suite.ctx, suite.bankKeeper, account.Address, initCoins))
 	}
 
 	return accounts

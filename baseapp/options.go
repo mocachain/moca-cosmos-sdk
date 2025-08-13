@@ -3,15 +3,19 @@ package baseapp
 import (
 	"fmt"
 	"io"
+	"math"
 
-	dbm "github.com/cometbft/cometbft-db"
-	lru "github.com/hashicorp/golang-lru"
+	dbm "github.com/cosmos/cosmos-db"
 
+	"cosmossdk.io/store/metrics"
+	pruningtypes "cosmossdk.io/store/pruning/types"
+	"cosmossdk.io/store/snapshots"
+	snapshottypes "cosmossdk.io/store/snapshots/types"
+	storetypes "cosmossdk.io/store/types"
+
+	"github.com/cosmos/cosmos-sdk/baseapp/oe"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/snapshots"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store"
-	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -37,6 +41,15 @@ func SetMinGasPrices(gasPricesStr string) func(*BaseApp) {
 	}
 
 	return func(bapp *BaseApp) { bapp.setMinGasPrices(gasPrices) }
+}
+
+// SetQueryGasLimit returns an option that sets a gas limit for queries.
+func SetQueryGasLimit(queryGasLimit uint64) func(*BaseApp) {
+	if queryGasLimit == 0 {
+		queryGasLimit = math.MaxUint64
+	}
+
+	return func(bapp *BaseApp) { bapp.queryGasLimit = queryGasLimit }
 }
 
 // SetHaltHeight returns a BaseApp option function that sets the halt block height.
@@ -76,14 +89,9 @@ func SetIAVLDisableFastNode(disable bool) func(*BaseApp) {
 	return func(bapp *BaseApp) { bapp.cms.SetIAVLDisableFastNode(disable) }
 }
 
-// SetIAVLLazyLoading enables/disables lazy loading of the IAVL store.
-func SetIAVLLazyLoading(lazyLoading bool) func(*BaseApp) {
-	return func(bapp *BaseApp) { bapp.cms.SetLazyLoading(lazyLoading) }
-}
-
 // SetInterBlockCache provides a BaseApp option function that sets the
 // inter-block cache.
-func SetInterBlockCache(cache sdk.MultiStorePersistentCache) func(*BaseApp) {
+func SetInterBlockCache(cache storetypes.MultiStorePersistentCache) func(*BaseApp) {
 	return func(app *BaseApp) { app.setInterBlockCache(cache) }
 }
 
@@ -100,6 +108,23 @@ func SetMempool(mempool mempool.Mempool) func(*BaseApp) {
 // SetChainID sets the chain ID in BaseApp.
 func SetChainID(chainID string) func(*BaseApp) {
 	return func(app *BaseApp) { app.chainID = chainID }
+}
+
+// SetStoreLoader allows customization of the rootMultiStore initialization.
+func SetStoreLoader(loader StoreLoader) func(*BaseApp) {
+	return func(app *BaseApp) { app.SetStoreLoader(loader) }
+}
+
+// SetOptimisticExecution enables optimistic execution.
+func SetOptimisticExecution(opts ...func(*oe.OptimisticExecution)) func(*BaseApp) {
+	return func(app *BaseApp) {
+		app.optimisticExec = oe.NewOptimisticExecution(app.logger, app.internalFinalizeBlock, opts...)
+	}
+}
+
+// DisableBlockGasMeter disables the block gas meter.
+func DisableBlockGasMeter() func(*BaseApp) {
+	return func(app *BaseApp) { app.SetDisableBlockGasMeter(true) }
 }
 
 // SetEnableUnsafeQuery sets the flag to enable unsafe query in BaseApp.
@@ -150,7 +175,7 @@ func (app *BaseApp) SetDB(db dbm.DB) {
 	app.db = db
 }
 
-func (app *BaseApp) SetCMS(cms store.CommitMultiStore) {
+func (app *BaseApp) SetCMS(cms storetypes.CommitMultiStore) {
 	if app.sealed {
 		panic("SetEndBlocker() on sealed BaseApp")
 	}
@@ -164,6 +189,18 @@ func (app *BaseApp) SetInitChainer(initChainer sdk.InitChainer) {
 	}
 
 	app.initChainer = initChainer
+}
+
+func (app *BaseApp) PreBlocker() sdk.PreBlocker {
+	return app.preBlocker
+}
+
+func (app *BaseApp) SetPreBlocker(preBlocker sdk.PreBlocker) {
+	if app.sealed {
+		panic("SetPreBlocker() on sealed BaseApp")
+	}
+
+	app.preBlocker = preBlocker
 }
 
 func (app *BaseApp) SetBeginBlocker(beginBlocker sdk.BeginBlocker) {
@@ -180,6 +217,22 @@ func (app *BaseApp) SetEndBlocker(endBlocker sdk.EndBlocker) {
 	}
 
 	app.endBlocker = endBlocker
+}
+
+func (app *BaseApp) SetPrepareCheckStater(prepareCheckStater sdk.PrepareCheckStater) {
+	if app.sealed {
+		panic("SetPrepareCheckStater() on sealed BaseApp")
+	}
+
+	app.prepareCheckStater = prepareCheckStater
+}
+
+func (app *BaseApp) SetPrecommiter(precommiter sdk.Precommiter) {
+	if app.sealed {
+		panic("SetPrecommiter() on sealed BaseApp")
+	}
+
+	app.precommiter = precommiter
 }
 
 func (app *BaseApp) SetAnteHandler(ah sdk.AnteHandler) {
@@ -222,6 +275,11 @@ func (app *BaseApp) SetFauxMerkleMode() {
 	app.fauxMerkleMode = true
 }
 
+// SetNotSigverify during simulation testing, transaction signature verification needs to be ignored.
+func (app *BaseApp) SetNotSigverifyTx() {
+	app.sigverifyTx = false
+}
+
 // SetCommitMultiStoreTracer sets the store tracer on the BaseApp's underlying
 // CommitMultiStore.
 func (app *BaseApp) SetCommitMultiStoreTracer(w io.Writer) {
@@ -255,17 +313,7 @@ func (app *BaseApp) SetInterfaceRegistry(registry types.InterfaceRegistry) {
 	app.interfaceRegistry = registry
 	app.grpcQueryRouter.SetInterfaceRegistry(registry)
 	app.msgServiceRouter.SetInterfaceRegistry(registry)
-}
-
-// SetStreamingService is used to set a streaming service into the BaseApp hooks and load the listeners into the multistore
-func (app *BaseApp) SetStreamingService(s StreamingService) {
-	// add the listeners for each StoreKey
-	for key, lis := range s.Listeners() {
-		app.cms.AddListeners(key, lis)
-	}
-	// register the StreamingService within the BaseApp
-	// BaseApp will pass BeginBlock, DeliverTx, and EndBlock requests and responses to the streaming services to update their ABCI context
-	app.abciListeners = append(app.abciListeners, s)
+	app.cdc = codec.NewProtoCodec(registry)
 }
 
 // SetTxDecoder sets the TxDecoder if it wasn't provided in the BaseApp constructor.
@@ -276,6 +324,13 @@ func (app *BaseApp) SetTxDecoder(txDecoder sdk.TxDecoder) {
 // SetTxEncoder sets the TxEncoder if it wasn't provided in the BaseApp constructor.
 func (app *BaseApp) SetTxEncoder(txEncoder sdk.TxEncoder) {
 	app.txEncoder = txEncoder
+}
+
+// SetQueryMultiStore set a alternative MultiStore implementation to support grpc query service.
+//
+// Ref: https://github.com/cosmos/cosmos-sdk/issues/13317
+func (app *BaseApp) SetQueryMultiStore(ms storetypes.MultiStore) {
+	app.qms = ms
 }
 
 // SetMempool sets the mempool for the BaseApp and is required for the app to start up.
@@ -303,12 +358,47 @@ func (app *BaseApp) SetPrepareProposal(handler sdk.PrepareProposalHandler) {
 	app.prepareProposal = handler
 }
 
-// SetUpgradeChecker is used to set a upgrade checker from the upgrade module
-func (app *BaseApp) SetUpgradeChecker(checker func(sdk.Context, string) bool) {
-	app.upgradeChecker = checker
+func (app *BaseApp) SetExtendVoteHandler(handler sdk.ExtendVoteHandler) {
+	if app.sealed {
+		panic("SetExtendVoteHandler() on sealed BaseApp")
+	}
+
+	app.extendVote = handler
 }
 
-// SetSigCache is used to set a signature cache
-func (app *BaseApp) SetSigCache(cache *lru.ARCCache) {
-	app.sigCache = cache
+func (app *BaseApp) SetVerifyVoteExtensionHandler(handler sdk.VerifyVoteExtensionHandler) {
+	if app.sealed {
+		panic("SetVerifyVoteExtensionHandler() on sealed BaseApp")
+	}
+
+	app.verifyVoteExt = handler
+}
+
+// SetStoreMetrics sets the prepare proposal function for the BaseApp.
+func (app *BaseApp) SetStoreMetrics(gatherer metrics.StoreMetrics) {
+	if app.sealed {
+		panic("SetStoreMetrics() on sealed BaseApp")
+	}
+
+	app.cms.SetMetrics(gatherer)
+}
+
+// SetStreamingManager sets the streaming manager for the BaseApp.
+func (app *BaseApp) SetStreamingManager(manager storetypes.StreamingManager) {
+	app.streamingManager = manager
+}
+
+// SetDisableBlockGasMeter sets the disableBlockGasMeter flag for the BaseApp.
+func (app *BaseApp) SetDisableBlockGasMeter(disableBlockGasMeter bool) {
+	app.disableBlockGasMeter = disableBlockGasMeter
+}
+
+// SetMsgServiceRouter sets the MsgServiceRouter of a BaseApp.
+func (app *BaseApp) SetMsgServiceRouter(msgServiceRouter *MsgServiceRouter) {
+	app.msgServiceRouter = msgServiceRouter
+}
+
+// SetGRPCQueryRouter sets the GRPCQueryRouter of the BaseApp.
+func (app *BaseApp) SetGRPCQueryRouter(grpcQueryRouter *GRPCQueryRouter) {
+	app.grpcQueryRouter = grpcQueryRouter
 }

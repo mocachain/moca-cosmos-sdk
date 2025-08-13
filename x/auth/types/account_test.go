@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"testing"
 
-	"cosmossdk.io/depinject"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/cosmos/cosmos-sdk/x/auth/testutil"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
@@ -41,7 +38,7 @@ func TestBaseAddressPubKey(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, pub2, acc.GetPubKey())
 
-	// ------------------------------------
+	//------------------------------------
 
 	// can set address on empty account
 	acc2 := types.BaseAccount{}
@@ -49,11 +46,8 @@ func TestBaseAddressPubKey(t *testing.T) {
 	require.Nil(t, err)
 	require.EqualValues(t, addr2, acc2.GetAddress())
 
-	// no error when calling MarshalYAML with an account with pubkey
-	_, err = acc.MarshalYAML()
-	require.Nil(t, err)
-
 	// no panic on calling string with an account with pubkey
+	require.NotEmpty(t, acc.String())
 	require.NotPanics(t, func() { _ = acc.String() })
 }
 
@@ -65,33 +59,6 @@ func TestBaseSequence(t *testing.T) {
 	err := acc.SetSequence(seq)
 	require.Nil(t, err)
 	require.Equal(t, seq, acc.GetSequence())
-}
-
-func TestBaseAccountMarshal(t *testing.T) {
-	var accountKeeper authkeeper.AccountKeeper
-
-	err := depinject.Inject(testutil.AppConfig, &accountKeeper)
-	require.NoError(t, err)
-	_, pub, addr := testdata.KeyTestPubAddr()
-	acc := types.NewBaseAccountWithAddress(addr)
-	seq := uint64(7)
-
-	// set everything on the account
-	err = acc.SetPubKey(pub)
-	require.Nil(t, err)
-	err = acc.SetSequence(seq)
-	require.Nil(t, err)
-
-	bz, err := accountKeeper.MarshalAccount(acc)
-	require.Nil(t, err)
-
-	acc2, err := accountKeeper.UnmarshalAccount(bz)
-	require.Nil(t, err)
-	require.Equal(t, acc, acc2)
-
-	// error on bad bytes
-	_, err = accountKeeper.UnmarshalAccount(bz[:len(bz)/2])
-	require.NotNil(t, err)
 }
 
 func TestGenesisAccountValidate(t *testing.T) {
@@ -215,4 +182,9 @@ func TestNewModuleAddressOrHexAddress(t *testing.T) {
 	input := "0x4110D9a5a4fc8C0c95024cff4c7C002B924AC520"
 	require.Equal(t, input, types.NewModuleAddressOrHexAddress(input).String())
 	require.Equal(t, "0x93354845030274cD4bf1686Abd60AB28EC52e1a7", types.NewModuleAddressOrHexAddress("distribution").String())
+}
+
+func TestModuleAccountValidateNilBaseAccount(t *testing.T) {
+	ma := &types.ModuleAccount{Name: "foo"}
+	_ = ma.Validate()
 }

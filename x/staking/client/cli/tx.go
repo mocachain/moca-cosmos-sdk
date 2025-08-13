@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"cosmossdk.io/math"
-
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+
+	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -50,7 +51,7 @@ func NewTxCmd() *cobra.Command {
 		NewCreateValidatorCmd(),
 		NewEditValidatorCmd(),
 		NewDelegateCmd(),
-
+		NewRedelegateCmd(),
 		NewUnbondCmd(),
 		NewCancelUnbondingDelegation(),
 	)
@@ -108,7 +109,7 @@ Where create_validator_proposal.json contains:
 	"metadata": "",
 	"title": "Create ${NODE_NAME} Validator",
 	"summary": "create ${NODE_NAME} validator",
-	"deposit": "1000000000000000000ame"
+	"deposit": "1000000000000000000amoca"
 }
 
 modify the related configrations as you need, where you can get the pubkey using "%s tendermint show-validator"
@@ -119,12 +120,12 @@ modify the related configrations as you need, where you can get the pubkey using
 				return err
 			}
 
-			msgs, metadata, title, summary, deposit, err := govcli.ParseSubmitProposal(clientCtx.Codec, args[0])
+			proposal, msgs, deposit, err := govcli.ParseSubmitProposal(clientCtx.Codec, args[0])
 			if err != nil {
 				return err
 			}
 
-			govMsg, err := v1.NewMsgSubmitProposal(msgs, deposit, clientCtx.GetFromAddress().String(), metadata, title, summary)
+			govMsg, err := v1.NewMsgSubmitProposal(msgs, deposit, clientCtx.GetFromAddress().String(), proposal.Metadata, proposal.Title, proposal.Summary, proposal.Expedited)
 			if err != nil {
 				return fmt.Errorf("invalid message: %w", err)
 			}
@@ -134,7 +135,7 @@ modify the related configrations as you need, where you can get the pubkey using
 			}
 
 			valMsg, ok := msgs[0].(*types.MsgCreateValidator)
-			if !ok || valMsg.ValidateBasic() != nil {
+			if !ok || valMsg.Validate() != nil {
 				return fmt.Errorf("invalid create validator message")
 			}
 
@@ -182,21 +183,19 @@ func NewEditValidatorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			valAddr := clientCtx.GetFromAddress()
+
 			moniker, _ := cmd.Flags().GetString(FlagEditMoniker)
 			identity, _ := cmd.Flags().GetString(FlagIdentity)
 			website, _ := cmd.Flags().GetString(FlagWebsite)
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
 			description := types.NewDescription(moniker, identity, website, security, details)
-			relayer := sdk.AccAddress("")
-			challenger := sdk.AccAddress("")
 
-			var newRate *sdk.Dec
+			var newRate *math.LegacyDec
 
 			commissionRate, _ := cmd.Flags().GetString(FlagCommissionRate)
 			if commissionRate != "" {
-				rate, err := sdk.NewDecFromStr(commissionRate)
+				rate, err := math.LegacyNewDecFromStr(commissionRate)
 				if err != nil {
 					return fmt.Errorf("invalid new commission rate: %v", err)
 				}
@@ -208,28 +207,24 @@ func NewEditValidatorCmd() *cobra.Command {
 
 			minSelfDelegationString, _ := cmd.Flags().GetString(FlagMinSelfDelegation)
 			if minSelfDelegationString != "" {
-				msb, ok := sdk.NewIntFromString(minSelfDelegationString)
+				msb, ok := math.NewIntFromString(minSelfDelegationString)
 				if !ok {
-					return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
+					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
 				}
 
 				newMinSelfDelegation = &msb
 			}
 
-			relayerAddr, _ := cmd.Flags().GetString(FlagAddressRelayer)
-			if relayerAddr != "" {
-				relayer, err = sdk.AccAddressFromHexUnsafe(relayerAddr)
-				if err != nil {
-					return fmt.Errorf("invalid relayer address: %v", err)
-				}
+			valAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			relayerAddr, err := cmd.Flags().GetString(FlagAddressRelayer)
+			if err != nil {
+				return fmt.Errorf("invalid relayer address: %v", err)
 			}
 
-			challengerAddr, _ := cmd.Flags().GetString(FlagAddressChallenger)
-			if challengerAddr != "" {
-				challenger, err = sdk.AccAddressFromHexUnsafe(challengerAddr)
-				if err != nil {
-					return fmt.Errorf("invalid challenger address: %v", err)
-				}
+			challengerAddr, err := cmd.Flags().GetString(FlagAddressChallenger)
+			if err != nil {
+				return fmt.Errorf("invalid challenger address: %v", err)
 			}
 
 			blsPk, _ := cmd.Flags().GetString(FlagBlsKey)
@@ -237,7 +232,7 @@ func NewEditValidatorCmd() *cobra.Command {
 
 			msg := types.NewMsgEditValidator(
 				valAddr, description, newRate, newMinSelfDelegation,
-				relayer, challenger, blsPk, blsProof,
+				relayerAddr, challengerAddr, blsPk, blsProof,
 			)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
@@ -257,8 +252,6 @@ func NewEditValidatorCmd() *cobra.Command {
 
 // NewDelegateCmd returns a CLI command handler for creating a MsgDelegate transaction.
 func NewDelegateCmd() *cobra.Command {
-	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
-
 	cmd := &cobra.Command{
 		Use:   "delegate [validator-addr] [amount]",
 		Args:  cobra.ExactArgs(2),
@@ -267,9 +260,9 @@ func NewDelegateCmd() *cobra.Command {
 			fmt.Sprintf(`Delegate an amount of liquid coins to a validator from your wallet.
 
 Example:
-$ %s tx staking delegate %s1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --from mykey
+$ %s tx staking delegate cosmosvalopers1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --from mykey
 `,
-				version.AppName, bech32PrefixValAddr,
+				version.AppName,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -282,13 +275,14 @@ $ %s tx staking delegate %s1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --f
 				return err
 			}
 
-			delAddr := clientCtx.GetFromAddress()
-			valAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
 
-			msg := types.NewMsgDelegate(delAddr, valAddr, amount)
+			msg := types.NewMsgDelegate(delAddr, args[0], amount)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -301,8 +295,6 @@ $ %s tx staking delegate %s1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 1000stake --f
 
 // NewRedelegateCmd returns a CLI command handler for creating a MsgBeginRedelegate transaction.
 func NewRedelegateCmd() *cobra.Command {
-	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
-
 	cmd := &cobra.Command{
 		Use:   "redelegate [src-validator-addr] [dst-validator-addr] [amount]",
 		Short: "Redelegate illiquid tokens from one validator to another",
@@ -311,9 +303,9 @@ func NewRedelegateCmd() *cobra.Command {
 			fmt.Sprintf(`Redelegate an amount of illiquid staking tokens from one validator to another.
 
 Example:
-$ %s tx staking redelegate %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj %s1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 100stake --from mykey
+$ %s tx staking redelegate cosmosvalopers1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj cosmosvalopers1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 100stake --from mykey
 `,
-				version.AppName, bech32PrefixValAddr, bech32PrefixValAddr,
+				version.AppName,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -321,13 +313,14 @@ $ %s tx staking redelegate %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj %s1l2rsakp3
 			if err != nil {
 				return err
 			}
-			delAddr := clientCtx.GetFromAddress()
-			valSrcAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
 
-			valDstAddr, err := sdk.AccAddressFromHexUnsafe(args[1])
+			_, err = sdk.AccAddressFromHexUnsafe(args[1])
 			if err != nil {
 				return err
 			}
@@ -337,7 +330,7 @@ $ %s tx staking redelegate %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj %s1l2rsakp3
 				return err
 			}
 
-			msg := types.NewMsgBeginRedelegate(delAddr, valSrcAddr, valDstAddr, amount)
+			msg := types.NewMsgBeginRedelegate(delAddr, args[0], args[1], amount)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -370,8 +363,9 @@ $ %s tx staking unbond %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake --from
 			if err != nil {
 				return err
 			}
-			delAddr := clientCtx.GetFromAddress()
-			valAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
@@ -381,7 +375,7 @@ $ %s tx staking unbond %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake --from
 				return err
 			}
 
-			msg := types.NewMsgUndelegate(delAddr, valAddr, amount)
+			msg := types.NewMsgUndelegate(delAddr, args[0], amount)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -416,8 +410,9 @@ $ %s tx staking cancel-unbond %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake
 			if err != nil {
 				return err
 			}
-			delAddr := clientCtx.GetFromAddress()
-			valAddr, err := sdk.AccAddressFromHexUnsafe(args[0])
+			delAddr := sdk.AccAddress(clientCtx.GetFromAddress()).String()
+
+			_, err = sdk.AccAddressFromHexUnsafe(args[0])
 			if err != nil {
 				return err
 			}
@@ -429,10 +424,10 @@ $ %s tx staking cancel-unbond %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100stake
 
 			creationHeight, err := strconv.ParseInt(args[2], 10, 64)
 			if err != nil {
-				return sdkerrors.Wrap(fmt.Errorf("invalid height: %d", creationHeight), "invalid height")
+				return errorsmod.Wrap(fmt.Errorf("invalid height: %d", creationHeight), "invalid height")
 			}
 
-			msg := types.NewMsgCancelUnbondingDelegation(delAddr, valAddr, creationHeight, amount)
+			msg := types.NewMsgCancelUnbondingDelegation(delAddr, args[0], creationHeight, amount)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -630,14 +625,16 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 
 	// get the initial validator min self delegation
 	msbStr := config.MinSelfDelegation
-	minSelfDelegation, ok := sdk.NewIntFromString(msbStr)
+	minSelfDelegation, ok := math.NewIntFromString(msbStr)
 
 	if !ok {
-		return txBldr, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
+		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
 	}
 
+	valStr := sdk.AccAddress(config.Validator).String()
+
 	msg, err := types.NewMsgCreateValidator(
-		config.Validator, config.PubKey,
+		valStr, config.PubKey,
 		amount, description, commissionRates, minSelfDelegation,
 		from, config.Delegator, config.Relayer, config.Challenger, config.BlsKey, config.BLSProof)
 	if err != nil {

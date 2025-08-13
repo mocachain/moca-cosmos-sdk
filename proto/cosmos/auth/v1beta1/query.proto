@@ -132,34 +132,6 @@ message QueryModuleAccountByNameResponse {
   google.protobuf.Any account = 1 [(cosmos_proto.accepts_interface) = "cosmos.auth.v1beta1.ModuleAccountI"];
 }
 
-// AddressBytesToStringRequest is the request type for AddressString rpc method.
-//
-// Since: cosmos-sdk 0.46
-message AddressBytesToStringRequest {
-  bytes address_bytes = 1;
-}
-
-// AddressBytesToStringResponse is the response type for AddressString rpc method.
-//
-// Since: cosmos-sdk 0.46
-message AddressBytesToStringResponse {
-  string address_string = 1;
-}
-
-// AddressStringToBytesRequest is the request type for AccountBytes rpc method.
-//
-// Since: cosmos-sdk 0.46
-message AddressStringToBytesRequest {
-  string address_string = 1;
-}
-
-// AddressStringToBytesResponse is the response type for AddressBytes rpc method.
-//
-// Since: cosmos-sdk 0.46
-message AddressStringToBytesResponse {
-  bytes address_bytes = 1;
-}
-
 // QueryAccountAddressByIDRequest is the request type for AccountAddressByID rpc method
 //
 // Since: cosmos-sdk 0.46.2

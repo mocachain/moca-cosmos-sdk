@@ -5,6 +5,7 @@
 package types
 
 import (
+	context "context"
 	big "math/big"
 	reflect "reflect"
 
@@ -37,11 +38,12 @@ func (m *MockStakingKeeper) EXPECT() *MockStakingKeeperMockRecorder {
 }
 
 // BondDenom mocks base method.
-func (m *MockStakingKeeper) BondDenom(ctx types.Context) string {
+func (m *MockStakingKeeper) BondDenom(ctx context.Context) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BondDenom", ctx)
 	ret0, _ := ret[0].(string)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // BondDenom indicates an expected call of BondDenom.
@@ -51,11 +53,11 @@ func (mr *MockStakingKeeperMockRecorder) BondDenom(ctx interface{}) *gomock.Call
 }
 
 // GetHistoricalInfo mocks base method.
-func (m *MockStakingKeeper) GetHistoricalInfo(ctx types.Context, height int64) (types0.HistoricalInfo, bool) {
+func (m *MockStakingKeeper) GetHistoricalInfo(ctx context.Context, height int64) (types0.HistoricalInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHistoricalInfo", ctx, height)
 	ret0, _ := ret[0].(types0.HistoricalInfo)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
@@ -66,11 +68,12 @@ func (mr *MockStakingKeeperMockRecorder) GetHistoricalInfo(ctx, height interface
 }
 
 // GetLastValidators mocks base method.
-func (m *MockStakingKeeper) GetLastValidators(ctx types.Context) []types0.Validator {
+func (m *MockStakingKeeper) GetLastValidators(ctx context.Context) ([]types0.Validator, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastValidators", ctx)
 	ret0, _ := ret[0].([]types0.Validator)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetLastValidators indicates an expected call of GetLastValidators.
@@ -103,7 +106,7 @@ func (m *MockCrossChainKeeper) EXPECT() *MockCrossChainKeeperMockRecorder {
 }
 
 // CreateRawIBCPackageWithFee mocks base method.
-func (m *MockCrossChainKeeper) CreateRawIBCPackageWithFee(ctx types.Context, destChainId types.ChainID, channelID types.ChannelID, packageType types.CrossChainPackageType, packageLoad []byte, relayerFee, ackRelayerFee *big.Int) (uint64, error) {
+func (m *MockCrossChainKeeper) CreateRawIBCPackageWithFee(ctx context.Context, destChainId types.ChainID, channelID types.ChannelID, packageType types.CrossChainPackageType, packageLoad []byte, relayerFee, ackRelayerFee *big.Int) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateRawIBCPackageWithFee", ctx, destChainId, channelID, packageType, packageLoad, relayerFee, ackRelayerFee)
 	ret0, _ := ret[0].(uint64)
@@ -187,6 +190,20 @@ func (mr *MockCrossChainKeeperMockRecorder) GetDestMantleChainID() *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDestMantleChainID", reflect.TypeOf((*MockCrossChainKeeper)(nil).GetDestMantleChainID))
 }
 
+// GetDestBaseChainID mocks base method.
+func (m *MockCrossChainKeeper) GetDestBaseChainID() types.ChainID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDestBaseChainID")
+	ret0, _ := ret[0].(types.ChainID)
+	return ret0
+}
+
+// GetDestBaseChainID indicates an expected call of GetDestBaseChainID.
+func (mr *MockCrossChainKeeperMockRecorder) GetDestBaseChainID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDestBaseChainID", reflect.TypeOf((*MockCrossChainKeeper)(nil).GetDestBaseChainID))
+}
+
 // GetDestOpChainID mocks base method.
 func (m *MockCrossChainKeeper) GetDestOpChainID() types.ChainID {
 	m.ctrl.T.Helper()
@@ -244,7 +261,7 @@ func (mr *MockCrossChainKeeperMockRecorder) GetDestScrollChainID() *gomock.Call 
 }
 
 // GetReceiveSequence mocks base method.
-func (m *MockCrossChainKeeper) GetReceiveSequence(ctx types.Context, chainId types.ChainID, channelID types.ChannelID) uint64 {
+func (m *MockCrossChainKeeper) GetReceiveSequence(ctx context.Context, chainId types.ChainID, channelID types.ChannelID) uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetReceiveSequence", ctx, chainId, channelID)
 	ret0, _ := ret[0].(uint64)
@@ -272,7 +289,7 @@ func (mr *MockCrossChainKeeperMockRecorder) GetSrcChainID() *gomock.Call {
 }
 
 // IncrReceiveSequence mocks base method.
-func (m *MockCrossChainKeeper) IncrReceiveSequence(ctx types.Context, chainId types.ChainID, channelID types.ChannelID) {
+func (m *MockCrossChainKeeper) IncrReceiveSequence(ctx context.Context, chainId types.ChainID, channelID types.ChannelID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "IncrReceiveSequence", ctx, chainId, channelID)
 }
@@ -321,7 +338,7 @@ func (m *MockBankKeeper) EXPECT() *MockBankKeeperMockRecorder {
 }
 
 // SendCoinsFromModuleToAccount mocks base method.
-func (m *MockBankKeeper) SendCoinsFromModuleToAccount(ctx types.Context, senderModule string, recipientAddr types.AccAddress, amt types.Coins) error {
+func (m *MockBankKeeper) SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr types.AccAddress, amt types.Coins) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendCoinsFromModuleToAccount", ctx, senderModule, recipientAddr, amt)
 	ret0, _ := ret[0].(error)

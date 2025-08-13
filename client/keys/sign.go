@@ -9,6 +9,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
 // SignMsgKeysCmd returns the Cobra Command for signing messages with the private key of a given name.
@@ -54,7 +55,7 @@ func runSignMsgCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sig, _, err := clientCtx.Keyring.Sign(name, tmhash.Sum(msg))
+	sig, _, err := clientCtx.Keyring.Sign(name, tmhash.Sum(msg), signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 	if err != nil {
 		return err
 	}

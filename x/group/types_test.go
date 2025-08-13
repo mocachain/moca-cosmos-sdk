@@ -122,7 +122,7 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: true,
 				Final: true,
@@ -144,7 +144,7 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"4",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: true,
 				Final: true,
@@ -166,7 +166,7 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: false,
@@ -188,7 +188,7 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: true,
@@ -210,7 +210,7 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"4",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: false,
@@ -232,10 +232,32 @@ func TestPercentageDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: false,
+			},
+			false,
+		},
+		{
+			"empty total power",
+			&group.PercentageDecisionPolicy{
+				Percentage: "0.5",
+				Windows: &group.DecisionPolicyWindows{
+					VotingPeriod: time.Second * 100,
+				},
+			},
+			&group.TallyResult{
+				YesCount:        "1",
+				NoCount:         "0",
+				AbstainCount:    "0",
+				NoWithVetoCount: "0",
+			},
+			"0",
+			time.Second * 50,
+			group.DecisionPolicyResult{
+				Allow: false,
+				Final: true,
 			},
 			false,
 		},
@@ -278,7 +300,7 @@ func TestThresholdDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: true,
 				Final: true,
@@ -300,7 +322,7 @@ func TestThresholdDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: false,
@@ -322,7 +344,7 @@ func TestThresholdDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: true,
 				Final: true,
@@ -344,7 +366,7 @@ func TestThresholdDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: true,
@@ -366,7 +388,7 @@ func TestThresholdDecisionPolicyAllow(t *testing.T) {
 				NoWithVetoCount: "0",
 			},
 			"3",
-			time.Duration(time.Second * 50),
+			time.Second * 50,
 			group.DecisionPolicyResult{
 				Allow: false,
 				Final: false,

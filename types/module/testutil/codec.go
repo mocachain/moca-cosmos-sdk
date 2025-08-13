@@ -3,6 +3,7 @@ package testutil
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/codec/testutil"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -22,8 +23,8 @@ type TestEncodingConfig struct {
 }
 
 func MakeTestEncodingConfig(modules ...module.AppModuleBasic) TestEncodingConfig {
-	cdc := codec.NewLegacyAmino()
-	interfaceRegistry := types.NewInterfaceRegistry()
+	aminoCodec := codec.NewLegacyAmino()
+	interfaceRegistry := testutil.CodecOptions{}.NewInterfaceRegistry()
 	codec := codec.NewProtoCodec(interfaceRegistry)
 	txCfg := tx.NewTxConfig(codec, []signingtypes.SignMode{
 		signingtypes.SignMode_SIGN_MODE_EIP_712,
@@ -33,7 +34,7 @@ func MakeTestEncodingConfig(modules ...module.AppModuleBasic) TestEncodingConfig
 		InterfaceRegistry: interfaceRegistry,
 		Codec:             codec,
 		TxConfig:          txCfg,
-		Amino:             cdc,
+		Amino:             aminoCodec,
 	}
 
 	mb := module.NewBasicManager(modules...)
@@ -47,7 +48,7 @@ func MakeTestEncodingConfig(modules ...module.AppModuleBasic) TestEncodingConfig
 }
 
 func MakeTestTxConfig() client.TxConfig {
-	interfaceRegistry := types.NewInterfaceRegistry()
+	interfaceRegistry := testutil.CodecOptions{}.NewInterfaceRegistry()
 	cdc := codec.NewProtoCodec(interfaceRegistry)
 	return tx.NewTxConfig(cdc, tx.DefaultSignModes)
 }

@@ -12,6 +12,7 @@ type crossChainConfig struct {
 	destMantleChainId   sdk.ChainID
 	destArbitrumChainId sdk.ChainID
 	destOptimismChainId sdk.ChainID
+	destBaseChainId     sdk.ChainID
 
 	nameToChannelID map[string]sdk.ChannelID
 	channelIDToName map[sdk.ChannelID]string
@@ -29,6 +30,7 @@ func newCrossChainCfg() *crossChainConfig {
 		destMantleChainId:   0,
 		destArbitrumChainId: 0,
 		destOptimismChainId: 0,
+		destBaseChainId:     0,
 		nameToChannelID:     make(map[string]sdk.ChannelID),
 		channelIDToName:     make(map[sdk.ChannelID]string),
 		channelIDToApp:      make(map[sdk.ChannelID]sdk.CrossChainApplication),

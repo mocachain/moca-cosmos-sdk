@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
@@ -44,9 +45,7 @@ func TestMsgGas(t *testing.T) {
 				accs := suite.CreateTestAccounts(4)
 
 				msg := bank.NewMsgMultiSend(
-					[]bank.Input{
-						bank.NewInput(accs[0].acc.GetAddress(), sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(300)))),
-					},
+					bank.NewInput(accs[0].acc.GetAddress(), sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(300)))),
 					[]bank.Output{
 						bank.NewOutput(accs[1].acc.GetAddress(), sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(100)))),
 						bank.NewOutput(accs[2].acc.GetAddress(), sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(100)))),
@@ -74,7 +73,7 @@ func TestMsgGas(t *testing.T) {
 
 		require.NoError(t, suite.txBuilder.SetMsgs(tc.malleate(suite)))
 
-		tx, err := suite.CreateTestTx(nil, nil, nil, suite.ctx.ChainID())
+		tx, err := suite.CreateTestTx(suite.ctx, nil, nil, nil, suite.ctx.ChainID(), signing.SignMode_SIGN_MODE_DIRECT)
 		require.NoError(t, err)
 
 		mgd := ante.NewConsumeMsgGasDecorator(suite.accountKeeper, suite.gashubKeeper)

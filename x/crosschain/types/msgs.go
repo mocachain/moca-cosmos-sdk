@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -12,11 +13,6 @@ var (
 	_ sdk.Msg = &MsgUpdateChannelPermissions{}
 	_ sdk.Msg = &MsgMintModuleTokens{}
 )
-
-// GetSignBytes implements the LegacyMsg interface.
-func (m MsgUpdateParams) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
-}
 
 // GetSigners returns the expected signers for a MsgUpdateParams message.
 func (m *MsgUpdateParams) GetSigners() []sdk.AccAddress {
@@ -35,11 +31,6 @@ func (m *MsgUpdateParams) ValidateBasic() error {
 	}
 
 	return nil
-}
-
-// GetSignBytes implements the LegacyMsg interface.
-func (m MsgUpdateChannelPermissions) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
 }
 
 // GetSigners returns the expected signers for a MsgUpdateParams message.
@@ -63,11 +54,6 @@ func (m *MsgUpdateChannelPermissions) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes implements the LegacyMsg interface.
-func (m MsgMintModuleTokens) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
-}
-
 // GetSigners returns the expected signers for a MsgMintModuleTokens message.
 func (m *MsgMintModuleTokens) GetSigners() []sdk.AccAddress {
 	addr, _ := sdk.AccAddressFromHexUnsafe(m.Authority)
@@ -80,7 +66,7 @@ func (m *MsgMintModuleTokens) ValidateBasic() error {
 		return errorsmod.Wrap(err, "invalid authority address")
 	}
 
-	if m.Amount.LTE(sdk.ZeroInt()) {
+	if m.Amount.LTE(math.ZeroInt()) {
 		return fmt.Errorf("amount must be positive, is %s", m.Amount)
 	}
 

@@ -1,19 +1,19 @@
 package cli_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
-	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/suite"
+
+	// without this import amino json encoding will fail when resolving any types
+	_ "cosmossdk.io/api/cosmos/group/v1"
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -29,9 +29,7 @@ import (
 	groupmodule "github.com/cosmos/cosmos-sdk/x/group/module"
 )
 
-const validMetadata = "metadata"
-
-var tooLongMetadata = strings.Repeat("A", 256)
+var validMetadata = "metadata"
 
 type CLITestSuite struct {
 	suite.Suite
@@ -55,7 +53,7 @@ func (s *CLITestSuite) SetupSuite() {
 		WithKeyring(s.kr).
 		WithTxConfig(s.encCfg.TxConfig).
 		WithCodec(s.encCfg.Codec).
-		WithClient(clitestutil.MockTendermintRPC{Client: rpcclientmock.Client{}}).
+		WithClient(clitestutil.MockCometRPC{Client: rpcclientmock.Client{}}).
 		WithAccountRetriever(client.MockAccountRetriever{}).
 		WithOutput(io.Discard).
 		WithChainID(testutil.DefaultChainId)
@@ -63,21 +61,20 @@ func (s *CLITestSuite) SetupSuite() {
 	s.commonFlags = []string{
 		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(10))).String()),
 	}
 
 	accounts := testutil.CreateKeyringAccounts(s.T(), s.kr, 1)
 	val := accounts[0]
 
-	var outBuf bytes.Buffer
 	ctxGen := func() client.Context {
 		bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-		c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
+		c := clitestutil.NewMockCometRPC(abci.ResponseQuery{
 			Value: bz,
 		})
 		return s.baseCtx.WithClient(c)
 	}
-	s.clientCtx = ctxGen().WithOutput(&outBuf)
+	s.clientCtx = ctxGen()
 
 	// create a new account
 	info, _, err := s.clientCtx.Keyring.NewMnemonic("NewValidator", keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
@@ -91,24 +88,23 @@ func (s *CLITestSuite) SetupSuite() {
 		s.clientCtx,
 		val.Address,
 		account,
-		sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(2000))), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(2000))), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(10))).String()),
 	)
 	s.Require().NoError(err)
 
-	memberWeight := "3"
 	// create a group
 	validMembers := fmt.Sprintf(`
 	{
 		"members": [
 			{
 				"address": "%s",
-				"weight": "%s",
+				"weight": "3",
 				"metadata": "%s"
 			}
 		]
-	}`, val.Address.String(), memberWeight, validMetadata)
+	}`, val.Address.String(), validMetadata)
 	validMembersFile := testutil.WriteToNewTempFile(s.T(), validMembers)
 	out, err := clitestutil.ExecTestCLICmd(s.clientCtx, groupcli.MsgCreateGroupCmd(),
 		append(
@@ -142,12 +138,6 @@ func (s *CLITestSuite) TestTxCreateGroup() {
 	  }]}`, accounts[0].Address.String(), validMetadata)
 	validMembersFile := testutil.WriteToNewTempFile(s.T(), validMembers)
 
-	invalidMembersAddress := `{"members": [{
-		  "address": "",
-		  "weight": "1"
-	  }]}`
-	invalidMembersAddressFile := testutil.WriteToNewTempFile(s.T(), invalidMembersAddress)
-
 	invalidMembersWeight := fmt.Sprintf(`{"members": [{
 			"address": "%s",
 			  "weight": "0"
@@ -156,23 +146,13 @@ func (s *CLITestSuite) TestTxCreateGroup() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
-		respType     proto.Message
 		expCmdOutput string
-		expectErr    bool
 		expectErrMsg string
 	}{
 		{
-			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
+			name: "correct data",
+			args: append(
 				[]string{
 					accounts[0].Address.String(),
 					"",
@@ -180,42 +160,11 @@ func (s *CLITestSuite) TestTxCreateGroup() {
 				},
 				s.commonFlags...,
 			),
-			&sdk.TxResponse{},
-			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "", validMembersFile.Name()),
-			false,
-			"",
-		},
-		{
-			"invalid members address",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					accounts[0].Address.String(),
-					"null",
-					invalidMembersAddressFile.Name(),
-				},
-				s.commonFlags...,
-			),
-			&sdk.TxResponse{},
-			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "null", invalidMembersAddressFile.Name()),
-			true,
-			"message validation failed: address: decoding address from hex string failed: empty address",
+			expCmdOutput: fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "", validMembersFile.Name()),
+			expectErrMsg: "",
 		},
 		{
 			"invalid members weight",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -224,10 +173,21 @@ func (s *CLITestSuite) TestTxCreateGroup() {
 				},
 				s.commonFlags...,
 			),
-			&sdk.TxResponse{},
-			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "null", invalidMembersWeightFile.Name()),
-			true,
-			"expected a positive decimal, got 0: invalid decimal string",
+			"",
+			"weight must be positive",
+		},
+		{
+			"no member provided",
+			append(
+				[]string{
+					accounts[0].Address.String(),
+					"null",
+					"doesnotexist.json",
+				},
+				s.commonFlags...,
+			),
+			"",
+			"no such file or directory",
 		},
 	}
 
@@ -235,27 +195,23 @@ func (s *CLITestSuite) TestTxCreateGroup() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
-
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
-
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
 			}
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
-			if tc.expectErr {
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
 				s.Require().Error(err)
 				s.Require().Contains(out.String(), tc.expectErrMsg)
 			} else {
 				s.Require().NoError(err)
-				s.Require().NoError(clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType), out.String())
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -267,21 +223,9 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 	cmd := groupcli.MsgUpdateGroupAdminCmd()
 	cmd.SetOutput(io.Discard)
 
-	var outBuf bytes.Buffer
-
-	ctxGen := func() client.Context {
-		bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-		c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-			Value: bz,
-		})
-		return s.baseCtx.WithClient(c)
-	}
-	clientCtx := ctxGen().WithOutput(&outBuf)
 	ctx := svrcmd.CreateExecuteContext(context.Background())
-
 	cmd.SetContext(ctx)
-
-	s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+	s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 	groupIDs := make([]string, 2)
 	for i := 0; i < 2; i++ {
@@ -291,7 +235,7 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 		"metadata": "%s"
 	}]}`, accounts[0].Address.String(), validMetadata)
 		validMembersFile := testutil.WriteToNewTempFile(s.T(), validMembers)
-		out, err := clitestutil.ExecTestCLICmd(clientCtx, groupcli.MsgCreateGroupCmd(),
+		out, err := clitestutil.ExecTestCLICmd(s.baseCtx, groupcli.MsgCreateGroupCmd(),
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -309,16 +253,14 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 		name         string
 		ctxGen       func() client.Context
 		args         []string
-		respType     proto.Message
 		expCmdOutput string
-		expectErr    bool
 		expectErrMsg string
 	}{
 		{
 			"correct data",
 			func() client.Context {
 				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
+				c := clitestutil.NewMockCometRPC(abci.ResponseQuery{
 					Value: bz,
 				})
 				return s.baseCtx.WithClient(c)
@@ -331,16 +273,14 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 				},
 				s.commonFlags...,
 			),
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), groupIDs[0], accounts[1].Address.String()),
-			false,
 			"",
 		},
 		{
 			"group id invalid",
 			func() client.Context {
 				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
+				c := clitestutil.NewMockCometRPC(abci.ResponseQuery{
 					Value: bz,
 				})
 				return s.baseCtx.WithClient(c)
@@ -353,9 +293,7 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 				},
 				s.commonFlags...,
 			),
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "", accounts[1].Address.String()),
-			true,
 			"strconv.ParseUint: parsing \"\": invalid syntax",
 		},
 	}
@@ -364,27 +302,25 @@ func (s *CLITestSuite) TestTxUpdateGroupAdmin() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
 			}
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
-			if tc.expectErr {
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
 				s.Require().Error(err)
 				s.Require().Contains(out.String(), tc.expectErrMsg)
 			} else {
 				s.Require().NoError(err)
-				s.Require().NoError(clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType), out.String())
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -398,19 +334,12 @@ func (s *CLITestSuite) TestTxUpdateGroupMetadata() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -420,25 +349,33 @@ func (s *CLITestSuite) TestTxUpdateGroupMetadata() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "1", validMetadata),
+			"",
 		},
 		{
-			"group metadata too long",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
+			"invalid group id",
 			append(
 				[]string{
 					accounts[0].Address.String(),
-					strconv.FormatUint(s.group.Id, 10),
-					strings.Repeat("a", 256),
+					"abc",
+					validMetadata,
 				},
 				s.commonFlags...,
 			),
-			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), strconv.FormatUint(s.group.Id, 10), strings.Repeat("a", 256)),
+			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "abc", validMetadata),
+			"Error: strconv.ParseUint: parsing \"abc\"",
+		},
+		{
+			"empty group id",
+			append(
+				[]string{
+					accounts[0].Address.String(),
+					"0",
+					validMetadata,
+				},
+				s.commonFlags...,
+			),
+			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "0", validMetadata),
+			"group id cannot be 0",
 		},
 	}
 
@@ -446,18 +383,25 @@ func (s *CLITestSuite) TestTxUpdateGroupMetadata() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -484,26 +428,19 @@ func (s *CLITestSuite) TestTxUpdateGroupMembers() {
 
 	invalidMembersMetadata := fmt.Sprintf(`{"members": [{
 		"address": "%s",
-		  "weight": "1",
-		  "metadata": "%s"
-	  }]}`, accounts[1], tooLongMetadata)
+		  "weight": "-1",
+		  "metadata": "foo"
+	  }]}`, accounts[1])
 	invalidMembersMetadataFileName := testutil.WriteToNewTempFile(s.T(), invalidMembersMetadata).Name()
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -513,16 +450,23 @@ func (s *CLITestSuite) TestTxUpdateGroupMembers() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), groupID, validUpdatedMembersFileName),
+			"",
 		},
 		{
-			"group member metadata too long",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
+			"group id invalid",
+			append(
+				[]string{
+					accounts[0].Address.String(),
+					"0",
+					validUpdatedMembersFileName,
+				},
+				s.commonFlags...,
+			),
+			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "0", validUpdatedMembersFileName),
+			"group id cannot be 0",
+		},
+		{
+			"group member weight invalid",
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -532,25 +476,7 @@ func (s *CLITestSuite) TestTxUpdateGroupMembers() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), groupID, invalidMembersMetadataFileName),
-		},
-		{
-			"group doesn't exist",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					accounts[0].Address.String(),
-					"12345",
-					validUpdatedMembersFileName,
-				},
-				s.commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", accounts[0].Address.String(), "12345", validUpdatedMembersFileName),
+			"invalid weight -1",
 		},
 	}
 
@@ -558,18 +484,25 @@ func (s *CLITestSuite) TestTxUpdateGroupMembers() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -588,12 +521,6 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 	}]}`, accounts[0].Address.String(), validMetadata)
 	validMembersFile := testutil.WriteToNewTempFile(s.T(), validMembers)
 
-	invalidMembersAddress := `{"members": [{
-	  "address": "",
-	  "weight": "1"
-	}]}`
-	invalidMembersAddressFile := testutil.WriteToNewTempFile(s.T(), invalidMembersAddress)
-
 	invalidMembersWeight := fmt.Sprintf(`{"members": [{
 		"address": "%s",
 		  "weight": "0"
@@ -604,22 +531,12 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
-		expectErr    bool
 		expectErrMsg string
-		respType     proto.Message
 		expCmdOutput string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -631,20 +548,11 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 				},
 				s.commonFlags...,
 			),
-			false,
 			"",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s %s --%s=%v", accounts[0].Address.String(), validMetadata, validMetadata, validMembersFile.Name(), thresholdDecisionPolicyFile.Name(), groupcli.FlagGroupPolicyAsAdmin, false),
 		},
 		{
 			"group-policy-as-admin is true",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -656,45 +564,11 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 				},
 				s.commonFlags...,
 			),
-			false,
 			"",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s %s --%s=%v", accounts[0].Address.String(), validMetadata, validMetadata, validMembersFile.Name(), thresholdDecisionPolicyFile.Name(), groupcli.FlagGroupPolicyAsAdmin, true),
 		},
 		{
-			"invalid members address",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					accounts[0].Address.String(),
-					validMetadata,
-					validMetadata,
-					invalidMembersAddressFile.Name(),
-					thresholdDecisionPolicyFile.Name(),
-					fmt.Sprintf("--%s=%v", groupcli.FlagGroupPolicyAsAdmin, false),
-				},
-				s.commonFlags...,
-			),
-			true,
-			"message validation failed: address: decoding address from hex string failed: empty address",
-			nil,
-			fmt.Sprintf("%s %s %s %s %s --%s=%v", accounts[0].Address.String(), validMetadata, validMetadata, invalidMembersAddressFile.Name(), thresholdDecisionPolicyFile.Name(), groupcli.FlagGroupPolicyAsAdmin, false),
-		},
-		{
 			"invalid members weight",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					accounts[0].Address.String(),
@@ -706,9 +580,7 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 				},
 				s.commonFlags...,
 			),
-			true,
-			"expected a positive decimal, got 0: invalid decimal string",
-			nil,
+			"weight must be positive",
 			fmt.Sprintf("%s %s %s %s %s --%s=%v", accounts[0].Address.String(), validMetadata, validMetadata, invalidMembersWeightFile.Name(), thresholdDecisionPolicyFile.Name(), groupcli.FlagGroupPolicyAsAdmin, false),
 		},
 	}
@@ -716,27 +588,25 @@ func (s *CLITestSuite) TestTxCreateGroupWithPolicy() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
 			}
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
-			if tc.expectErr {
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
 				s.Require().Error(err)
 				s.Require().Contains(out.String(), tc.expectErrMsg)
 			} else {
 				s.Require().NoError(err, out.String())
-				s.Require().NoError(clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType), out.String())
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -759,22 +629,12 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
-		expectErr    bool
 		expectErrMsg string
-		respType     proto.Message
 		expCmdOutput string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					val.Address.String(),
@@ -784,20 +644,11 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 				},
 				s.commonFlags...,
 			),
-			false,
 			"",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s", val.Address.String(), fmt.Sprintf("%v", groupID), validMetadata, thresholdDecisionPolicyFile.Name()),
 		},
 		{
 			"correct data with percentage decision policy",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					val.Address.String(),
@@ -807,20 +658,11 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 				},
 				s.commonFlags...,
 			),
-			false,
 			"",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s", val.Address.String(), fmt.Sprintf("%v", groupID), validMetadata, percentageDecisionPolicyFile.Name()),
 		},
 		{
 			"wrong admin",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					"wrongAdmin",
@@ -830,20 +672,11 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 				},
 				s.commonFlags...,
 			),
-			true,
 			"key not found",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s", "wrongAdmin", fmt.Sprintf("%v", groupID), validMetadata, thresholdDecisionPolicyFile.Name()),
 		},
 		{
 			"invalid percentage decision policy with negative value",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					val.Address.String(),
@@ -853,20 +686,11 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 				},
 				s.commonFlags...,
 			),
-			true,
 			"expected a positive decimal",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s", val.Address.String(), fmt.Sprintf("%v", groupID), validMetadata, invalidNegativePercentageDecisionPolicyFile.Name()),
 		},
 		{
 			"invalid percentage decision policy with value greater than 1",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					val.Address.String(),
@@ -876,9 +700,7 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 				},
 				s.commonFlags...,
 			),
-			true,
 			"percentage must be > 0 and <= 1",
-			&sdk.TxResponse{},
 			fmt.Sprintf("%s %s %s %s", val.Address.String(), fmt.Sprintf("%v", groupID), validMetadata, invalidPercentageDecisionPolicyFile.Name()),
 		},
 	}
@@ -887,27 +709,25 @@ func (s *CLITestSuite) TestTxCreateGroupPolicy() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
 			}
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
-			if tc.expectErr {
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
 				s.Require().Error(err)
 				s.Require().Contains(out.String(), tc.expectErrMsg)
 			} else {
 				s.Require().NoError(err, out.String())
-				s.Require().NoError(clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType), out.String())
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -927,19 +747,12 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyAdmin() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					groupPolicyAdmin.Address.String(),
@@ -949,16 +762,10 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyAdmin() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), newAdmin.Address.String()),
+			"",
 		},
 		{
 			"wrong admin",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					"wrong admin",
@@ -968,25 +775,20 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyAdmin() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", "wrong admin", groupPolicyAddress.Address.String(), newAdmin.Address.String()),
+			"key not found",
 		},
 		{
-			"wrong group policy",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
+			"identical admin and new admin",
 			append(
 				[]string{
 					groupPolicyAdmin.Address.String(),
-					"wrong group policy",
-					newAdmin.Address.String(),
+					groupPolicyAddress.Address.String(),
+					groupPolicyAdmin.Address.String(),
 				},
 				commonFlags...,
 			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), "wrong group policy", newAdmin.Address.String()),
+			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), groupPolicyAdmin.Address.String()),
+			"new admin cannot be the same as the current admin",
 		},
 	}
 
@@ -994,18 +796,25 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyAdmin() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -1022,27 +831,18 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyDecisionPolicy() {
 
 	thresholdDecisionPolicy := testutil.WriteToNewTempFile(s.T(), `{"@type":"/cosmos.group.v1.ThresholdDecisionPolicy", "threshold":"1", "windows":{"voting_period":"40000s"}}`)
 	percentageDecisionPolicy := testutil.WriteToNewTempFile(s.T(), `{"@type":"/cosmos.group.v1.PercentageDecisionPolicy", "percentage":"0.5", "windows":{"voting_period":"40000s"}}`)
-	invalidNegativePercentageDecisionPolicy := testutil.WriteToNewTempFile(s.T(), `{"@type":"/cosmos.group.v1.PercentageDecisionPolicy", "percentage":"-0.5", "windows":{"voting_period":"1s"}}`)
-	invalidPercentageDecisionPolicy := testutil.WriteToNewTempFile(s.T(), `{"@type":"/cosmos.group.v1.PercentageDecisionPolicy", "percentage":"2", "windows":{"voting_period":"40000s"}}`)
 
 	cmd := groupcli.MsgUpdateGroupPolicyDecisionPolicyCmd()
 	cmd.SetOutput(io.Discard)
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					groupPolicyAdmin.Address.String(),
@@ -1052,16 +852,10 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyDecisionPolicy() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), thresholdDecisionPolicy.Name()),
+			"",
 		},
 		{
 			"correct data with percentage decision policy",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					groupPolicyAdmin.Address.String(),
@@ -1071,82 +865,20 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyDecisionPolicy() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), percentageDecisionPolicy.Name()),
+			"",
 		},
 		{
 			"wrong admin",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					newAdmin.Address.String(),
-					groupPolicyAddress.Address.String(),
+					"invalid",
 					thresholdDecisionPolicy.Name(),
 				},
 				commonFlags...,
 			),
-			fmt.Sprintf("%s %s %s", newAdmin.Address.String(), groupPolicyAddress.Address.String(), thresholdDecisionPolicy.Name()),
-		},
-		{
-			"wrong group policy",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					groupPolicyAdmin.Address.String(),
-					"wrong group policy",
-					thresholdDecisionPolicy.Name(),
-				},
-				commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), "wrong group policy", thresholdDecisionPolicy.Name()),
-		},
-		{
-			"invalid percentage decision policy with negative value",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					groupPolicyAdmin.Address.String(),
-					groupPolicyAddress.Address.String(),
-					invalidNegativePercentageDecisionPolicy.Name(),
-				},
-				commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), invalidNegativePercentageDecisionPolicy.Name()),
-		},
-		{
-			"invalid percentage decision policy with value greater than 1",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					groupPolicyAdmin.Address.String(),
-					groupPolicyAddress.Address.String(),
-					invalidPercentageDecisionPolicy.Name(),
-				},
-				commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.Address.String(), groupPolicyAddress.Address.String(), invalidPercentageDecisionPolicy.Name()),
+			fmt.Sprintf("%s %s %s", newAdmin.Address.String(), "invalid", thresholdDecisionPolicy.Name()),
+			"invalid address",
 		},
 	}
 
@@ -1154,18 +886,25 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyDecisionPolicy() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -1184,19 +923,12 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyMetadata() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					groupPolicyAdmin.String(),
@@ -1206,35 +938,10 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyMetadata() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", groupPolicyAdmin.String(), groupPolicyAddress.String(), validMetadata),
-		},
-		{
-			"long metadata",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					groupPolicyAdmin.String(),
-					groupPolicyAddress.String(),
-					strings.Repeat("a", 500),
-				},
-				commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.String(), groupPolicyAddress.String(), strings.Repeat("a", 500)),
+			"",
 		},
 		{
 			"wrong admin",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					"wrong admin",
@@ -1244,25 +951,7 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyMetadata() {
 				commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", "wrong admin", groupPolicyAddress.String(), validMetadata),
-		},
-		{
-			"wrong group policy",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					groupPolicyAdmin.String(),
-					"wrong group policy",
-					validMetadata,
-				},
-				commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s", groupPolicyAdmin.String(), "wrong group policy", validMetadata),
+			"key not found",
 		},
 	}
 
@@ -1270,18 +959,25 @@ func (s *CLITestSuite) TestTxUpdateGroupPolicyMetadata() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -1306,19 +1002,12 @@ func (s *CLITestSuite) TestTxSubmitProposal() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					proposalFile.Name(),
@@ -1326,16 +1015,10 @@ func (s *CLITestSuite) TestTxSubmitProposal() {
 				s.commonFlags...,
 			),
 			proposalFile.Name(),
+			"",
 		},
 		{
 			"with try exec",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					proposalFile.Name(),
@@ -1344,16 +1027,10 @@ func (s *CLITestSuite) TestTxSubmitProposal() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s --%s=try", proposalFile.Name(), groupcli.FlagExec),
+			"",
 		},
 		{
 			"with try exec, not enough yes votes for proposal to pass",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					proposalFile.Name(),
@@ -1362,6 +1039,7 @@ func (s *CLITestSuite) TestTxSubmitProposal() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s --%s=try", proposalFile.Name(), groupcli.FlagExec),
+			"",
 		},
 	}
 
@@ -1369,18 +1047,25 @@ func (s *CLITestSuite) TestTxSubmitProposal() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -1399,19 +1084,26 @@ func (s *CLITestSuite) TestTxVote() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
+			"invalid vote",
+			append(
+				[]string{
+					ids[0],
+					accounts[0].Address.String(),
+					"AYE",
+					"",
+				},
+				s.commonFlags...,
+			),
+			fmt.Sprintf("%s %s %s", ids[0], accounts[0].Address.String(), "AYE"),
+			"Error: 'AYE' is not a valid vote option",
+		},
+		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					ids[0],
@@ -1422,16 +1114,10 @@ func (s *CLITestSuite) TestTxVote() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s", ids[0], accounts[0].Address.String(), "VOTE_OPTION_YES"),
+			"",
 		},
 		{
 			"with try exec",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					ids[1],
@@ -1443,26 +1129,7 @@ func (s *CLITestSuite) TestTxVote() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s %s %s --%s=try", ids[1], accounts[0].Address.String(), "VOTE_OPTION_YES", "", groupcli.FlagExec),
-		},
-		{
-			"metadata too long",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
-			append(
-				[]string{
-					ids[2],
-					accounts[0].Address.String(),
-					"VOTE_OPTION_YES",
-					tooLongMetadata,
-				},
-				s.commonFlags...,
-			),
-			fmt.Sprintf("%s %s %s %s", ids[2], accounts[0].Address.String(), "VOTE_OPTION_YES", tooLongMetadata),
+			"",
 		},
 	}
 
@@ -1470,18 +1137,25 @@ func (s *CLITestSuite) TestTxVote() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}
@@ -1499,19 +1173,12 @@ func (s *CLITestSuite) TestTxWithdrawProposal() {
 
 	testCases := []struct {
 		name         string
-		ctxGen       func() client.Context
 		args         []string
 		expCmdOutput string
+		expectErrMsg string
 	}{
 		{
 			"correct data",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					ids[0],
@@ -1520,16 +1187,10 @@ func (s *CLITestSuite) TestTxWithdrawProposal() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s", ids[0], accounts[0].Address.String()),
+			"",
 		},
 		{
 			"wrong admin",
-			func() client.Context {
-				bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
-				c := clitestutil.NewMockTendermintRPC(abci.ResponseQuery{
-					Value: bz,
-				})
-				return s.baseCtx.WithClient(c)
-			},
 			append(
 				[]string{
 					ids[1],
@@ -1538,6 +1199,19 @@ func (s *CLITestSuite) TestTxWithdrawProposal() {
 				s.commonFlags...,
 			),
 			fmt.Sprintf("%s %s", ids[1], "wrongAdmin"),
+			"key not found",
+		},
+		{
+			"wrong proposal id",
+			append(
+				[]string{
+					"abc",
+					accounts[0].Address.String(),
+				},
+				s.commonFlags...,
+			),
+			fmt.Sprintf("%s %s", "abc", accounts[0].Address.String()),
+			"Error: strconv.ParseUint: parsing \"abc\"",
 		},
 	}
 
@@ -1545,18 +1219,25 @@ func (s *CLITestSuite) TestTxWithdrawProposal() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			var outBuf bytes.Buffer
-
-			clientCtx := tc.ctxGen().WithOutput(&outBuf)
 			ctx := svrcmd.CreateExecuteContext(context.Background())
 
 			cmd.SetContext(ctx)
 			cmd.SetArgs(tc.args)
 
-			s.Require().NoError(client.SetCmdClientContextHandler(clientCtx, cmd))
+			s.Require().NoError(client.SetCmdClientContextHandler(s.baseCtx, cmd))
 
 			if len(tc.args) != 0 {
 				s.Require().Contains(fmt.Sprint(cmd), tc.expCmdOutput)
+			}
+
+			out, err := clitestutil.ExecTestCLICmd(s.baseCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				s.Require().Error(err)
+				s.Require().Contains(out.String(), tc.expectErrMsg)
+			} else {
+				s.Require().NoError(err)
+				msg := &sdk.TxResponse{}
+				s.Require().NoError(s.baseCtx.Codec.UnmarshalJSON(out.Bytes(), msg), out.String())
 			}
 		})
 	}

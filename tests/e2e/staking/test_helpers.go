@@ -3,6 +3,8 @@ package testutil
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -14,7 +16,7 @@ import (
 var commonArgs = []string{
 	fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 	fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-	fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10))).String()),
+	fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10))).String()),
 }
 
 // MsgRedelegateExec creates a redelegate message.
@@ -33,8 +35,9 @@ func MsgRedelegateExec(clientCtx client.Context, from, src, dst, amount fmt.Stri
 }
 
 // MsgUnbondExec creates a unbond message.
-func MsgUnbondExec(clientCtx client.Context, from fmt.Stringer, valAddress,
-	amount fmt.Stringer, extraArgs ...string,
+func MsgUnbondExec(clientCtx client.Context, from, valAddress,
+	amount fmt.Stringer,
+	extraArgs ...string,
 ) (testutil.BufferWriter, error) {
 	args := []string{
 		valAddress.String(),

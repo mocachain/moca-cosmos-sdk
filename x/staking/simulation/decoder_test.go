@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/math"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cosmos/cosmos-sdk/codec"
-	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	"cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/kv"
@@ -24,22 +23,14 @@ var (
 	valAddr1 = sdk.AccAddress(delPk1.Address())
 )
 
-func makeTestCodec() (cdc *codec.LegacyAmino) {
-	cdc = codec.NewLegacyAmino()
-	sdk.RegisterLegacyAminoCodec(cdc)
-	cryptocodec.RegisterCrypto(cdc)
-	types.RegisterLegacyAminoCodec(cdc)
-	return
-}
-
 func TestDecodeStore(t *testing.T) {
 	cdc := testutil.MakeTestEncodingConfig().Codec
 	dec := simulation.NewDecodeStore(cdc)
 	bondTime := time.Now().UTC()
 
-	val, err := types.NewSimpleValidator(valAddr1, delPk1, types.NewDescription("test", "test", "test", "test", "test"))
+	val, err := types.NewSimpleValidator(valAddr1.String(), delPk1, types.NewDescription("test", "test", "test", "test", "test"))
 	require.NoError(t, err)
-	del := types.NewDelegation(delAddr1, valAddr1, math.LegacyOneDec())
+	del := types.NewDelegation(delAddr1.String(), valAddr1.String(), math.LegacyOneDec())
 	ubd := types.NewUnbondingDelegation(delAddr1, valAddr1, 15, bondTime, math.OneInt(), 1)
 	red := types.NewRedelegation(delAddr1, valAddr1, valAddr1, 12, bondTime, math.OneInt(), math.LegacyOneDec(), 0)
 

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 
+	storetypes "cosmossdk.io/core/store"
 	sdkerrors "cosmossdk.io/errors"
+	"cosmossdk.io/log"
 	"github.com/0xPolygon/polygon-edge/bls"
-	"github.com/cometbft/cometbft/libs/log"
+	"github.com/bits-and-blooms/bitset"
 	"github.com/cometbft/cometbft/votepool"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/willf/bitset"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,8 +18,8 @@ import (
 )
 
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey storetypes.StoreKey
+	cdc          codec.BinaryCodec
+	storeService storetypes.KVStoreService
 
 	StakingKeeper    types.StakingKeeper
 	CrossChainKeeper types.CrossChainKeeper
@@ -30,12 +30,12 @@ type Keeper struct {
 }
 
 func NewKeeper(
-	cdc codec.BinaryCodec, key storetypes.StoreKey, feeCollector, authority string,
+	cdc codec.BinaryCodec, storeService storetypes.KVStoreService, feeCollector, authority string,
 	crossChainKeeper types.CrossChainKeeper, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper,
 ) Keeper {
 	return Keeper{
 		cdc:              cdc,
-		storeKey:         key,
+		storeService:     storeService,
 		feeCollectorName: feeCollector,
 		authority:        authority,
 
@@ -61,7 +61,7 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
 		return err
 	}
 
-	store := ctx.KVStore(k.storeKey)
+	store := k.storeService.OpenKVStore(ctx)
 	bz := k.cdc.MustMarshal(&params)
 	store.Set(types.ParamsKey, bz)
 
@@ -125,8 +125,8 @@ func (k Keeper) CheckClaim(ctx sdk.Context, claim *types.MsgClaim) (sdk.AccAddre
 		return sdk.AccAddress{}, nil, sdkerrors.Wrapf(types.ErrInvalidAddress, "from address (%s) is invalid", claim.FromAddress)
 	}
 
-	historicalInfo, ok := k.StakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
-	if !ok {
+	historicalInfo, err := k.StakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
+	if err != nil {
 		return sdk.AccAddress{}, nil, sdkerrors.Wrapf(types.ErrValidatorSet, "get historical validators failed")
 	}
 	validators := historicalInfo.Valset
@@ -147,6 +147,8 @@ func (k Keeper) CheckClaim(ctx sdk.Context, claim *types.MsgClaim) (sdk.AccAddre
 		claimSrcChain = types.CLAIM_SRC_CHAIN_ARBITRUM
 	case k.CrossChainKeeper.GetDestOptimismChainID():
 		claimSrcChain = types.CLAIM_SRC_CHAIN_OPTIMISM
+	case k.CrossChainKeeper.GetDestBaseChainID():
+		claimSrcChain = types.CLAIM_SRC_CHAIN_BASE
 	default:
 		claimSrcChain = types.CLAIM_SRC_CHAIN_BSC
 	}
@@ -202,8 +204,11 @@ func (k Keeper) CheckClaim(ctx sdk.Context, claim *types.MsgClaim) (sdk.AccAddre
 
 // GetParams returns the current params
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
-	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.ParamsKey)
+	store := k.storeService.OpenKVStore(ctx)
+	bz, err := store.Get(types.ParamsKey)
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return params
 	}
@@ -213,8 +218,8 @@ func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 }
 
 func (k Keeper) getInturnRelayer(ctx sdk.Context, relayerInterval uint64, claimSrcChain types.ClaimSrcChain) ([]byte, *types.RelayInterval, error) {
-	historicalInfo, ok := k.StakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
-	if !ok {
+	historicalInfo, err := k.StakingKeeper.GetHistoricalInfo(ctx, ctx.BlockHeight())
+	if err != nil {
 		return nil, nil, sdkerrors.Wrapf(types.ErrValidatorSet, "get historical validators failed")
 	}
 	validators := historicalInfo.Valset

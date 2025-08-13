@@ -3,11 +3,11 @@ package config
 import (
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/spf13/viper"
 
-	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
+	pruningtypes "cosmossdk.io/store/pruning/types"
+
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -32,9 +32,6 @@ const (
 	// DefaultGRPCMaxSendMsgSize defines the default gRPC max message size in
 	// bytes the server can send.
 	DefaultGRPCMaxSendMsgSize = math.MaxInt32
-
-	// FileStreamer defines the store streaming type for file streaming.
-	FileStreamer = "file"
 )
 
 // BaseConfig defines the server's basic configuration
@@ -43,6 +40,10 @@ type BaseConfig struct {
 	// transaction. A transaction's fees must meet the minimum of any denomination
 	// specified in this config (e.g. 0.25token1;0.0001token2).
 	MinGasPrices string `mapstructure:"minimum-gas-prices"`
+
+	// The maximum amount of gas a grpc/Rest query may consume.
+	// If set to 0, it is unbounded.
+	QueryGasLimit uint64 `mapstructure:"query-gas-limit"`
 
 	Pruning           string `mapstructure:"pruning"`
 	PruningKeepRecent string `mapstructure:"pruning-keep-recent"`
@@ -65,15 +66,15 @@ type BaseConfig struct {
 
 	// MinRetainBlocks defines the minimum block height offset from the current
 	// block being committed, such that blocks past this offset may be pruned
-	// from Tendermint. It is used as part of the process of determining the
+	// from CometBFT. It is used as part of the process of determining the
 	// ResponseCommit.RetainHeight value during ABCI Commit. A value of 0 indicates
 	// that no blocks should be pruned.
 	//
-	// This configuration value is only responsible for pruning Tendermint blocks.
+	// This configuration value is only responsible for pruning CometBFT blocks.
 	// It has no bearing on application state pruning which is determined by the
 	// "pruning-*" configurations.
 	//
-	// Note: Tendermint block pruning is dependant on this parameter in conunction
+	// Note: CometBFT block pruning is dependant on this parameter in conjunction
 	// with the unbonding (safety threshold) period, state pruning and state sync
 	// snapshot parameters to determine the correct minimum value of
 	// ResponseCommit.RetainHeight.
@@ -83,7 +84,7 @@ type BaseConfig struct {
 	InterBlockCache bool `mapstructure:"inter-block-cache"`
 
 	// IndexEvents defines the set of events in the form {eventType}.{attributeKey},
-	// which informs Tendermint what to index. If empty, all events will be indexed.
+	// which informs CometBFT what to index. If empty, all events will be indexed.
 	IndexEvents []string `mapstructure:"index-events"`
 
 	// IavlCacheSize set the size of the iavl tree cache.
@@ -92,11 +93,8 @@ type BaseConfig struct {
 	// IAVLDisableFastNode enables or disables the fast sync node.
 	IAVLDisableFastNode bool `mapstructure:"iavl-disable-fastnode"`
 
-	// IAVLLazyLoading enable/disable the lazy loading of iavl store.
-	IAVLLazyLoading bool `mapstructure:"iavl-lazy-loading"`
-
 	// AppDBBackend defines the type of Database to use for the application and snapshots databases.
-	// An empty string indicates that the Tendermint config's DBBackend value should be used.
+	// An empty string indicates that the CometBFT config's DBBackend value should be used.
 	AppDBBackend string `mapstructure:"app-db-backend"`
 
 	// EnableUnsafeQuery enable/disable unsafe query apis.
@@ -123,13 +121,13 @@ type APIConfig struct {
 	// MaxOpenConnections defines the number of maximum open connections
 	MaxOpenConnections uint `mapstructure:"max-open-connections"`
 
-	// RPCReadTimeout defines the Tendermint RPC read timeout (in seconds)
+	// RPCReadTimeout defines the CometBFT RPC read timeout (in seconds)
 	RPCReadTimeout uint `mapstructure:"rpc-read-timeout"`
 
-	// RPCWriteTimeout defines the Tendermint RPC write timeout (in seconds)
+	// RPCWriteTimeout defines the CometBFT RPC write timeout (in seconds)
 	RPCWriteTimeout uint `mapstructure:"rpc-write-timeout"`
 
-	// RPCMaxBodyBytes defines the Tendermint maximum request body (in bytes)
+	// RPCMaxBodyBytes defines the CometBFT maximum request body (in bytes)
 	RPCMaxBodyBytes uint `mapstructure:"rpc-max-body-bytes"`
 
 	// TODO: TLS/Proxy configuration.
@@ -184,52 +182,26 @@ type MempoolConfig struct {
 	// the mempool is disabled entirely, zero indicates that the mempool is
 	// unbounded in how many txs it may contain, and a positive value indicates
 	// the maximum amount of txs it may contain.
-	MaxTxs int
+	MaxTxs int `mapstructure:"max-txs"`
 }
 
+// State Streaming configuration
 type (
-	// StoreConfig defines application configuration for state streaming and other
-	// storage related operations.
-	StoreConfig struct {
-		Streamers []string `mapstructure:"streamers"`
+	// StreamingConfig defines application configuration for external streaming services
+	StreamingConfig struct {
+		ABCI ABCIListenerConfig `mapstructure:"abci"`
 	}
-
-	// StreamersConfig defines concrete state streaming configuration options. These
-	// fields are required to be set when state streaming is enabled via a non-empty
-	// list defined by 'StoreConfig.Streamers'.
-	StreamersConfig struct {
-		File FileStreamerConfig `mapstructure:"file"`
-	}
-
-	// FileStreamerConfig defines the file streaming configuration options.
-	FileStreamerConfig struct {
-		Keys     []string `mapstructure:"keys"`
-		WriteDir string   `mapstructure:"write_dir"`
-		Prefix   string   `mapstructure:"prefix"`
-		// OutputMetadata specifies if output the block metadata file which includes
-		// the abci requests/responses, otherwise only the data file is outputted.
-		OutputMetadata bool `mapstructure:"output-metadata"`
-		// StopNodeOnError specifies if propagate the streamer errors to the consensus
-		// state machine, it's nesserary for data integrity of output.
-		StopNodeOnError bool `mapstructure:"stop-node-on-error"`
-		// Fsync specifies if calling fsync after writing the files, it slows down
-		// the commit, but don't lose data in face of system crash.
-		Fsync bool `mapstructure:"fsync"`
+	// ABCIListenerConfig defines application configuration for ABCIListener streaming service
+	ABCIListenerConfig struct {
+		Keys          []string `mapstructure:"keys"`
+		Plugin        string   `mapstructure:"plugin"`
+		StopNodeOnErr bool     `mapstructure:"stop-node-on-err"`
 	}
 )
-
-// UpgradeConfig defines the upgrading configuration.
-type UpgradeConfig struct {
-	Name   string `mapstructure:"name"`
-	Height int64  `mapstructure:"height"`
-	Info   string `mapstructure:"info"`
-}
 
 // Config defines the server's top level configuration
 type Config struct {
 	BaseConfig `mapstructure:",squash"`
-
-	Upgrade []UpgradeConfig `mapstructure:"upgrade"`
 
 	// Telemetry defines the application telemetry configuration
 	Telemetry telemetry.Config `mapstructure:"telemetry"`
@@ -237,8 +209,7 @@ type Config struct {
 	GRPC      GRPCConfig       `mapstructure:"grpc"`
 	GRPCWeb   GRPCWebConfig    `mapstructure:"grpc-web"`
 	StateSync StateSyncConfig  `mapstructure:"state-sync"`
-	Store     StoreConfig      `mapstructure:"store"`
-	Streamers StreamersConfig  `mapstructure:"streamers"`
+	Streaming StreamingConfig  `mapstructure:"streaming"`
 	Mempool   MempoolConfig    `mapstructure:"mempool"`
 }
 
@@ -247,23 +218,15 @@ func (c *Config) SetMinGasPrices(gasPrices sdk.DecCoins) {
 	c.MinGasPrices = gasPrices.String()
 }
 
-// GetMinGasPrices returns the validator's minimum gas prices based on the set
-// configuration.
+// GetMinGasPrices returns the validator's minimum gas prices based on the set configuration.
 func (c *Config) GetMinGasPrices() sdk.DecCoins {
 	if c.MinGasPrices == "" {
 		return sdk.DecCoins{}
 	}
 
-	gasPricesStr := strings.Split(c.MinGasPrices, ";")
-	gasPrices := make(sdk.DecCoins, len(gasPricesStr))
-
-	for i, s := range gasPricesStr {
-		gasPrice, err := sdk.ParseDecCoin(s)
-		if err != nil {
-			panic(fmt.Errorf("failed to parse minimum gas price coin (%s): %s", s, err))
-		}
-
-		gasPrices[i] = gasPrice
+	gasPrices, err := sdk.ParseDecCoins(c.MinGasPrices)
+	if err != nil {
+		panic(fmt.Sprintf("invalid minimum gas prices: %v", err))
 	}
 
 	return gasPrices
@@ -274,6 +237,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		BaseConfig: BaseConfig{
 			MinGasPrices:        defaultMinGasPrices,
+			QueryGasLimit:       0,
 			InterBlockCache:     true,
 			Pruning:             pruningtypes.PruningOptionDefault,
 			PruningKeepRecent:   "0",
@@ -283,7 +247,6 @@ func DefaultConfig() *Config {
 			IndexEvents:         make([]string, 0),
 			IAVLCacheSize:       781250,
 			IAVLDisableFastNode: false,
-			IAVLLazyLoading:     false,
 			AppDBBackend:        "",
 			EnableUnsafeQuery:   false,
 			EnablePlainStore:    false,
@@ -314,22 +277,14 @@ func DefaultConfig() *Config {
 			SnapshotInterval:   0,
 			SnapshotKeepRecent: 2,
 		},
-		Store: StoreConfig{
-			Streamers: []string{},
-		},
-		Streamers: StreamersConfig{
-			File: FileStreamerConfig{
-				Keys:            []string{"*"},
-				WriteDir:        "",
-				OutputMetadata:  true,
-				StopNodeOnError: true,
-				// NOTICE: The default config doesn't protect the streamer data integrity
-				// in face of system crash.
-				Fsync: false,
+		Streaming: StreamingConfig{
+			ABCI: ABCIListenerConfig{
+				Keys:          []string{},
+				StopNodeOnErr: true,
 			},
 		},
 		Mempool: MempoolConfig{
-			MaxTxs: 5_000,
+			MaxTxs: -1,
 		},
 	}
 }

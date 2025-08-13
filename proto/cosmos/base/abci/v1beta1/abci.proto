@@ -3,9 +3,10 @@ package cosmos.base.abci.v1beta1;
 
 import "gogoproto/gogo.proto";
 import "tendermint/abci/types.proto";
+import "tendermint/types/block.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/types";
+option go_package                       = "github.com/cosmos/cosmos-sdk/types";
 option (gogoproto.goproto_stringer_all) = false;
 
 // TxResponse defines a structure containing relevant tx data and metadata. The
@@ -53,7 +54,7 @@ message ABCIMessageLog {
   option (gogoproto.stringer) = true;
 
   uint32 msg_index = 1 [(gogoproto.jsontag) = "msg_index"];
-  string log = 2;
+  string log       = 2;
 
   // Events contains a slice of Event objects that were emitted during some
   // execution.
@@ -65,14 +66,14 @@ message ABCIMessageLog {
 message StringEvent {
   option (gogoproto.stringer) = true;
 
-  string             type = 1;
+  string             type       = 1;
   repeated Attribute attributes = 2 [(gogoproto.nullable) = false];
 }
 
 // Attribute defines an attribute wrapper where the key and value are
 // strings instead of raw bytes.
 message Attribute {
-  string key = 1;
+  string key   = 1;
   string value = 2;
 }
 
@@ -118,17 +119,17 @@ message Result {
 // successfully simulated.
 message SimulationResponse {
   GasInfo gas_info = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false];
-  Result  result = 2;
+  Result  result   = 2;
 }
 
 // MsgData defines the data returned in a Result object during message
 // execution.
 message MsgData {
-  option deprecated = true;
+  option deprecated           = true;
   option (gogoproto.stringer) = true;
 
   string msg_type = 1;
-  bytes  data = 2;
+  bytes  data     = 2;
 }
 
 // TxMsgData defines a list of MsgData. A transaction will have a MsgData object
@@ -164,4 +165,22 @@ message SearchTxsResult {
   uint64 limit = 5;
   // List of txs in current page
   repeated TxResponse txs = 6;
+}
+
+// SearchBlocksResult defines a structure for querying blocks pageable
+message SearchBlocksResult {
+  option (gogoproto.stringer) = true;
+
+  // Count of all blocks
+  int64 total_count = 1;
+  // Count of blocks in current page
+  int64 count = 2;
+  // Index of current page, start from 1
+  int64 page_number = 3;
+  // Count of total pages
+  int64 page_total = 4;
+  // Max count blocks per page
+  int64 limit = 5;
+  // List of blocks in current page
+  repeated tendermint.types.Block blocks = 6;
 }

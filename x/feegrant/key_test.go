@@ -6,8 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/x/feegrant"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 )
 
 func TestMarshalAndUnmarshalFeegrantKey(t *testing.T) {
@@ -17,12 +18,12 @@ func TestMarshalAndUnmarshalFeegrantKey(t *testing.T) {
 	require.NoError(t, err)
 
 	key := feegrant.FeeAllowanceKey(granter, grantee)
-	require.Len(t, key, len(grantee.Bytes())+len(granter.Bytes())+3)
-	require.Equal(t, feegrant.FeeAllowancePrefixByGrantee(grantee), key[:len(grantee.Bytes())+2])
+	require.Len(t, key, len(grantee)+len(granter)+3)
+	require.Equal(t, feegrant.FeeAllowancePrefixByGrantee(grantee), key[:len(grantee)+2])
 
 	g1, g2 := feegrant.ParseAddressesFromFeeAllowanceKey(key)
-	require.Equal(t, granter, g1)
-	require.Equal(t, grantee, g2)
+	require.Equal(t, granter.Bytes(), g1)
+	require.Equal(t, grantee.Bytes(), g2)
 }
 
 func TestMarshalAndUnmarshalFeegrantKeyQueueKey(t *testing.T) {
@@ -35,9 +36,9 @@ func TestMarshalAndUnmarshalFeegrantKeyQueueKey(t *testing.T) {
 	expBytes := sdk.FormatTimeBytes(exp)
 
 	key := feegrant.FeeAllowancePrefixQueue(&exp, feegrant.FeeAllowanceKey(granter, grantee)[1:])
-	require.Len(t, key, len(grantee.Bytes())+len(granter.Bytes())+3+len(expBytes))
+	require.Len(t, key, len(grantee)+len(granter)+3+len(expBytes))
 
 	granter1, grantee1 := feegrant.ParseAddressesFromFeeAllowanceQueueKey(key)
-	require.Equal(t, granter, granter1)
-	require.Equal(t, grantee, grantee1)
+	require.Equal(t, granter.Bytes(), granter1)
+	require.Equal(t, grantee.Bytes(), grantee1)
 }

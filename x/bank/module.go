@@ -4,20 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
+	"sort"
+
+	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/maps"
 
 	modulev1 "cosmossdk.io/api/cosmos/bank/module/v1"
 	"cosmossdk.io/core/appmodule"
+	corestore "cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
-	abci "github.com/cometbft/cometbft/abci/types"
-	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/spf13/cobra"
+	"cosmossdk.io/log"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	store "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
@@ -35,9 +36,13 @@ import (
 const ConsensusVersion = 4
 
 var (
-	_ module.AppModule           = AppModule{}
-	_ module.AppModuleBasic      = AppModuleBasic{}
+	_ module.AppModuleBasic      = AppModule{}
 	_ module.AppModuleSimulation = AppModule{}
+	_ module.HasGenesis          = AppModule{}
+	_ module.HasServices         = AppModule{}
+	_ module.HasInvariants       = AppModule{}
+
+	_ appmodule.AppModule = AppModule{}
 )
 
 // AppModuleBasic defines the basic application module used by the bank module.
@@ -77,13 +82,8 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *g
 }
 
 // GetTxCmd returns the root tx command for the bank module.
-func (AppModuleBasic) GetTxCmd() *cobra.Command {
+func (ab AppModuleBasic) GetTxCmd() *cobra.Command {
 	return cli.NewTxCmd()
-}
-
-// GetQueryCmd returns no root query command for the bank module.
-func (AppModuleBasic) GetQueryCmd() *cobra.Command {
-	return cli.GetQueryCmd()
 }
 
 // RegisterInterfaces registers interfaces and implementations of the bank module.
@@ -105,8 +105,6 @@ type AppModule struct {
 	// legacySubspace is used solely for migration of x/params managed parameters
 	legacySubspace exported.Subspace
 }
-
-var _ appmodule.AppModule = AppModule{}
 
 // IsOnePerModuleType implements the depinject.OnePerModuleType interface.
 func (am AppModule) IsOnePerModuleType() {}
@@ -144,9 +142,6 @@ func NewAppModule(cdc codec.Codec, keeper keeper.Keeper, accountKeeper types.Acc
 	}
 }
 
-// Name returns the bank module's name.
-func (AppModule) Name() string { return types.ModuleName }
-
 // RegisterInvariants registers the bank module invariants.
 func (am AppModule) RegisterInvariants(ir sdk.InvariantRegistry) {
 	keeper.RegisterInvariants(ir, am.keeper)
@@ -157,14 +152,11 @@ func (AppModule) QuerierRoute() string { return types.RouterKey }
 
 // InitGenesis performs genesis initialization for the bank module. It returns
 // no validator updates.
-func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
-	start := time.Now()
+func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
 	var genesisState types.GenesisState
 	cdc.MustUnmarshalJSON(data, &genesisState)
-	telemetry.MeasureSince(start, "InitGenesis", "crisis", "unmarshal")
 
 	am.keeper.InitGenesis(ctx, &genesisState)
-	return []abci.ValidatorUpdate{}
 }
 
 // ExportGenesis returns the exported genesis state as raw bytes for the bank
@@ -190,29 +182,34 @@ func (AppModule) ProposalMsgs(simState module.SimulationState) []simtypes.Weight
 }
 
 // RegisterStoreDecoder registers a decoder for supply module's types
-func (am AppModule) RegisterStoreDecoder(_ sdk.StoreDecoderRegistry) {}
+func (am AppModule) RegisterStoreDecoder(sdr simtypes.StoreDecoderRegistry) {
+	sdr[types.StoreKey] = simtypes.NewStoreDecoderFuncFromCollectionsSchema(am.keeper.(keeper.BaseKeeper).Schema)
+}
 
 // WeightedOperations returns the all the gov module operations with their respective weights.
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	return simulation.WeightedOperations(
-		simState.AppParams, simState.Cdc, am.accountKeeper, am.keeper,
+		simState.AppParams, simState.Cdc, simState.TxConfig, am.accountKeeper, am.keeper,
 	)
 }
 
 // App Wiring Setup
 
 func init() {
-	appmodule.Register(&modulev1.Module{},
+	appmodule.Register(
+		&modulev1.Module{},
 		appmodule.Provide(ProvideModule),
+		appmodule.Invoke(InvokeSetSendRestrictions),
 	)
 }
 
-type BankInputs struct {
+type ModuleInputs struct {
 	depinject.In
 
-	Config *modulev1.Module
-	Cdc    codec.Codec
-	Key    *store.KVStoreKey
+	Config       *modulev1.Module
+	Cdc          codec.Codec
+	StoreService corestore.KVStoreService
+	Logger       log.Logger
 
 	AccountKeeper types.AccountKeeper
 
@@ -220,14 +217,14 @@ type BankInputs struct {
 	LegacySubspace exported.Subspace `optional:"true"`
 }
 
-type BankOutputs struct {
+type ModuleOutputs struct {
 	depinject.Out
 
 	BankKeeper keeper.BaseKeeper
 	Module     appmodule.AppModule
 }
 
-func ProvideModule(in BankInputs) BankOutputs {
+func ProvideModule(in ModuleInputs) ModuleOutputs {
 	// Configure blocked module accounts.
 	//
 	// Default behavior for blockedAddresses is to regard any module mentioned in
@@ -251,12 +248,49 @@ func ProvideModule(in BankInputs) BankOutputs {
 
 	bankKeeper := keeper.NewBaseKeeper(
 		in.Cdc,
-		in.Key,
+		in.StoreService,
 		in.AccountKeeper,
 		blockedAddresses,
 		authority.String(),
+		in.Logger,
 	)
 	m := NewAppModule(in.Cdc, bankKeeper, in.AccountKeeper, nil, in.LegacySubspace)
 
-	return BankOutputs{BankKeeper: bankKeeper, Module: m}
+	return ModuleOutputs{BankKeeper: bankKeeper, Module: m}
+}
+
+func InvokeSetSendRestrictions(
+	config *modulev1.Module,
+	keeper keeper.BaseKeeper,
+	restrictions map[string]types.SendRestrictionFn,
+) error {
+	if config == nil {
+		return nil
+	}
+
+	modules := maps.Keys(restrictions)
+	order := config.RestrictionsOrder
+	if len(order) == 0 {
+		order = modules
+		sort.Strings(order)
+	}
+
+	if len(order) != len(modules) {
+		return fmt.Errorf("len(restrictions order: %v) != len(restriction modules: %v)", order, modules)
+	}
+
+	if len(modules) == 0 {
+		return nil
+	}
+
+	for _, module := range order {
+		restriction, ok := restrictions[module]
+		if !ok {
+			return fmt.Errorf("can't find send restriction for module %s", module)
+		}
+
+		keeper.AppendSendRestriction(restriction)
+	}
+
+	return nil
 }

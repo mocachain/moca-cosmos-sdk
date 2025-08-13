@@ -5,10 +5,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
@@ -48,7 +51,6 @@ When using '--dry-run' a key name cannot be used, only a hex address.
 			if err != nil {
 				return err
 			}
-
 			toAddr, err := sdk.AccAddressFromHexUnsafe(args[1])
 			if err != nil {
 				return err
@@ -57,6 +59,10 @@ When using '--dry-run' a key name cannot be used, only a hex address.
 			coins, err := sdk.ParseCoinsNormalized(args[2])
 			if err != nil {
 				return err
+			}
+
+			if len(coins) == 0 {
+				return fmt.Errorf("invalid coins")
 			}
 
 			msg := types.NewMsgSend(clientCtx.GetFromAddress(), toAddr, coins)
@@ -74,15 +80,16 @@ When using '--dry-run' a key name cannot be used, only a hex address.
 // For a better UX this command is limited to send funds from one account to two or more accounts.
 func NewMultiSendTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "multi-send [from_key_or_address] [to_address_1, to_address_2, ...] [amount]",
+		Use:   "multi-send [from_key_or_address] [to_address_1 to_address_2 ...] [amount]",
 		Short: "Send funds from one account to two or more accounts.",
 		Long: `Send funds from one account to two or more accounts.
 By default, sends the [amount] to each address of the list.
 Using the '--split' flag, the [amount] is split equally between the addresses.
-Note, the '--from' flag is ignored as it is implied from [from_key_or_address].
-When using '--dry-run' a key name cannot be used, only a hex address.
-`,
-		Args: cobra.MinimumNArgs(4),
+Note, the '--from' flag is ignored as it is implied from [from_key_or_address] and 
+separate addresses with space.
+When using '--dry-run' a key name cannot be used, only a hex address.`,
+		Example: fmt.Sprintf("%s tx bank multi-send 0x... 0x... 0x... 0x... 10stake", version.AppName),
+		Args:    cobra.MinimumNArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Flags().Set(flags.FlagFrom, args[0])
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -104,7 +111,7 @@ When using '--dry-run' a key name cannot be used, only a hex address.
 				return err
 			}
 
-			totalAddrs := sdk.NewInt(int64(len(args) - 2))
+			totalAddrs := sdkmath.NewInt(int64(len(args) - 2))
 			// coins to be received by the addresses
 			sendCoins := coins
 			if split {
@@ -131,7 +138,7 @@ When using '--dry-run' a key name cannot be used, only a hex address.
 				amount = coins.MulInt(totalAddrs)
 			}
 
-			msg := types.NewMsgMultiSend([]types.Input{types.NewInput(clientCtx.FromAddress, amount)}, output)
+			msg := types.NewMsgMultiSend(types.NewInput(clientCtx.FromAddress, amount), output)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

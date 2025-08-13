@@ -6,8 +6,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
+	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -40,7 +41,7 @@ func (s *TestSuite) SetupTest() {
 	stakingKeeper := govtestutil.NewMockStakingKeeper(ctrl)
 	s.crossChainKeeper = keeper.NewKeeper(
 		encCfg.Codec,
-		key,
+		runtime.NewKVStoreService(key),
 		authtypes.NewModuleAddress(types.ModuleName).String(),
 		stakingKeeper,
 		bankKeeper,

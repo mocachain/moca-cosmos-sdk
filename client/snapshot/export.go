@@ -1,11 +1,12 @@
 package snapshot
 
 import (
-	"github.com/cometbft/cometbft/node"
-	"github.com/cosmos/cosmos-sdk/server"
-	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cobra"
+
+	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/server"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 )
 
 // ExportSnapshotCmd returns a command to take a snapshot of the application state
@@ -27,19 +28,8 @@ func ExportSnapshotCmd(appCreator servertypes.AppCreator) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			genDocProvider := node.DefaultGenesisDocProviderFunc(ctx.Config)
-			genDoc, err := genDocProvider()
-			if err != nil {
-				return err
-			}
-
-			config, err := serverconfig.GetConfig(ctx.Viper)
-			if err != nil {
-				return err
-			}
-
-			app := appCreator(ctx.Logger, db, nil, genDoc.ChainID, &config, ctx.Viper)
+			logger := log.NewLogger(cmd.OutOrStdout())
+			app := appCreator(logger, db, nil, ctx.Viper)
 
 			if height == 0 {
 				height = app.CommitMultiStore().LastCommitID().Version

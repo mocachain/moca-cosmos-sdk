@@ -9,7 +9,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	clienttestutil "github.com/cosmos/cosmos-sdk/client/testutil"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
@@ -18,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 )
 
 func Test_multiSigKey_Properties(t *testing.T) {
@@ -49,11 +49,11 @@ func Test_showKeysCmd(t *testing.T) {
 
 func Test_runShowCmd(t *testing.T) {
 	cmd := ShowKeysCmd()
-	cmd.Flags().AddFlagSet(Commands("home").PersistentFlags())
+	cmd.Flags().AddFlagSet(Commands().PersistentFlags())
 	mockIn := testutil.ApplyMockIODiscardOutErr(cmd)
 
 	kbHome := t.TempDir()
-	cdc := clienttestutil.MakeTestCodec(t)
+	cdc := moduletestutil.MakeTestEncodingConfig().Codec
 	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome, mockIn, cdc)
 	require.NoError(t, err)
 
@@ -84,7 +84,7 @@ func Test_runShowCmd(t *testing.T) {
 	// Now try single key
 	cmd.SetArgs([]string{
 		fakeKeyName1,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=", FlagBechPrefix),
 		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
@@ -92,7 +92,7 @@ func Test_runShowCmd(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		fakeKeyName1,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
@@ -107,7 +107,7 @@ func Test_runShowCmd(t *testing.T) {
 	require.NoError(t, err)
 	cmd.SetArgs([]string{
 		addr.String(),
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
@@ -117,7 +117,7 @@ func Test_runShowCmd(t *testing.T) {
 	// Now try multisig key - set bech to acc
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=0", flagMultiSigThreshold),
 		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
@@ -126,7 +126,7 @@ func Test_runShowCmd(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
 		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
@@ -136,7 +136,7 @@ func Test_runShowCmd(t *testing.T) {
 	// Now try multisig key - set bech to acc + threshold=2
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=acc", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
@@ -146,7 +146,7 @@ func Test_runShowCmd(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=val", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
@@ -156,7 +156,7 @@ func Test_runShowCmd(t *testing.T) {
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
-		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringDir, kbHome),
 		fmt.Sprintf("--%s=val", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
@@ -204,9 +204,9 @@ func Test_getBechKeyOut(t *testing.T) {
 	}{
 		{"empty", args{""}, nil, true},
 		{"wrong", args{"???"}, nil, true},
-		{"acc", args{sdk.PrefixAccount}, keyring.MkAccKeyOutput, false},
-		{"val", args{sdk.PrefixValidator}, keyring.MkValKeyOutput, false},
-		{"cons", args{sdk.PrefixConsensus}, keyring.MkConsKeyOutput, false},
+		{"acc", args{sdk.PrefixAccount}, MkAccKeyOutput, false},
+		{"val", args{sdk.PrefixValidator}, MkValKeyOutput, false},
+		{"cons", args{sdk.PrefixConsensus}, MkConsKeyOutput, false},
 	}
 	for _, tt := range tests {
 		tt := tt

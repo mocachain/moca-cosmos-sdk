@@ -6,6 +6,7 @@ import (
 	authmodulev1 "cosmossdk.io/api/cosmos/auth/module/v1"
 	authzmodulev1 "cosmossdk.io/api/cosmos/authz/module/v1"
 	bankmodulev1 "cosmossdk.io/api/cosmos/bank/module/v1"
+	circuitmodulev1 "cosmossdk.io/api/cosmos/circuit/module/v1"
 	consensusmodulev1 "cosmossdk.io/api/cosmos/consensus/module/v1"
 	crosschainmodulev1 "cosmossdk.io/api/cosmos/crosschain/module/v1"
 	distrmodulev1 "cosmossdk.io/api/cosmos/distribution/module/v1"
@@ -27,94 +28,129 @@ import (
 	"cosmossdk.io/depinject"
 )
 
-var beginBlockOrder = []string{
-	"upgrade",
-	"capability",
-	"mint",
-	"distribution",
-	"slashing",
-	"evidence",
-	"staking",
-	"auth",
-	"authz",
-	"bank",
-	"gov",
-	"crisis",
-	"genutil",
-	"authz",
-	"feegrant",
-	"nft",
-	"group",
-	"params",
-	"consensus",
-	"vesting",
-	"crosschain",
-	"oracle",
-	"gashub",
+// Config should never need to be instantiated manually and is solely used for ModuleOption.
+type Config struct {
+	ModuleConfigs      map[string]*appv1alpha1.ModuleConfig
+	PreBlockersOrder   []string
+	BeginBlockersOrder []string
+	EndBlockersOrder   []string
+	InitGenesisOrder   []string
+	setInitGenesis     bool
 }
 
-var endBlockersOrder = []string{
-	"crisis",
-	"gov",
-	"staking",
-	"capability",
-	"auth",
-	"authz",
-	"bank",
-	"distribution",
-	"slashing",
-	"mint",
-	"genutil",
-	"evidence",
-	"authz",
-	"feegrant",
-	"nft",
-	"group",
-	"params",
-	"consensus",
-	"upgrade",
-	"vesting",
-	"crosschain",
-	"oracle",
-	"gashub",
+func defaultConfig() *Config {
+	return &Config{
+		ModuleConfigs: make(map[string]*appv1alpha1.ModuleConfig),
+		PreBlockersOrder: []string{
+			"upgrade",
+		},
+		BeginBlockersOrder: []string{
+			"mint",
+			"distribution",
+			"slashing",
+			"evidence",
+			"staking",
+			"auth",
+			"authz",
+			"bank",
+			"gov",
+			"crisis",
+			"genutil",
+			"authz",
+			"feegrant",
+			"nft",
+			"group",
+			"params",
+			"consensus",
+			"vesting",
+			"circuit",
+			"crosschain",
+			"oracle",
+			"gashub",
+		},
+		EndBlockersOrder: []string{
+			"crisis",
+			"gov",
+			"staking",
+			"auth",
+			"authz",
+			"bank",
+			"distribution",
+			"slashing",
+			"mint",
+			"genutil",
+			"evidence",
+			"authz",
+			"feegrant",
+			"nft",
+			"group",
+			"params",
+			"consensus",
+			"upgrade",
+			"vesting",
+			"circuit",
+			"crosschain",
+			"oracle",
+			"gashub",
+		},
+		InitGenesisOrder: []string{
+			"auth",
+			"authz",
+			"bank",
+			"gashub",
+			"distribution",
+			"staking",
+			"slashing",
+			"gov",
+			"mint",
+			"crisis",
+			"genutil",
+			"evidence",
+			"authz",
+			"feegrant",
+			"nft",
+			"group",
+			"params",
+			"consensus",
+			"upgrade",
+			"vesting",
+			"circuit",
+			"crosschain",
+			"oracle",
+		},
+		setInitGenesis: true,
+	}
 }
 
-var initGenesisOrder = []string{
-	"capability",
-	"auth",
-	"authz",
-	"bank",
-	"gashub",
-	"distribution",
-	"staking",
-	"slashing",
-	"gov",
-	"mint",
-	"crisis",
-	"genutil",
-	"evidence",
-	"authz",
-	"feegrant",
-	"nft",
-	"group",
-	"params",
-	"consensus",
-	"upgrade",
-	"vesting",
-	"crosschain",
-	"oracle",
+type ModuleOption func(config *Config)
+
+func WithCustomPreBlockersOrder(preBlockOrder ...string) ModuleOption {
+	return func(config *Config) {
+		config.PreBlockersOrder = preBlockOrder
+	}
 }
 
-type appConfig struct {
-	moduleConfigs  map[string]*appv1alpha1.ModuleConfig
-	setInitGenesis bool
+func WithCustomBeginBlockersOrder(beginBlockOrder ...string) ModuleOption {
+	return func(config *Config) {
+		config.BeginBlockersOrder = beginBlockOrder
+	}
 }
 
-type ModuleOption func(config *appConfig)
+func WithCustomEndBlockersOrder(endBlockersOrder ...string) ModuleOption {
+	return func(config *Config) {
+		config.EndBlockersOrder = endBlockersOrder
+	}
+}
+
+func WithCustomInitGenesisOrder(initGenesisOrder ...string) ModuleOption {
+	return func(config *Config) {
+		config.InitGenesisOrder = initGenesisOrder
+	}
+}
 
 func BankModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["bank"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["bank"] = &appv1alpha1.ModuleConfig{
 			Name:   "bank",
 			Config: appconfig.WrapAny(&bankmodulev1.Module{}),
 		}
@@ -122,8 +158,8 @@ func BankModule() ModuleOption {
 }
 
 func AuthModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["auth"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["auth"] = &appv1alpha1.ModuleConfig{
 			Name: "auth",
 			Config: appconfig.WrapAny(&authmodulev1.Module{
 				Bech32Prefix: "cosmos",
@@ -143,8 +179,8 @@ func AuthModule() ModuleOption {
 }
 
 func ParamsModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["params"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["params"] = &appv1alpha1.ModuleConfig{
 			Name:   "params",
 			Config: appconfig.WrapAny(&paramsmodulev1.Module{}),
 		}
@@ -152,8 +188,8 @@ func ParamsModule() ModuleOption {
 }
 
 func TxModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["tx"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["tx"] = &appv1alpha1.ModuleConfig{
 			Name:   "tx",
 			Config: appconfig.WrapAny(&txconfigv1.Config{}),
 		}
@@ -161,26 +197,17 @@ func TxModule() ModuleOption {
 }
 
 func StakingModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["staking"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["staking"] = &appv1alpha1.ModuleConfig{
 			Name:   "staking",
 			Config: appconfig.WrapAny(&stakingmodulev1.Module{}),
 		}
 	}
 }
 
-func AuthzModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["authz"] = &appv1alpha1.ModuleConfig{
-			Name:   "authz",
-			Config: appconfig.WrapAny(&authzmodulev1.Module{}),
-		}
-	}
-}
-
 func SlashingModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["slashing"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["slashing"] = &appv1alpha1.ModuleConfig{
 			Name:   "slashing",
 			Config: appconfig.WrapAny(&slashingmodulev1.Module{}),
 		}
@@ -188,8 +215,8 @@ func SlashingModule() ModuleOption {
 }
 
 func GenutilModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["genutil"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["genutil"] = &appv1alpha1.ModuleConfig{
 			Name:   "genutil",
 			Config: appconfig.WrapAny(&genutilmodulev1.Module{}),
 		}
@@ -197,8 +224,8 @@ func GenutilModule() ModuleOption {
 }
 
 func DistributionModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["distribution"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["distribution"] = &appv1alpha1.ModuleConfig{
 			Name:   "distribution",
 			Config: appconfig.WrapAny(&distrmodulev1.Module{}),
 		}
@@ -206,8 +233,8 @@ func DistributionModule() ModuleOption {
 }
 
 func FeegrantModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["feegrant"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["feegrant"] = &appv1alpha1.ModuleConfig{
 			Name:   "feegrant",
 			Config: appconfig.WrapAny(&feegrantmodulev1.Module{}),
 		}
@@ -215,8 +242,8 @@ func FeegrantModule() ModuleOption {
 }
 
 func VestingModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["vesting"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["vesting"] = &appv1alpha1.ModuleConfig{
 			Name:   "vesting",
 			Config: appconfig.WrapAny(&vestingmodulev1.Module{}),
 		}
@@ -224,8 +251,8 @@ func VestingModule() ModuleOption {
 }
 
 func GovModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["gov"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["gov"] = &appv1alpha1.ModuleConfig{
 			Name:   "gov",
 			Config: appconfig.WrapAny(&govmodulev1.Module{}),
 		}
@@ -233,8 +260,8 @@ func GovModule() ModuleOption {
 }
 
 func ConsensusModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["consensus"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["consensus"] = &appv1alpha1.ModuleConfig{
 			Name:   "consensus",
 			Config: appconfig.WrapAny(&consensusmodulev1.Module{}),
 		}
@@ -242,8 +269,8 @@ func ConsensusModule() ModuleOption {
 }
 
 func MintModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["mint"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["mint"] = &appv1alpha1.ModuleConfig{
 			Name:   "mint",
 			Config: appconfig.WrapAny(&mintmodulev1.Module{}),
 			GolangBindings: []*appv1alpha1.GolangBinding{
@@ -257,17 +284,26 @@ func MintModule() ModuleOption {
 }
 
 func EvidenceModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["evidence"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["evidence"] = &appv1alpha1.ModuleConfig{
 			Name:   "evidence",
 			Config: appconfig.WrapAny(&evidencemodulev1.Module{}),
 		}
 	}
 }
 
+func AuthzModule() ModuleOption {
+	return func(config *Config) {
+		config.ModuleConfigs["authz"] = &appv1alpha1.ModuleConfig{
+			Name:   "authz",
+			Config: appconfig.WrapAny(&authzmodulev1.Module{}),
+		}
+	}
+}
+
 func GroupModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["group"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["group"] = &appv1alpha1.ModuleConfig{
 			Name:   "group",
 			Config: appconfig.WrapAny(&groupmodulev1.Module{}),
 		}
@@ -275,17 +311,26 @@ func GroupModule() ModuleOption {
 }
 
 func NFTModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["nft"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["nft"] = &appv1alpha1.ModuleConfig{
 			Name:   "nft",
 			Config: appconfig.WrapAny(&nftmodulev1.Module{}),
 		}
 	}
 }
 
+func CircuitModule() ModuleOption {
+	return func(config *Config) {
+		config.ModuleConfigs["circuit"] = &appv1alpha1.ModuleConfig{
+			Name:   "circuit",
+			Config: appconfig.WrapAny(&circuitmodulev1.Module{}),
+		}
+	}
+}
+
 func CrossChainModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["crosschain"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["crosschain"] = &appv1alpha1.ModuleConfig{
 			Name:   "crosschain",
 			Config: appconfig.WrapAny(&crosschainmodulev1.Module{}),
 		}
@@ -293,8 +338,8 @@ func CrossChainModule() ModuleOption {
 }
 
 func OracleModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["oracle"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["oracle"] = &appv1alpha1.ModuleConfig{
 			Name:   "oracle",
 			Config: appconfig.WrapAny(&oraclemodulev1.Module{}),
 		}
@@ -302,8 +347,8 @@ func OracleModule() ModuleOption {
 }
 
 func GashubModule() ModuleOption {
-	return func(config *appConfig) {
-		config.moduleConfigs["gashub"] = &appv1alpha1.ModuleConfig{
+	return func(config *Config) {
+		config.ModuleConfigs["gashub"] = &appv1alpha1.ModuleConfig{
 			Name:   "gashub",
 			Config: appconfig.WrapAny(&gashubmodulev1.Module{}),
 		}
@@ -311,49 +356,54 @@ func GashubModule() ModuleOption {
 }
 
 func OmitInitGenesis() ModuleOption {
-	return func(config *appConfig) {
+	return func(config *Config) {
 		config.setInitGenesis = false
 	}
 }
 
 func NewAppConfig(opts ...ModuleOption) depinject.Config {
-	cfg := &appConfig{
-		moduleConfigs:  make(map[string]*appv1alpha1.ModuleConfig),
-		setInitGenesis: true,
-	}
+	cfg := defaultConfig()
 	for _, opt := range opts {
 		opt(cfg)
 	}
 
+	preBlockers := make([]string, 0)
 	beginBlockers := make([]string, 0)
 	endBlockers := make([]string, 0)
 	initGenesis := make([]string, 0)
 	overrides := make([]*runtimev1alpha1.StoreKeyConfig, 0)
 
-	for _, s := range beginBlockOrder {
-		if _, ok := cfg.moduleConfigs[s]; ok {
+	for _, s := range cfg.PreBlockersOrder {
+		if _, ok := cfg.ModuleConfigs[s]; ok {
+			preBlockers = append(preBlockers, s)
+		}
+	}
+
+	for _, s := range cfg.BeginBlockersOrder {
+		if _, ok := cfg.ModuleConfigs[s]; ok {
 			beginBlockers = append(beginBlockers, s)
 		}
 	}
 
-	for _, s := range endBlockersOrder {
-		if _, ok := cfg.moduleConfigs[s]; ok {
+	for _, s := range cfg.EndBlockersOrder {
+		if _, ok := cfg.ModuleConfigs[s]; ok {
 			endBlockers = append(endBlockers, s)
 		}
 	}
 
-	for _, s := range initGenesisOrder {
-		if _, ok := cfg.moduleConfigs[s]; ok {
+	for _, s := range cfg.InitGenesisOrder {
+		if _, ok := cfg.ModuleConfigs[s]; ok {
 			initGenesis = append(initGenesis, s)
 		}
 	}
 
-	if _, ok := cfg.moduleConfigs["auth"]; ok {
+	if _, ok := cfg.ModuleConfigs["auth"]; ok {
 		overrides = append(overrides, &runtimev1alpha1.StoreKeyConfig{ModuleName: "auth", KvStoreKey: "acc"})
 	}
 
 	runtimeConfig := &runtimev1alpha1.Module{
 		AppName:           "TestApp",
+		PreBlockers:       preBlockers,
 		BeginBlockers:     beginBlockers,
 		EndBlockers:       endBlockers,
 		OverrideStoreKeys: overrides,
@@ -367,7 +417,7 @@ func NewAppConfig(opts ...ModuleOption) depinject.Config {
 		Config: appconfig.WrapAny(runtimeConfig),
 	}}
 
-	for _, m := range cfg.moduleConfigs {
+	for _, m := range cfg.ModuleConfigs {
 		modules = append(modules, m)
 	}
 

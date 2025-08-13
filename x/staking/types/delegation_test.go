@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/math"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,7 +16,7 @@ import (
 )
 
 func TestDelegationEqual(t *testing.T) {
-	d1 := types.NewDelegation(valAddr1, valAddr2, math.LegacyNewDec(100))
+	d1 := types.NewDelegation(valAddr1.String(), valAddr2.String(), math.LegacyNewDec(100))
 	d2 := d1
 
 	ok := d1.String() == d2.String()
@@ -28,13 +30,13 @@ func TestDelegationEqual(t *testing.T) {
 }
 
 func TestDelegationString(t *testing.T) {
-	d := types.NewDelegation(valAddr1, valAddr2, math.LegacyNewDec(100))
+	d := types.NewDelegation(valAddr1.String(), valAddr2.String(), math.LegacyNewDec(100))
 	require.NotEmpty(t, d.String())
 }
 
 func TestUnbondingDelegationEqual(t *testing.T) {
 	ubd1 := types.NewUnbondingDelegation(valAddr1, valAddr2, 0,
-		time.Unix(0, 0), sdk.NewInt(0), 1)
+		time.Unix(0, 0), math.NewInt(0), 1)
 	ubd2 := ubd1
 
 	ok := ubd1.String() == ubd2.String()
@@ -49,32 +51,28 @@ func TestUnbondingDelegationEqual(t *testing.T) {
 
 func TestUnbondingDelegationString(t *testing.T) {
 	ubd := types.NewUnbondingDelegation(valAddr1, valAddr2, 0,
-		time.Unix(0, 0), sdk.NewInt(0), 1)
+		time.Unix(0, 0), math.NewInt(0), 1)
 
 	require.NotEmpty(t, ubd.String())
 }
 
 func TestRedelegationEqual(t *testing.T) {
 	r1 := types.NewRedelegation(valAddr1, valAddr2, valAddr3, 0,
-		time.Unix(0, 0), sdk.NewInt(0),
+		time.Unix(0, 0), math.NewInt(0),
 		math.LegacyNewDec(0), 1)
 	r2 := types.NewRedelegation(valAddr1, valAddr2, valAddr3, 0,
-		time.Unix(0, 0), sdk.NewInt(0),
-		math.LegacyNewDec(0), 2)
-	require.False(t, r1.String() == r2.String())
-	r2 = types.NewRedelegation(sdk.AccAddress(valAddr1), valAddr2, valAddr3, 0,
-		time.Unix(0, 0), sdk.NewInt(0),
+		time.Unix(0, 0), math.NewInt(0),
 		math.LegacyNewDec(0), 1)
-	require.True(t, r1.String() == r2.String())
+	require.True(t, proto.Equal(&r1, &r2))
 
 	r2.Entries[0].SharesDst = math.LegacyNewDec(10)
 	r2.Entries[0].CompletionTime = time.Unix(20*20*2, 0)
-	require.False(t, r1.String() == r2.String())
+	require.False(t, proto.Equal(&r1, &r2))
 }
 
 func TestRedelegationString(t *testing.T) {
 	r := types.NewRedelegation(valAddr1, valAddr2, valAddr3, 0,
-		time.Unix(0, 0), sdk.NewInt(0),
+		time.Unix(0, 0), math.NewInt(0),
 		math.LegacyNewDec(10), 1)
 
 	require.NotEmpty(t, r.String())
@@ -82,10 +80,10 @@ func TestRedelegationString(t *testing.T) {
 
 func TestDelegationResponses(t *testing.T) {
 	cdc := codec.NewLegacyAmino()
-	dr1 := types.NewDelegationResp(valAddr1, valAddr2, math.LegacyNewDec(5),
-		sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(5)))
-	dr2 := types.NewDelegationResp(valAddr1, valAddr3, math.LegacyNewDec(5),
-		sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(5)))
+	dr1 := types.NewDelegationResp(valAddr1.String(), valAddr2.String(), math.LegacyNewDec(5),
+		sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5)))
+	dr2 := types.NewDelegationResp(valAddr1.String(), valAddr3.String(), math.LegacyNewDec(5),
+		sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5)))
 	drs := types.DelegationResponses{dr1, dr2}
 
 	bz1, err := json.Marshal(dr1)
@@ -112,11 +110,11 @@ func TestDelegationResponses(t *testing.T) {
 func TestRedelegationResponses(t *testing.T) {
 	cdc := codec.NewLegacyAmino()
 	entries := []types.RedelegationEntryResponse{
-		types.NewRedelegationEntryResponse(0, time.Unix(0, 0), math.LegacyNewDec(5), sdk.NewInt(5), sdk.NewInt(5), 0),
-		types.NewRedelegationEntryResponse(0, time.Unix(0, 0), math.LegacyNewDec(5), sdk.NewInt(5), sdk.NewInt(5), 0),
+		types.NewRedelegationEntryResponse(0, time.Unix(0, 0), math.LegacyNewDec(5), math.NewInt(5), math.NewInt(5), 0),
+		types.NewRedelegationEntryResponse(0, time.Unix(0, 0), math.LegacyNewDec(5), math.NewInt(5), math.NewInt(5), 0),
 	}
-	rdr1 := types.NewRedelegationResponse(valAddr1, valAddr2, valAddr3, entries)
-	rdr2 := types.NewRedelegationResponse(valAddr2, valAddr1, valAddr3, entries)
+	rdr1 := types.NewRedelegationResponse(valAddr1.String(), valAddr2.String(), valAddr3.String(), entries)
+	rdr2 := types.NewRedelegationResponse(valAddr2.String(), valAddr1.String(), valAddr3.String(), entries)
 	rdrs := types.RedelegationResponses{rdr1, rdr2}
 
 	bz1, err := json.Marshal(rdr1)

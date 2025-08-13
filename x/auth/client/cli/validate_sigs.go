@@ -1,14 +1,20 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/anypb"
+
+	txsigning "cosmossdk.io/x/tx/signing"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
@@ -61,12 +67,17 @@ func printAndValidateSigs(
 	cmd *cobra.Command, clientCtx client.Context, chainID string, tx sdk.Tx, offline bool,
 ) bool {
 	sigTx := tx.(authsigning.SigVerifiableTx)
-	signModeHandler := clientCtx.TxConfig.SignModeHandler()
+	// signModeHandler := clientCtx.TxConfig.SignModeHandler()
 
 	cmd.Println("Signers:")
-	signers := sigTx.GetSigners()
+	signers, err := sigTx.GetSigners()
+	if err != nil {
+		panic(err)
+	}
+
 	for i, signer := range signers {
-		cmd.Printf("  %v: %v\n", i, signer.String())
+		signerStr := sdk.AccAddress(signer).String()
+		cmd.Printf("  %v: %v\n", i, signerStr)
 	}
 
 	success := true
@@ -90,7 +101,7 @@ func printAndValidateSigs(
 			sigSanity      = "OK"
 		)
 
-		if i >= len(signers) || !sigAddr.Equals(signers[i]) {
+		if i >= len(signers) || !bytes.Equal(sigAddr, signers[i]) {
 			sigSanity = "ERROR: signature does not match its respective signer"
 			success = false
 		}
@@ -111,10 +122,47 @@ func printAndValidateSigs(
 				Sequence:      accSeq,
 				PubKey:        pubKey,
 			}
-			err = authsigning.VerifySignature(sdk.Context{}, pubKey, signingData, sig.Data, signModeHandler, sigTx)
+			anyPk, err := codectypes.NewAnyWithValue(pubKey)
 			if err != nil {
+				cmd.PrintErrf("failed to pack public key: %v", err)
 				return false
 			}
+			txSignerData := txsigning.SignerData{
+				ChainID:       signingData.ChainID,
+				AccountNumber: signingData.AccountNumber,
+				Sequence:      signingData.Sequence,
+				Address:       signingData.Address,
+				PubKey: &anypb.Any{
+					TypeUrl: anyPk.TypeUrl,
+					Value:   anyPk.Value,
+				},
+			}
+
+			adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
+			if !ok {
+				cmd.PrintErrf("expected V2AdaptableTx, got %T", tx)
+				return false
+			}
+			txData := adaptableTx.GetSigningTxData()
+			switch data := sig.Data.(type) {
+			case *signing.SingleSignatureData:
+				err = authsigning.EIP712VerifySignature(cmd.Context(), txSignerData, tx, data.Signature, pubKey)
+				if err != nil {
+					cmd.PrintErrf("signature verification failed; please verify account number (%d) and chain-id (%s): (%s), pubkeyType: %s, txData: (%+v)", accNum, chainID, err.Error(), pubKey.Type(), txData)
+					return false
+				}
+			case *signing.MultiSignatureData:
+				cmd.PrintErrf("multi signature is not allowed")
+				return false
+			default:
+				cmd.PrintErrf("unexpected SignatureData %T", sig.Data)
+				return false
+			}
+			// err = authsigning.VerifySignature(cmd.Context(), pubKey, txSignerData, sig.Data, signModeHandler, txData)
+			// if err != nil {
+			// 	cmd.PrintErrf("failed to verify signature: %v", err)
+			// 	return false
+			// }
 		}
 
 		cmd.Printf("  %d: %s\t\t\t[%s]%s%s\n", i, sigAddr.String(), sigSanity, multiSigHeader, multiSigMsg)

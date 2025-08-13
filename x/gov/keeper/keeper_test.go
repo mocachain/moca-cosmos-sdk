@@ -6,6 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"cosmossdk.io/collections"
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -18,6 +21,8 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 )
 
+var address1 = "0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"
+
 type KeeperTestSuite struct {
 	suite.Suite
 
@@ -28,6 +33,7 @@ type KeeperTestSuite struct {
 	bankKeeper        *govtestutil.MockBankKeeper
 	stakingKeeper     *govtestutil.MockStakingKeeper
 	crossChainKeeper  *govtestutil.MockCrossChainKeeper
+	distKeeper        *govtestutil.MockDistributionKeeper
 	queryClient       v1.QueryClient
 	legacyQueryClient v1beta1.QueryClient
 	addrs             []sdk.AccAddress
@@ -40,18 +46,18 @@ func (suite *KeeperTestSuite) SetupSuite() {
 }
 
 func (suite *KeeperTestSuite) reset() {
-	govKeeper, acctKeeper, bankKeeper, stakingKeeper, crossChainKeeper, encCfg, ctx := setupGovKeeper(suite.T())
+	govKeeper, acctKeeper, bankKeeper, stakingKeeper, crossChainKeeper, distKeeper, encCfg, ctx := setupGovKeeper(suite.T())
 
 	// Populate the gov account with some coins, as the TestProposal we have
 	// is a MsgSend from the gov account.
-	coins := sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100000)))
+	coins := sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100000)))
 	err := bankKeeper.MintCoins(suite.ctx, minttypes.ModuleName, coins)
 	suite.NoError(err)
 	err = bankKeeper.SendCoinsFromModuleToModule(ctx, minttypes.ModuleName, types.ModuleName, coins)
 	suite.NoError(err)
 
 	queryHelper := baseapp.NewQueryServerTestHelper(ctx, encCfg.InterfaceRegistry)
-	v1.RegisterQueryServer(queryHelper, govKeeper)
+	v1.RegisterQueryServer(queryHelper, keeper.NewQueryServer(govKeeper))
 	legacyQueryHelper := baseapp.NewQueryServerTestHelper(ctx, encCfg.InterfaceRegistry)
 	v1beta1.RegisterQueryServer(legacyQueryHelper, keeper.NewLegacyQueryServer(govKeeper))
 	queryClient := v1.NewQueryClient(queryHelper)
@@ -63,62 +69,82 @@ func (suite *KeeperTestSuite) reset() {
 	suite.bankKeeper = bankKeeper
 	suite.stakingKeeper = stakingKeeper
 	suite.crossChainKeeper = crossChainKeeper
+	suite.distKeeper = distKeeper
 	suite.cdc = encCfg.Codec
 	suite.queryClient = queryClient
 	suite.legacyQueryClient = legacyQueryClient
 	suite.msgSrvr = keeper.NewMsgServerImpl(suite.govKeeper)
 
 	suite.legacyMsgSrvr = keeper.NewLegacyMsgServerImpl(govAcct.String(), suite.msgSrvr)
-	suite.addrs = simtestutil.AddTestAddrsIncremental(bankKeeper, stakingKeeper, ctx, 3, sdk.NewInt(30000000))
+	suite.addrs = simtestutil.AddTestAddrsIncremental(bankKeeper, stakingKeeper, ctx, 3, sdkmath.NewInt(30000000))
 }
 
 func TestIncrementProposalNumber(t *testing.T) {
-	govKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, _, _, _, _, _, _, ctx := setupGovKeeper(t)
+
+	addrBz, err := sdk.AccAddressFromHexUnsafe(address1)
+	require.NoError(t, err)
 
 	tp := TestProposal
-	_, err := govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, false)
 	require.NoError(t, err)
-	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, false)
 	require.NoError(t, err)
-	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, true)
 	require.NoError(t, err)
-	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, true)
 	require.NoError(t, err)
-	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	_, err = govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, false)
 	require.NoError(t, err)
-	proposal6, err := govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	proposal6, err := govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, false)
 	require.NoError(t, err)
 
 	require.Equal(t, uint64(6), proposal6.Id)
 }
 
 func TestProposalQueues(t *testing.T) {
-	govKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, _, _, _, _, _, _, ctx := setupGovKeeper(t)
+
+	addrBz, err := sdk.AccAddressFromHexUnsafe(address1)
+	require.NoError(t, err)
 
 	// create test proposals
 	tp := TestProposal
-	proposal, err := govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", sdk.AccAddress("0xd4BFb1CB895840ca474b0D15abb11Cf0f26bc88a"))
+	proposal, err := govKeeper.SubmitProposal(ctx, tp, "", "test", "summary", addrBz, false)
 	require.NoError(t, err)
 
-	inactiveIterator := govKeeper.InactiveProposalQueueIterator(ctx, *proposal.DepositEndTime)
-	require.True(t, inactiveIterator.Valid())
+	has, err := govKeeper.InactiveProposalsQueue.Has(ctx, collections.Join(*proposal.DepositEndTime, proposal.Id))
+	require.NoError(t, err)
+	require.True(t, has)
 
-	proposalID := types.GetProposalIDFromBytes(inactiveIterator.Value())
-	require.Equal(t, proposalID, proposal.Id)
-	inactiveIterator.Close()
+	require.NoError(t, govKeeper.ActivateVotingPeriod(ctx, proposal))
 
-	govKeeper.ActivateVotingPeriod(ctx, proposal)
+	proposal, err = govKeeper.Proposals.Get(ctx, proposal.Id)
+	require.Nil(t, err)
 
-	proposal, ok := govKeeper.GetProposal(ctx, proposal.Id)
-	require.True(t, ok)
+	has, err = govKeeper.ActiveProposalsQueue.Has(ctx, collections.Join(*proposal.VotingEndTime, proposal.Id))
+	require.NoError(t, err)
+	require.True(t, has)
+}
 
-	activeIterator := govKeeper.ActiveProposalQueueIterator(ctx, *proposal.VotingEndTime)
-	require.True(t, activeIterator.Valid())
+func TestSetHooks(t *testing.T) {
+	govKeeper, _, _, _, _, _, _, _ := setupGovKeeper(t)
+	require.Empty(t, govKeeper.Hooks())
 
-	proposalID, _ = types.SplitActiveProposalQueueKey(activeIterator.Key())
-	require.Equal(t, proposalID, proposal.Id)
+	govHooksReceiver := MockGovHooksReceiver{}
+	govKeeper.SetHooks(types.NewMultiGovHooks(&govHooksReceiver))
+	require.NotNil(t, govKeeper.Hooks())
+	require.Panics(t, func() {
+		govKeeper.SetHooks(&govHooksReceiver)
+	})
+}
 
-	activeIterator.Close()
+func TestGetGovGovernanceAndModuleAccountAddress(t *testing.T) {
+	govKeeper, authKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
+	mAcc := authKeeper.GetModuleAccount(ctx, "gov")
+	require.Equal(t, mAcc, govKeeper.GetGovernanceAccount(ctx))
+	mAddr := authKeeper.GetModuleAddress("gov")
+	require.Equal(t, mAddr, govKeeper.ModuleAccountAddress())
 }
 
 func TestKeeperTestSuite(t *testing.T) {

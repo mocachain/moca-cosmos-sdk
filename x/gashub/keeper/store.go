@@ -1,16 +1,20 @@
 package keeper
 
 import (
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 
+	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 // GetMsgGasParams get the MsgGasParams associated with a msg type url
 func (k Keeper) GetMsgGasParams(ctx sdk.Context, msgTypeUrl string) types.MsgGasParams {
-	store := ctx.KVStore(k.storeKey)
-	b := store.Get(types.GetMsgGasParamsKey(msgTypeUrl))
+	store := k.storeService.OpenKVStore(ctx)
+	b, err := store.Get(types.GetMsgGasParamsKey(msgTypeUrl))
+	if err != nil {
+		panic(err)
+	}
 	var mgp types.MsgGasParams
 	k.cdc.MustUnmarshal(b, &mgp)
 	return mgp
@@ -18,7 +22,7 @@ func (k Keeper) GetMsgGasParams(ctx sdk.Context, msgTypeUrl string) types.MsgGas
 
 // SetMsgGasParams set the provided MsgGasParams in the gashub store
 func (k Keeper) SetMsgGasParams(ctx sdk.Context, mgp types.MsgGasParams) {
-	store := ctx.KVStore(k.storeKey)
+	store := k.storeService.OpenKVStore(ctx)
 	b := k.cdc.MustMarshal(&mgp)
 	store.Set(types.GetMsgGasParamsKey(mgp.MsgTypeUrl), b)
 }
@@ -35,13 +39,14 @@ func (k Keeper) SetAllMsgGasParams(ctx sdk.Context, mgps []*types.MsgGasParams) 
 
 // HasMsgGasParams check existence of the MsgGasParams associated with a msg type url
 func (k Keeper) HasMsgGasParams(ctx sdk.Context, msgTypeUrl string) bool {
-	store := ctx.KVStore(k.storeKey)
-	return store.Has(types.GetMsgGasParamsKey(msgTypeUrl))
+	store := k.storeService.OpenKVStore(ctx)
+	has, _ := store.Has(types.GetMsgGasParamsKey(msgTypeUrl))
+	return has
 }
 
 // DeleteMsgGasParams delete the MsgGasParams associated with provided msg type urls
 func (k Keeper) DeleteMsgGasParams(ctx sdk.Context, msgTypeUrls ...string) {
-	store := ctx.KVStore(k.storeKey)
+	store := k.storeService.OpenKVStore(ctx)
 	for _, msgTypeUrl := range msgTypeUrls {
 		store.Delete(types.GetMsgGasParamsKey(msgTypeUrl))
 	}
@@ -49,7 +54,7 @@ func (k Keeper) DeleteMsgGasParams(ctx sdk.Context, msgTypeUrls ...string) {
 
 // IterateMsgGasParams iterate over msg types
 func (k Keeper) IterateMsgGasParams(ctx sdk.Context, handler func(msgTypeUrl string, mgp *types.MsgGasParams) (stop bool)) {
-	store := ctx.KVStore(k.storeKey)
+	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
 	iter := storetypes.KVStorePrefixIterator(store, types.MsgGasParamsPrefix)
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {

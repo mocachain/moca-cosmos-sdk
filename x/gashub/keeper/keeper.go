@@ -1,10 +1,10 @@
 package keeper
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/cometbft/cometbft/libs/log"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/core/store"
+	"cosmossdk.io/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,8 +14,8 @@ import (
 // Keeper encodes/decodes accounts using the go-amino (binary)
 // encoding/decoding library.
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey storetypes.StoreKey
+	cdc          codec.BinaryCodec
+	storeService store.KVStoreService
 
 	// the address capable of executing a MsgUpdateParams message. Typically, this
 	// should be the x/gov module account.
@@ -24,18 +24,19 @@ type Keeper struct {
 
 // NewKeeper returns a new gashub keeper
 func NewKeeper(
-	cdc codec.BinaryCodec, storeKey storetypes.StoreKey, authority string,
+	cdc codec.BinaryCodec, storeService store.KVStoreService, authority string,
 ) Keeper {
 	return Keeper{
-		storeKey:  storeKey,
-		cdc:       cdc,
-		authority: authority,
+		storeService: storeService,
+		cdc:          cdc,
+		authority:    authority,
 	}
 }
 
 // Logger returns a module-specific logger.
-func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+func (k Keeper) Logger(ctx context.Context) log.Logger {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // GetCodec return codec.Codec object used by the keeper
@@ -48,8 +49,11 @@ func (k Keeper) GetAuthority() string {
 
 // GetParams returns the total set of x/gashub parameters.
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
-	store := ctx.KVStore(k.storeKey)
-	bz := store.Get(types.ParamsKey)
+	store := k.storeService.OpenKVStore(ctx)
+	bz, err := store.Get(types.ParamsKey)
+	if err != nil {
+		panic(err)
+	}
 	if bz == nil {
 		return params
 	}
@@ -64,7 +68,7 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
 		return err
 	}
 
-	store := ctx.KVStore(k.storeKey)
+	store := k.storeService.OpenKVStore(ctx)
 	bz, err := k.cdc.Marshal(&params)
 	if err != nil {
 		return err

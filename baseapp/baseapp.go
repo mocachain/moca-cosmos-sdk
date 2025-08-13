@@ -1,118 +1,142 @@
 package baseapp
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"math"
 	"sort"
-	"strings"
-	"sync"
+	"strconv"
 
-	dbm "github.com/cometbft/cometbft-db"
+	"github.com/cockroachdb/errors"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
-	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/exp/maps"
+	protov2 "google.golang.org/protobuf/proto"
 
+	"cosmossdk.io/core/header"
+	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log"
+	"cosmossdk.io/store"
+	storemetrics "cosmossdk.io/store/metrics"
+	"cosmossdk.io/store/snapshots"
+	storetypes "cosmossdk.io/store/types"
+
+	"github.com/cosmos/cosmos-sdk/baseapp/oe"
+	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/snapshots"
-	"github.com/cosmos/cosmos-sdk/store"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 type (
-	// Enum mode for app.runTx
-	runTxMode uint8
+	execMode uint8
 
-	// StoreLoader defines a customizable function to control how we load the CommitMultiStore
-	// from disk. This is useful for state migration, when loading a datastore written with
-	// an older version of the software. In particular, if a module changed the substore key name
-	// (or removed a substore) between two versions of the software.
+	// StoreLoader defines a customizable function to control how we load the
+	// CommitMultiStore from disk. This is useful for state migration, when
+	// loading a datastore written with an older version of the software. In
+	// particular, if a module changed the substore key name (or removed a substore)
+	// between two versions of the software.
 	StoreLoader func(ms storetypes.CommitMultiStore) error
 )
 
 const (
-	runTxModeCheck       runTxMode = iota // Check a transaction
-	runTxModeReCheck                      // Recheck a (pending) transaction after a commit
-	runTxModeSimulate                     // Simulate a transaction
-	runTxModeDeliver                      // Deliver a transaction
-	runTxPrepareProposal                  // Prepare a TM block proposal
-	runTxProcessProposal                  // Process a TM block proposal
-	runTxModePreDeliver                   // Pre-deliver a transaction
-
-	inMemorySignatures = 4096 // Number of recent block signatures to keep in memory
+	execModeCheck               execMode = iota // Check a transaction
+	execModeReCheck                             // Recheck a (pending) transaction after a commit
+	execModeSimulate                            // Simulate a transaction
+	execModePrepareProposal                     // Prepare a block proposal
+	execModeProcessProposal                     // Process a block proposal
+	execModeVoteExtension                       // Extend or verify a pre-commit vote
+	execModeVerifyVoteExtension                 // Verify a vote extension
+	execModeFinalize                            // Finalize a block proposal
 )
 
-var _ abci.Application = (*BaseApp)(nil)
+var _ servertypes.ABCI = (*BaseApp)(nil)
 
 // BaseApp reflects the ABCI application implementation.
-type BaseApp struct { //nolint: maligned
+type BaseApp struct {
 	// initialized on creation
 	logger            log.Logger
-	name              string               // application name from abci.Info
-	db                dbm.DB               // common DB backend
-	cms               sdk.CommitMultiStore // Main (uncached) state
-	storeLoader       StoreLoader          // function to handle store loading, may be overridden with SetStoreLoader()
-	grpcQueryRouter   *GRPCQueryRouter     // router for redirecting gRPC query calls
-	ethQueryRouter    *EthQueryRouter      // router for redirecting eth query calls
-	msgServiceRouter  *MsgServiceRouter    // router for redirecting Msg service messages
+	name              string                      // application name from abci.BlockInfo
+	db                dbm.DB                      // common DB backend
+	cms               storetypes.CommitMultiStore // Main (uncached) state
+	qms               storetypes.MultiStore       // Optional alternative multistore for querying only.
+	storeLoader       StoreLoader                 // function to handle store loading, may be overridden with SetStoreLoader()
+	grpcQueryRouter   *GRPCQueryRouter            // router for redirecting gRPC query calls
+	ethQueryRouter    *EthQueryRouter             // router for redirecting eth query calls
+	msgServiceRouter  *MsgServiceRouter           // router for redirecting Msg service messages
 	interfaceRegistry codectypes.InterfaceRegistry
 	txDecoder         sdk.TxDecoder // unmarshal []byte into sdk.Tx
 	txEncoder         sdk.TxEncoder // marshal sdk.Tx into []byte
 
-	mempool         mempool.Mempool            // application side mempool
-	anteHandler     sdk.AnteHandler            // ante handler for fee and auth
-	postHandler     sdk.PostHandler            // post handler, optional, e.g. for tips
-	initChainer     sdk.InitChainer            // initialize state with validators and state blob
-	beginBlocker    sdk.BeginBlocker           // logic to run before any txs
-	processProposal sdk.ProcessProposalHandler // the handler which runs on ABCI ProcessProposal
-	prepareProposal sdk.PrepareProposalHandler // the handler which runs on ABCI PrepareProposal
-	endBlocker      sdk.EndBlocker             // logic to run after all txs, and to determine valset changes
-	addrPeerFilter  sdk.PeerFilter             // filter peers by address and port
-	idPeerFilter    sdk.PeerFilter             // filter peers by node ID
-	fauxMerkleMode  bool                       // if true, IAVL MountStores uses MountStoresDB for simulation speed.
+	mempool     mempool.Mempool // application side mempool
+	anteHandler sdk.AnteHandler // ante handler for fee and auth
+	postHandler sdk.PostHandler // post handler, optional
+
+	initChainer        sdk.InitChainer                // ABCI InitChain handler
+	preBlocker         sdk.PreBlocker                 // logic to run before BeginBlocker
+	beginBlocker       sdk.BeginBlocker               // (legacy ABCI) BeginBlock handler
+	endBlocker         sdk.EndBlocker                 // (legacy ABCI) EndBlock handler
+	processProposal    sdk.ProcessProposalHandler     // ABCI ProcessProposal handler
+	prepareProposal    sdk.PrepareProposalHandler     // ABCI PrepareProposal
+	extendVote         sdk.ExtendVoteHandler          // ABCI ExtendVote handler
+	verifyVoteExt      sdk.VerifyVoteExtensionHandler // ABCI VerifyVoteExtension handler
+	prepareCheckStater sdk.PrepareCheckStater         // logic to run during commit using the checkState
+	precommiter        sdk.Precommiter                // logic to run during commit using the deliverState
+
+	addrPeerFilter sdk.PeerFilter // filter peers by address and port
+	idPeerFilter   sdk.PeerFilter // filter peers by node ID
+	fauxMerkleMode bool           // if true, IAVL MountStores uses MountStoresDB for simulation speed.
+	sigverifyTx    bool           // in the simulation test, since the account does not have a private key, we have to ignore the tx sigverify.
 
 	// manages snapshots, i.e. dumps of app state at certain intervals
 	snapshotManager *snapshots.Manager
 
 	// volatile states:
 	//
-	// checkState is set on InitChain and reset on Commit
-	// deliverState is set on InitChain and BeginBlock and set to nil on Commit
-	checkState           *state // for CheckTx
-	deliverState         *state // for DeliverTx
-	processProposalState *state // for ProcessProposal
-	prepareProposalState *state // for PrepareProposal
+	// - checkState is set on InitChain and reset on Commit
+	// - finalizeBlockState is set on InitChain and FinalizeBlock and set to nil
+	// on Commit.
+	//
+	// - checkState: Used for CheckTx, which is set based on the previous block's
+	// state. This state is never committed.
+	//
+	// - prepareProposalState: Used for PrepareProposal, which is set based on the
+	// previous block's state. This state is never committed. In case of multiple
+	// consensus rounds, the state is always reset to the previous block's state.
+	//
+	// - processProposalState: Used for ProcessProposal, which is set based on the
+	// the previous block's state. This state is never committed. In case of
+	// multiple rounds, the state is always reset to the previous block's state.
+	//
+	// - finalizeBlockState: Used for FinalizeBlock, which is set based on the
+	// previous block's state. This state is committed.
+	checkState           *state
+	prepareProposalState *state
+	processProposalState *state
+	finalizeBlockState   *state
 
-	preDeliverStates []*state // for PreDeliverTx
-
-	// queryState is set on InitChain and BeginBlock
-	queryState *queryState // optional alternative multistore for querying only.
-
-	queryStateMtx sync.RWMutex // mutex for queryState
-	checkStateMtx sync.RWMutex // mutex for checkState
-
-	// an inter-block write-through cache provided to the context during deliverState
-	interBlockCache sdk.MultiStorePersistentCache
-
-	// absent validators from begin block
-	voteInfos []abci.VoteInfo
+	// An inter-block write-through cache provided to the context during the ABCI
+	// FinalizeBlock call.
+	interBlockCache storetypes.MultiStorePersistentCache
 
 	// paramStore is used to query for ABCI consensus parameters from an
 	// application parameter store.
 	paramStore ParamStore
 
+	// queryGasLimit defines the maximum gas for queries; unbounded if 0.
+	queryGasLimit uint64
+
 	// The minimum gas prices a validator is willing to accept for processing a
 	// transaction. This is mainly used for DoS and spam prevention.
 	minGasPrices sdk.DecCoins
 
-	// initialHeight is the initial height at which we start the baseapp
+	// initialHeight is the initial height at which we start the BaseApp
 	initialHeight int64
 
 	// flag for sealing options and parameters to a BaseApp
@@ -126,11 +150,11 @@ type BaseApp struct { //nolint: maligned
 
 	// minRetainBlocks defines the minimum block height offset from the current
 	// block being committed, such that all blocks past this offset are pruned
-	// from Tendermint. It is used as part of the process of determining the
+	// from CometBFT. It is used as part of the process of determining the
 	// ResponseCommit.RetainHeight value during ABCI Commit. A value of 0 indicates
 	// that no blocks should be pruned.
 	//
-	// Note: Tendermint block pruning is dependent on this parameter in conunction
+	// Note: CometBFT block pruning is dependent on this parameter in conjunction
 	// with the unbonding (safety threshold) period, state pruning and state sync
 	// snapshot parameters to determine the correct minimum value of
 	// ResponseCommit.RetainHeight.
@@ -150,20 +174,27 @@ type BaseApp struct { //nolint: maligned
 	trace bool
 
 	// indexEvents defines the set of events in the form {eventType}.{attributeKey},
-	// which informs Tendermint what to index. If empty, all events will be indexed.
+	// which informs CometBFT what to index. If empty, all events will be indexed.
 	indexEvents map[string]struct{}
 
-	// abciListeners for hooking into the ABCI message processing of the BaseApp
-	// and exposing the requests and responses to external consumers
-	abciListeners []ABCIListener
+	// streamingManager for managing instances and configuration of ABCIListener services
+	streamingManager storetypes.StreamingManager
 
 	chainID string
 
-	// upgradeChecker is a hook function from the upgrade module to check upgrade is executed or not.
-	upgradeChecker func(ctx sdk.Context, name string) bool
+	cdc codec.Codec
 
-	// sigCache caches the signatures of recent blocks to speed up
-	sigCache *lru.ARCCache
+	// optimisticExec contains the context required for Optimistic Execution,
+	// including the goroutine handling.This is experimental and must be enabled
+	// by developers.
+	optimisticExec *oe.OptimisticExecution
+
+	// disableBlockGasMeter will disable the block gas meter if true, block gas meter is tricky to support
+	// when executing transactions in parallel.
+	// when disabled, the block gas meter in context is a noop one.
+	//
+	// SAFETY: it's safe to do if validators validate the total gas wanted in the `ProcessProposal`, which is the case in the default handler.
+	disableBlockGasMeter bool
 
 	// enableUnsafeQuery defines whether the unsafe queries will be enabled or not
 	enableUnsafeQuery bool
@@ -175,8 +206,6 @@ type BaseApp struct { //nolint: maligned
 // NewBaseApp returns a reference to an initialized BaseApp. It accepts a
 // variadic number of option functions, which act on the BaseApp to set
 // configuration choices.
-//
-// NOTE: The db is used to store the version number for now.
 func NewBaseApp(
 	name string, logger log.Logger, db dbm.DB, txDecoder sdk.TxDecoder, options ...func(*BaseApp),
 ) *BaseApp {
@@ -184,16 +213,15 @@ func NewBaseApp(
 		logger:           logger,
 		name:             name,
 		db:               db,
-		cms:              store.NewCommitMultiStore(db),
+		cms:              store.NewCommitMultiStore(db, logger, storemetrics.NewNoOpMetrics()), // by default we use a no-op metric gather in store
 		storeLoader:      DefaultStoreLoader,
 		grpcQueryRouter:  NewGRPCQueryRouter(),
 		ethQueryRouter:   NewEthQueryRouter(),
 		msgServiceRouter: NewMsgServiceRouter(),
 		txDecoder:        txDecoder,
 		fauxMerkleMode:   false,
-		preDeliverStates: make([]*state, 0),
-		checkStateMtx:    sync.RWMutex{},
-		queryStateMtx:    sync.RWMutex{},
+		sigverifyTx:      true,
+		queryGasLimit:    math.MaxUint64,
 	}
 
 	for _, option := range options {
@@ -209,31 +237,26 @@ func NewBaseApp(
 	if app.prepareProposal == nil {
 		app.SetPrepareProposal(abciProposalHandler.PrepareProposalHandler())
 	}
-
 	if app.processProposal == nil {
 		app.SetProcessProposal(abciProposalHandler.ProcessProposalHandler())
 	}
-
-	if app.sigCache == nil {
-		sigCache, err := lru.NewARC(inMemorySignatures)
-		if err != nil {
-			panic(err)
-		}
-		app.sigCache = sigCache
+	if app.extendVote == nil {
+		app.SetExtendVoteHandler(NoOpExtendVote())
 	}
-
+	if app.verifyVoteExt == nil {
+		app.SetVerifyVoteExtensionHandler(NoOpVerifyVoteExtensionHandler())
+	}
 	if app.interBlockCache != nil {
 		app.cms.SetInterBlockCache(app.interBlockCache)
 	}
 
 	app.runTxRecoveryMiddleware = newDefaultRecoveryMiddleware()
 
-	return app
-}
+	// Initialize with an empty interface registry to avoid nil pointer dereference.
+	// Unless SetInterfaceRegistry is called with an interface registry with proper address codecs baseapp will panic.
+	app.cdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 
-// ChainID returns the chain id.
-func (app *BaseApp) ChainID() string {
-	return app.chainID
+	return app
 }
 
 // Name returns the name of the BaseApp.
@@ -264,10 +287,8 @@ func (app *BaseApp) Trace() bool {
 // MsgServiceRouter returns the MsgServiceRouter of a BaseApp.
 func (app *BaseApp) MsgServiceRouter() *MsgServiceRouter { return app.msgServiceRouter }
 
-// SetMsgServiceRouter sets the MsgServiceRouter of a BaseApp.
-func (app *BaseApp) SetMsgServiceRouter(msgServiceRouter *MsgServiceRouter) {
-	app.msgServiceRouter = msgServiceRouter
-}
+// GRPCQueryRouter returns the GRPCQueryRouter of a BaseApp.
+func (app *BaseApp) GRPCQueryRouter() *GRPCQueryRouter { return app.grpcQueryRouter }
 
 // EthQueryRouter returns the EthQueryRouter of a BaseApp.
 func (app *BaseApp) EthQueryRouter() *EthQueryRouter { return app.ethQueryRouter }
@@ -275,15 +296,6 @@ func (app *BaseApp) EthQueryRouter() *EthQueryRouter { return app.ethQueryRouter
 // SetEthQueryRouter sets the EthQueryRouter of a BaseApp.
 func (app *BaseApp) SetEthQueryRouter(ethQueryRouter *EthQueryRouter) {
 	app.ethQueryRouter = ethQueryRouter
-}
-
-// SetCircuitBreaker sets the circuit breaker for the BaseApp.
-// The circuit breaker is checked on every message execution to verify if a transaction should be executed or not.
-func (app *BaseApp) SetCircuitBreaker(cb CircuitBreaker) {
-	if app.msgServiceRouter == nil {
-		panic("must be called after message server is set")
-	}
-	app.msgServiceRouter.SetCircuit(cb)
 }
 
 // MountStores mounts all IAVL or DB stores to the provided keys in the BaseApp
@@ -363,14 +375,14 @@ func (app *BaseApp) LoadLatestVersion() error {
 }
 
 // DefaultStoreLoader will be used by default and loads the latest version
-func DefaultStoreLoader(ms sdk.CommitMultiStore) error {
+func DefaultStoreLoader(ms storetypes.CommitMultiStore) error {
 	return ms.LoadLatestVersion()
 }
 
 // CommitMultiStore returns the root multi-store.
 // App constructor can use this to access the `cms`.
 // UNSAFE: must not be used during the abci life cycle.
-func (app *BaseApp) CommitMultiStore() sdk.CommitMultiStore {
+func (app *BaseApp) CommitMultiStore() storetypes.CommitMultiStore {
 	return app.cms
 }
 
@@ -402,6 +414,21 @@ func (app *BaseApp) LastBlockHeight() int64 {
 	return app.cms.LastCommitID().Version
 }
 
+// ChainID returns the chainID of the app.
+func (app *BaseApp) ChainID() string {
+	return app.chainID
+}
+
+// AnteHandler returns the AnteHandler of the app.
+func (app *BaseApp) AnteHandler() sdk.AnteHandler {
+	return app.anteHandler
+}
+
+// Mempool returns the Mempool of the app.
+func (app *BaseApp) Mempool() mempool.Mempool {
+	return app.mempool
+}
+
 // Init initializes the app. It seals the app, preventing any
 // further modifications. In addition, it validates the app against
 // the earlier provided settings. Returns an error if validation fails.
@@ -411,11 +438,10 @@ func (app *BaseApp) Init() error {
 		panic("cannot call initFromMainStore: baseapp already sealed")
 	}
 
-	emptyHeader := tmproto.Header{ChainID: app.chainID}
+	emptyHeader := cmtproto.Header{ChainID: app.chainID}
 
 	// needed for the export command which inits from store but never calls initchain
-	app.setQueryState(emptyHeader)
-	app.setState(runTxModeCheck, emptyHeader)
+	app.setState(execModeCheck, emptyHeader)
 	app.Seal()
 
 	if app.cms == nil {
@@ -441,7 +467,7 @@ func (app *BaseApp) setMinRetainBlocks(minRetainBlocks uint64) {
 	app.minRetainBlocks = minRetainBlocks
 }
 
-func (app *BaseApp) setInterBlockCache(cache sdk.MultiStorePersistentCache) {
+func (app *BaseApp) setInterBlockCache(cache storetypes.MultiStorePersistentCache) {
 	app.interBlockCache = cache
 }
 
@@ -469,97 +495,79 @@ func (app *BaseApp) IsIavlStore() bool { return !app.enablePlainStore && !app.fa
 // setState sets the BaseApp's state for the corresponding mode with a branched
 // multi-store (i.e., a CacheMultiStore) and a new Context with the same
 // multi-store branch, and provided header.
-func (app *BaseApp) setState(mode runTxMode, header tmproto.Header) {
+func (app *BaseApp) setState(mode execMode, h cmtproto.Header) {
 	ms := app.cms.CacheMultiStore()
+	headerInfo := header.Info{
+		Height:  h.Height,
+		Time:    h.Time,
+		ChainID: h.ChainID,
+		AppHash: h.AppHash,
+	}
 	baseState := &state{
-		ms:  ms,
-		ctx: sdk.NewContext(ms, header, false, app.upgradeChecker, app.logger),
+		ms: ms,
+		ctx: sdk.NewContext(ms, h, false, app.logger).
+			WithStreamingManager(app.streamingManager).
+			WithHeaderInfo(headerInfo),
 	}
 
 	switch mode {
-	case runTxModeCheck:
-		// Minimum gas prices are also set. It is set on InitChain and reset on Commit.
-		var ms sdk.CacheMultiStore
-		if rs, ok := app.cms.(*rootmulti.Store); ok {
-			ms = rs.DeepCopyAndCache()
-			baseState.ms = ms
-			baseState.ctx = baseState.ctx.WithIsCheckTx(true).WithMinGasPrices(app.minGasPrices).WithMultiStore(ms)
-			app.checkState = baseState
-		} else {
-			panic(fmt.Sprintf("set checkState failed: %T is not rootmulti.Store", app.cms))
-		}
-	case runTxModeDeliver:
-		// It is set on InitChain and BeginBlock and set to nil on Commit.
-		app.deliverState = baseState
-	case runTxPrepareProposal:
-		// It is set on InitChain and Commit.
+	case execModeCheck:
+		baseState.SetContext(baseState.Context().WithIsCheckTx(true).WithMinGasPrices(app.minGasPrices))
+		app.checkState = baseState
+
+	case execModePrepareProposal:
 		app.prepareProposalState = baseState
-	case runTxProcessProposal:
-		// It is set on InitChain and Commit.
+
+	case execModeProcessProposal:
 		app.processProposalState = baseState
+
+	case execModeFinalize:
+		app.finalizeBlockState = baseState
+
 	default:
 		panic(fmt.Sprintf("invalid runTxMode for setState: %d", mode))
 	}
 }
 
-func (app *BaseApp) setPreState(number int64, header tmproto.Header) {
-	app.preDeliverStates = app.preDeliverStates[:0] // reset, keep allocated memory
-
-	for i := int64(0); i < number; i++ {
-		var ms sdk.CacheMultiStore
-		if _, ok := app.cms.(*rootmulti.Store); ok {
-			ms = app.cms.(*rootmulti.Store).DeepCopyAndCache()
-		}
-
-		baseState := &state{
-			ms:  ms,
-			ctx: sdk.NewContext(ms, header, false, app.upgradeChecker, app.logger),
-		}
-		app.preDeliverStates = append(app.preDeliverStates, baseState)
+// SetCircuitBreaker sets the circuit breaker for the BaseApp.
+// The circuit breaker is checked on every message execution to verify if a transaction should be executed or not.
+func (app *BaseApp) SetCircuitBreaker(cb CircuitBreaker) {
+	if app.msgServiceRouter == nil {
+		panic("cannot set circuit breaker with no msg service router set")
 	}
-}
-
-func (app *BaseApp) setQueryState(header tmproto.Header) {
-	var ms sdk.CommitMultiStore
-	if rs, ok := app.cms.(*rootmulti.Store); ok {
-		ms = rs.DeepCopy()
-	}
-
-	baseState := &queryState{
-		ms:  ms,
-		ctx: sdk.NewContext(ms, header, false, app.upgradeChecker, app.logger),
-	}
-	app.queryState = baseState
+	app.msgServiceRouter.SetCircuit(cb)
 }
 
 // GetConsensusParams returns the current consensus parameters from the BaseApp's
 // ParamStore. If the BaseApp has no ParamStore defined, nil is returned.
-func (app *BaseApp) GetConsensusParams(ctx sdk.Context) *tmproto.ConsensusParams {
+func (app *BaseApp) GetConsensusParams(ctx sdk.Context) cmtproto.ConsensusParams {
 	if app.paramStore == nil {
-		return nil
+		return cmtproto.ConsensusParams{}
 	}
 
 	cp, err := app.paramStore.Get(ctx)
 	if err != nil {
-		panic(err)
+		// This could happen while migrating from v0.45/v0.46 to v0.50, we should
+		// allow it to happen so during preblock the upgrade plan can be executed
+		// and the consensus params set for the first time in the new format.
+		app.logger.Error("failed to get consensus params", "err", err)
+		return cmtproto.ConsensusParams{}
 	}
 
 	return cp
 }
 
-// StoreConsensusParams sets the consensus parameters to the baseapp's param store.
-func (app *BaseApp) StoreConsensusParams(ctx sdk.Context, cp *tmproto.ConsensusParams) {
+// StoreConsensusParams sets the consensus parameters to the BaseApp's param
+// store.
+//
+// NOTE: We're explicitly not storing the CometBFT app_version in the param store.
+// It's stored instead in the x/upgrade store, with its own bump logic.
+func (app *BaseApp) StoreConsensusParams(ctx sdk.Context, cp cmtproto.ConsensusParams) error {
 	if app.paramStore == nil {
-		panic("cannot store consensus params with no params store set")
+		return errors.New("cannot store consensus params with no params store set")
 	}
 
-	if cp == nil {
-		return
-	}
-
-	app.paramStore.Set(ctx, cp)
-	// We're explicitly not storing the Tendermint app_version in the param store. It's
-	// stored instead in the x/upgrade store, with its own bump logic.
+	return app.paramStore.Set(ctx, cp)
 }
 
 // AddRunTxRecoveryHandler adds custom app.runTx method panic handlers.
@@ -574,7 +582,7 @@ func (app *BaseApp) AddRunTxRecoveryHandler(handlers ...RecoveryHandler) {
 // one.
 func (app *BaseApp) GetMaximumBlockGas(ctx sdk.Context) uint64 {
 	cp := app.GetConsensusParams(ctx)
-	if cp == nil || cp.Block == nil {
+	if cp.Block == nil {
 		return 0
 	}
 
@@ -592,9 +600,9 @@ func (app *BaseApp) GetMaximumBlockGas(ctx sdk.Context) uint64 {
 	}
 }
 
-func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
-	if req.Header.Height < 1 {
-		return fmt.Errorf("invalid height: %d", req.Header.Height)
+func (app *BaseApp) validateFinalizeBlockHeight(req *abci.RequestFinalizeBlock) error {
+	if req.Height < 1 {
+		return fmt.Errorf("invalid height: %d", req.Height)
 	}
 
 	lastBlockHeight := app.LastBlockHeight()
@@ -614,8 +622,8 @@ func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
 		expectedHeight = lastBlockHeight + 1
 	}
 
-	if req.Header.Height != expectedHeight {
-		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.Height, expectedHeight)
+	if req.Height != expectedHeight {
+		return fmt.Errorf("invalid height: %d; expected: %d", req.Height, expectedHeight)
 	}
 
 	return nil
@@ -624,12 +632,16 @@ func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
 // validateBasicTxMsgs executes basic validator calls for messages.
 func validateBasicTxMsgs(msgs []sdk.Msg) error {
 	if len(msgs) == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "must contain at least one message")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "must contain at least one message")
 	}
 
 	for _, msg := range msgs {
-		err := msg.ValidateBasic()
-		if err != nil {
+		m, ok := msg.(sdk.HasValidateBasic)
+		if !ok {
+			continue
+		}
+
+		if err := m.ValidateBasic(); err != nil {
 			return err
 		}
 	}
@@ -640,7 +652,7 @@ func validateBasicTxMsgs(msgs []sdk.Msg) error {
 // validateRuntimeTxMsgs executes basic runtime validator calls for messages.
 func validateRuntimeTxMsgs(ctx sdk.Context, msgs []sdk.Msg) error {
 	if len(msgs) == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "must contain at least one message")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "must contain at least one message")
 	}
 
 	for _, msg := range msgs {
@@ -654,18 +666,15 @@ func validateRuntimeTxMsgs(ctx sdk.Context, msgs []sdk.Msg) error {
 	return nil
 }
 
-// Returns the application's deliverState if app is in runTxModeDeliver,
-// prepareProposalState if app is in runTxPrepareProposal, processProposalState
-// if app is in runTxProcessProposal, and checkState otherwise.
-func (app *BaseApp) getState(mode runTxMode) *state {
+func (app *BaseApp) getState(mode execMode) *state {
 	switch mode {
-	case runTxModeDeliver:
-		return app.deliverState
+	case execModeFinalize:
+		return app.finalizeBlockState
 
-	case runTxPrepareProposal:
+	case execModePrepareProposal:
 		return app.prepareProposalState
 
-	case runTxProcessProposal:
+	case execModeProcessProposal:
 		return app.processProposalState
 
 	default:
@@ -674,12 +683,14 @@ func (app *BaseApp) getState(mode runTxMode) *state {
 }
 
 func (app *BaseApp) GetCheckState() *state {
-	app.checkStateMtx.RLock()
-	defer app.checkStateMtx.RUnlock()
 	return app.checkState
 }
 
 func (app *BaseApp) getBlockGasMeter(ctx sdk.Context) storetypes.GasMeter {
+	if app.disableBlockGasMeter {
+		return noopGasMeter{}
+	}
+
 	if maxGas := app.GetMaximumBlockGas(ctx); maxGas > 0 {
 		return storetypes.NewGasMeter(maxGas)
 	}
@@ -688,24 +699,27 @@ func (app *BaseApp) getBlockGasMeter(ctx sdk.Context) storetypes.GasMeter {
 }
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
-func (app *BaseApp) getContextForTx(mode runTxMode, txBytes []byte) sdk.Context {
+func (app *BaseApp) getContextForTx(mode execMode, txBytes []byte) sdk.Context {
 	modeState := app.getState(mode)
 	if modeState == nil {
 		panic(fmt.Sprintf("state is nil for mode %v", mode))
 	}
-	ctx := modeState.ctx.
+	ctx := modeState.Context().
 		WithTxBytes(txBytes).
-		WithVoteInfos(app.voteInfos).
-		WithSigCache(app.sigCache)
+		WithGasMeter(storetypes.NewInfiniteGasMeter())
+	// WithVoteInfos(app.voteInfos) // TODO: identify if this is needed
+
+	ctx = ctx.WithIsSigverifyTx(app.sigverifyTx)
 
 	ctx = ctx.WithConsensusParams(app.GetConsensusParams(ctx))
 
-	if mode == runTxModeReCheck {
+	if mode == execModeReCheck {
 		ctx = ctx.WithIsReCheckTx(true)
 	}
 
-	if mode == runTxModeSimulate {
+	if mode == execModeSimulate {
 		ctx, _ = ctx.CacheContext()
+		ctx = ctx.WithExecMode(sdk.ExecMode(execModeSimulate))
 	}
 
 	return ctx
@@ -713,21 +727,133 @@ func (app *BaseApp) getContextForTx(mode runTxMode, txBytes []byte) sdk.Context 
 
 // cacheTxContext returns a new context based off of the provided context with
 // a branched multi-store.
-func (app *BaseApp) cacheTxContext(ctx sdk.Context, txBytes []byte) (sdk.Context, sdk.CacheMultiStore) {
+func (app *BaseApp) cacheTxContext(ctx sdk.Context, txBytes []byte) (sdk.Context, storetypes.CacheMultiStore) {
 	ms := ctx.MultiStore()
 	// TODO: https://github.com/cosmos/cosmos-sdk/issues/2824
 	msCache := ms.CacheMultiStore()
 	if msCache.TracingEnabled() {
 		msCache = msCache.SetTracingContext(
-			sdk.TraceContext(
+			storetypes.TraceContext(
 				map[string]interface{}{
 					"txHash": fmt.Sprintf("%X", tmhash.Sum(txBytes)),
 				},
 			),
-		).(sdk.CacheMultiStore)
+		).(storetypes.CacheMultiStore)
 	}
 
 	return ctx.WithMultiStore(msCache), msCache
+}
+
+func (app *BaseApp) preBlock(req *abci.RequestFinalizeBlock) ([]abci.Event, error) {
+	var events []abci.Event
+	if app.preBlocker != nil {
+		ctx := app.finalizeBlockState.Context().WithEventManager(sdk.NewEventManager())
+		rsp, err := app.preBlocker(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		// rsp.ConsensusParamsChanged is true from preBlocker means ConsensusParams in store get changed
+		// write the consensus parameters in store to context
+		if rsp.ConsensusParamsChanged {
+			ctx = ctx.WithConsensusParams(app.GetConsensusParams(ctx))
+			// GasMeter must be set after we get a context with updated consensus params.
+			gasMeter := app.getBlockGasMeter(ctx)
+			ctx = ctx.WithBlockGasMeter(gasMeter)
+			app.finalizeBlockState.SetContext(ctx)
+		}
+		events = ctx.EventManager().ABCIEvents()
+	}
+	return events, nil
+}
+
+func (app *BaseApp) beginBlock(_ *abci.RequestFinalizeBlock) (sdk.BeginBlock, error) {
+	var (
+		resp sdk.BeginBlock
+		err  error
+	)
+
+	if app.beginBlocker != nil {
+		resp, err = app.beginBlocker(app.finalizeBlockState.Context())
+		if err != nil {
+			return resp, err
+		}
+
+		// append BeginBlock attributes to all events in the EndBlock response
+		for i, event := range resp.Events {
+			resp.Events[i].Attributes = append(
+				event.Attributes,
+				abci.EventAttribute{Key: "mode", Value: "BeginBlock"},
+			)
+		}
+
+		resp.Events = sdk.MarkEventsToIndex(resp.Events, app.indexEvents)
+	}
+
+	return resp, nil
+}
+
+func (app *BaseApp) deliverTx(tx []byte) *abci.ExecTxResult {
+	gInfo := sdk.GasInfo{}
+	resultStr := "successful"
+
+	var resp *abci.ExecTxResult
+
+	defer func() {
+		telemetry.IncrCounter(1, "tx", "count")
+		telemetry.IncrCounter(1, "tx", resultStr)
+		telemetry.SetGauge(float32(gInfo.GasUsed), "tx", "gas", "used")
+		telemetry.SetGauge(float32(gInfo.GasWanted), "tx", "gas", "wanted")
+		telemetry.SetGauge(float32(gInfo.GasWanted), "tx", "gas", "rwused")
+	}()
+
+	gInfo, result, anteEvents, err := app.runTx(execModeFinalize, tx)
+	if err != nil {
+		resultStr = "failed"
+		resp = sdkerrors.ResponseExecTxResultWithEvents(
+			err,
+			gInfo.GasWanted,
+			gInfo.GasUsed,
+			sdk.MarkEventsToIndex(anteEvents, app.indexEvents),
+			app.trace,
+		)
+		return resp
+	}
+
+	resp = &abci.ExecTxResult{
+		GasWanted: int64(gInfo.GasWanted),
+		GasUsed:   int64(gInfo.GasUsed),
+		Log:       result.Log,
+		Data:      result.Data,
+		Events:    sdk.MarkEventsToIndex(result.Events, app.indexEvents),
+	}
+
+	return resp
+}
+
+// endBlock is an application-defined function that is called after transactions
+// have been processed in FinalizeBlock.
+func (app *BaseApp) endBlock(_ context.Context) (sdk.EndBlock, error) {
+	var endblock sdk.EndBlock
+
+	if app.endBlocker != nil {
+		eb, err := app.endBlocker(app.finalizeBlockState.Context())
+		if err != nil {
+			return endblock, err
+		}
+
+		// append EndBlock attributes to all events in the EndBlock response
+		for i, event := range eb.Events {
+			eb.Events[i].Attributes = append(
+				event.Attributes,
+				abci.EventAttribute{Key: "mode", Value: "EndBlock"},
+			)
+		}
+
+		eb.Events = sdk.MarkEventsToIndex(eb.Events, app.indexEvents)
+		endblock = eb
+	}
+
+	return endblock, nil
 }
 
 // runTx processes a transaction within a given execution mode, encoded transaction
@@ -737,29 +863,26 @@ func (app *BaseApp) cacheTxContext(ctx sdk.Context, txBytes []byte) (sdk.Context
 // Note, gas execution info is always returned. A reference to a Result is
 // returned if the tx does not run out of gas and if all the messages are valid
 // and execute successfully. An error is returned otherwise.
-func (app *BaseApp) runTx(mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, result *sdk.Result, anteEvents []abci.Event, priority int64, err error) {
-	ctx := app.getContextForTx(mode, txBytes)
-	return app.runTxOnContext(ctx, mode, txBytes)
-}
-
-func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, result *sdk.Result, anteEvents []abci.Event, priority int64, err error) {
+func (app *BaseApp) runTx(mode execMode, txBytes []byte) (gInfo sdk.GasInfo, result *sdk.Result, anteEvents []abci.Event, err error) {
 	// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
 	// determined by the GasMeter. We need access to the context to get the gas
 	// meter, so we initialize upfront.
 	var gasWanted uint64
 
+	ctx := app.getContextForTx(mode, txBytes)
 	ms := ctx.MultiStore()
 	gInfo.MinGasPrice = app.minGasPrices.String()
 
 	// only run the tx if there is block gas remaining
-	if mode == runTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
-		return gInfo, nil, nil, 0, sdkerrors.Wrap(sdkerrors.ErrOutOfGas, "no block gas left to run tx")
+	if mode == execModeFinalize && ctx.BlockGasMeter().IsOutOfGas() {
+		return gInfo, nil, nil, errorsmod.Wrap(sdkerrors.ErrOutOfGas, "no block gas left to run tx")
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			recoveryMW := newOutOfGasRecoveryMiddleware(gasWanted, ctx, app.runTxRecoveryMiddleware)
 			err, result = processRecovery(r, recoveryMW), nil
+			ctx.Logger().Error("panic recovered in runTx", "err", err)
 		}
 
 		gInfo = sdk.GasInfo{GasWanted: gasWanted, GasUsed: ctx.GasMeter().GasConsumed(), MinGasPrice: gInfo.MinGasPrice, RwUsed: ctx.GasMeter().RwConsumed()}
@@ -785,36 +908,34 @@ func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []by
 	// NOTE: consumeBlockGas must exist in a separate defer function from the
 	// general deferred recovery function to recover from consumeBlockGas, as it'll
 	// be executed first (deferred statements are executed as stack).
-	if mode == runTxModeDeliver {
+	if mode == execModeFinalize {
 		defer consumeBlockGas()
 	}
 
-	var tx sdk.Tx
-	if ctx.SigCache() != nil && ctx.TxBytes() != nil {
-		if txCache, known := ctx.SigCache().Get(string(ctx.TxBytes())); known {
-			tx = txCache.(sdk.Tx)
-		}
-	}
-
-	if tx == nil {
-		tx, err = app.txDecoder(txBytes)
-		if err != nil {
-			return sdk.GasInfo{}, nil, nil, 0, err
-		}
+	tx, err := app.txDecoder(txBytes)
+	if err != nil {
+		return sdk.GasInfo{}, nil, nil, err
 	}
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
-		return sdk.GasInfo{}, nil, nil, 0, err
+		return sdk.GasInfo{}, nil, nil, err
 	}
 	if err := validateRuntimeTxMsgs(ctx, msgs); err != nil {
-		return sdk.GasInfo{}, nil, nil, 0, err
+		return sdk.GasInfo{}, nil, nil, err
+	}
+
+	for _, msg := range msgs {
+		handler := app.msgServiceRouter.Handler(msg)
+		if handler == nil {
+			return sdk.GasInfo{}, nil, nil, errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "no message handler found for %T", msg)
+		}
 	}
 
 	if app.anteHandler != nil {
 		var (
 			anteCtx sdk.Context
-			msCache sdk.CacheMultiStore
+			msCache storetypes.CacheMultiStore
 		)
 
 		// Branch context before AnteHandler call in case it aborts.
@@ -826,7 +947,7 @@ func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []by
 		// performance benefits, but it'll be more difficult to get right.
 		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
 		anteCtx = anteCtx.WithEventManager(sdk.NewEventManager())
-		newCtx, err := app.anteHandler(anteCtx, tx, mode == runTxModeSimulate)
+		newCtx, err := app.anteHandler(anteCtx, tx, mode == execModeSimulate)
 
 		if !newCtx.IsZero() {
 			// At this point, newCtx.MultiStore() is a store branch, or something else
@@ -844,23 +965,28 @@ func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []by
 		gasWanted = ctx.GasMeter().Limit()
 
 		if err != nil {
-			return gInfo, nil, nil, 0, err
+			if mode == execModeReCheck {
+				// if the ante handler fails on recheck, we want to remove the tx from the mempool
+				if mempoolErr := app.mempool.Remove(tx); mempoolErr != nil {
+					return gInfo, nil, anteEvents, errors.Join(err, mempoolErr)
+				}
+			}
+			return gInfo, nil, nil, err
 		}
 
-		priority = ctx.Priority()
 		msCache.Write()
 		anteEvents = events.ToABCIEvents()
 	}
 
-	if mode == runTxModeCheck {
+	if mode == execModeCheck {
 		err = app.mempool.Insert(ctx, tx)
 		if err != nil {
-			return gInfo, nil, anteEvents, priority, err
+			return gInfo, nil, anteEvents, err
 		}
-	} else if mode == runTxModeDeliver {
+	} else if mode == execModeFinalize {
 		err = app.mempool.Remove(tx)
 		if err != nil && !errors.Is(err, mempool.ErrTxNotFound) {
-			return gInfo, nil, anteEvents, priority,
+			return gInfo, nil, anteEvents,
 				fmt.Errorf("failed to remove tx from mempool: %w", err)
 		}
 	}
@@ -873,43 +999,47 @@ func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []by
 	// Attempt to execute all messages and only update state if all messages pass
 	// and we're in DeliverTx. Note, runMsgs will never return a reference to a
 	// Result if any single message fails or does not have a registered Handler.
-	result, err = app.runMsgs(runMsgCtx, msgs, mode)
+	msgsV2, err := tx.GetMsgsV2()
 	if err == nil {
-		// Run optional postHandlers.
-		//
-		// Note: If the postHandler fails, we also revert the runMsgs state.
-		if app.postHandler != nil {
-			// The runMsgCtx context currently contains events emitted by the ante handler.
-			// We clear this to correctly order events without duplicates.
-			// Note that the state is still preserved.
-			postCtx := runMsgCtx.WithEventManager(sdk.NewEventManager())
+		result, err = app.runMsgs(runMsgCtx, msgs, msgsV2, mode)
+	}
 
-			newCtx, err := app.postHandler(postCtx, tx, mode == runTxModeSimulate, err == nil)
-			if err != nil {
-				return gInfo, nil, anteEvents, priority, err
-			}
+	// Run optional postHandlers (should run regardless of the execution result).
+	//
+	// Note: If the postHandler fails, we also revert the runMsgs state.
+	if app.postHandler != nil {
+		// The runMsgCtx context currently contains events emitted by the ante handler.
+		// We clear this to correctly order events without duplicates.
+		// Note that the state is still preserved.
+		postCtx := runMsgCtx.WithEventManager(sdk.NewEventManager())
 
-			result.Events = append(result.Events, newCtx.EventManager().ABCIEvents()...)
+		newCtx, errPostHandler := app.postHandler(postCtx, tx, mode == execModeSimulate, err == nil)
+		if errPostHandler != nil {
+			return gInfo, nil, anteEvents, errors.Join(err, errPostHandler)
 		}
 
-		if mode == runTxModeDeliver {
+		// we don't want runTx to panic if runMsgs has failed earlier
+		if result == nil {
+			result = &sdk.Result{}
+		}
+		result.Events = append(result.Events, newCtx.EventManager().ABCIEvents()...)
+	}
+
+	if err == nil {
+		if mode == execModeFinalize {
 			// When block gas exceeds, it'll panic and won't commit the cached store.
 			consumeBlockGas()
 
 			msCache.Write()
 		}
 
-		if mode == runTxModePreDeliver {
-			msCache.Write()
-		}
-
-		if len(anteEvents) > 0 && (mode == runTxModeDeliver || mode == runTxModeSimulate) {
+		if len(anteEvents) > 0 && (mode == execModeFinalize || mode == execModeSimulate) {
 			// append the events in the order of occurrence
 			result.Events = append(anteEvents, result.Events...)
 		}
 	}
 
-	return gInfo, result, anteEvents, priority, err
+	return gInfo, result, anteEvents, err
 }
 
 // runMsgs iterates through a list of messages and executes them with the provided
@@ -917,35 +1047,42 @@ func (app *BaseApp) runTxOnContext(ctx sdk.Context, mode runTxMode, txBytes []by
 // and DeliverTx. An error is returned if any single message fails or if a
 // Handler does not exist for a given message route. Otherwise, a reference to a
 // Result is returned. The caller must not commit state if an error is returned.
-func (app *BaseApp) runMsgs(ctx sdk.Context, msgs []sdk.Msg, mode runTxMode) (*sdk.Result, error) {
-	msgLogs := make(sdk.ABCIMessageLogs, 0, len(msgs))
+func (app *BaseApp) runMsgs(ctx sdk.Context, msgs []sdk.Msg, msgsV2 []protov2.Message, mode execMode) (*sdk.Result, error) {
 	events := sdk.EmptyEvents()
 	var msgResponses []*codectypes.Any
 
 	// NOTE: GasWanted is determined by the AnteHandler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
-		if mode != runTxModeDeliver && mode != runTxModeSimulate && mode != runTxModePreDeliver {
+		if mode != execModeFinalize && mode != execModeSimulate {
 			break
 		}
 
 		handler := app.msgServiceRouter.Handler(msg)
 		if handler == nil {
-			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "can't route message %+v", msg)
+			return nil, errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "no message handler found for %T", msg)
 		}
 
 		// ADR 031 request type routing
 		msgResult, err := handler(ctx, msg)
 		if err != nil {
-			return nil, sdkerrors.Wrapf(err, "failed to execute message; message index: %d", i)
+			return nil, errorsmod.Wrapf(err, "failed to execute message; message index: %d", i)
 		}
 
 		// create message events
-		msgEvents := createEvents(msgResult.GetEvents(), msg)
+		msgEvents, err := createEvents(app.cdc, msgResult.GetEvents(), msg, msgsV2[i])
+		if err != nil {
+			return nil, errorsmod.Wrapf(err, "failed to create message events; message index: %d", i)
+		}
 
-		// append message events, data and logs
+		// append message events and data
 		//
 		// Note: Each message result's data must be length-prefixed in order to
 		// separate each result.
+		for j, event := range msgEvents {
+			// append message index to all events
+			msgEvents[j] = event.AppendAttributes(sdk.NewAttribute("msg_index", strconv.Itoa(i)))
+		}
+
 		events = events.AppendEvents(msgEvents)
 
 		// Each individual sdk.Result that went through the MsgServiceRouter
@@ -961,18 +1098,16 @@ func (app *BaseApp) runMsgs(ctx sdk.Context, msgs []sdk.Msg, mode runTxMode) (*s
 			msgResponses = append(msgResponses, msgResponse)
 		}
 
-		msgLogs = append(msgLogs, sdk.NewABCIMessageLog(uint32(i), msgResult.Log, msgEvents))
 	}
 
 	rwUsedBz := sdk.Uint64ToBigEndian(ctx.GasMeter().RwConsumed())
 	data, err := makeABCIData(msgResponses, rwUsedBz)
 	if err != nil {
-		return nil, sdkerrors.Wrap(err, "failed to marshal tx data")
+		return nil, errorsmod.Wrap(err, "failed to marshal tx data")
 	}
 
 	return &sdk.Result{
 		Data:         data,
-		Log:          strings.TrimSpace(msgLogs.String()),
 		Events:       events.ToABCIEvents(),
 		MsgResponses: msgResponses,
 	}, nil
@@ -983,26 +1118,28 @@ func makeABCIData(msgResponses []*codectypes.Any, extraDate []byte) ([]byte, err
 	return proto.Marshal(&sdk.TxMsgData{MsgResponses: msgResponses, ExtraData: extraDate})
 }
 
-func createEvents(events sdk.Events, msg sdk.Msg) sdk.Events {
+func createEvents(cdc codec.Codec, events sdk.Events, msg sdk.Msg, msgV2 protov2.Message) (sdk.Events, error) {
 	eventMsgName := sdk.MsgTypeURL(msg)
 	msgEvent := sdk.NewEvent(sdk.EventTypeMessage, sdk.NewAttribute(sdk.AttributeKeyAction, eventMsgName))
 
 	// we set the signer attribute as the sender
-	if len(msg.GetSigners()) > 0 && !msg.GetSigners()[0].Empty() {
-		msgEvent = msgEvent.AppendAttributes(sdk.NewAttribute(sdk.AttributeKeySender, msg.GetSigners()[0].String()))
+	signers, err := cdc.GetMsgV2Signers(msgV2)
+	if err != nil {
+		return nil, err
+	}
+	if len(signers) > 0 && signers[0] != nil {
+		addrStr := sdk.AccAddress(signers[0]).String()
+		msgEvent = msgEvent.AppendAttributes(sdk.NewAttribute(sdk.AttributeKeySender, addrStr))
 	}
 
 	// verify that events have no module attribute set
 	if _, found := events.GetAttributes(sdk.AttributeKeyModule); !found {
-		// here we assume that routes module name is the second element of the route
-		// e.g. "cosmos.bank.v1beta1.MsgSend" => "bank"
-		moduleName := strings.Split(eventMsgName, ".")
-		if len(moduleName) > 1 {
-			msgEvent = msgEvent.AppendAttributes(sdk.NewAttribute(sdk.AttributeKeyModule, moduleName[1]))
+		if moduleName := sdk.GetModuleNameFromTypeURL(eventMsgName); moduleName != "" {
+			msgEvent = msgEvent.AppendAttributes(sdk.NewAttribute(sdk.AttributeKeyModule, moduleName))
 		}
 	}
 
-	return sdk.Events{msgEvent}.AppendEvents(events)
+	return sdk.Events{msgEvent}.AppendEvents(events), nil
 }
 
 // PrepareProposalVerifyTx performs transaction verification when a proposer is
@@ -1016,7 +1153,7 @@ func (app *BaseApp) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 		return nil, err
 	}
 
-	_, _, _, _, err = app.runTx(runTxPrepareProposal, bz) //nolint:dogsled
+	_, _, _, err = app.runTx(execModePrepareProposal, bz)
 	if err != nil {
 		return nil, err
 	}
@@ -1035,7 +1172,7 @@ func (app *BaseApp) ProcessProposalVerifyTx(txBz []byte) (sdk.Tx, error) {
 		return nil, err
 	}
 
-	_, _, _, _, err = app.runTx(runTxProcessProposal, txBz) //nolint:dogsled
+	_, _, _, err = app.runTx(execModeProcessProposal, txBz)
 	if err != nil {
 		return nil, err
 	}
@@ -1043,145 +1180,37 @@ func (app *BaseApp) ProcessProposalVerifyTx(txBz []byte) (sdk.Tx, error) {
 	return tx, nil
 }
 
-type (
-	// ProposalTxVerifier defines the interface that is implemented by BaseApp,
-	// that any custom ABCI PrepareProposal and ProcessProposal handler can use
-	// to verify a transaction.
-	ProposalTxVerifier interface {
-		PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error)
-		ProcessProposalVerifyTx(txBz []byte) (sdk.Tx, error)
-	}
-
-	// DefaultProposalHandler defines the default ABCI PrepareProposal and
-	// ProcessProposal handlers.
-	DefaultProposalHandler struct {
-		mempool    mempool.Mempool
-		txVerifier ProposalTxVerifier
-	}
-)
-
-func NewDefaultProposalHandler(mp mempool.Mempool, txVerifier ProposalTxVerifier) DefaultProposalHandler {
-	return DefaultProposalHandler{
-		mempool:    mp,
-		txVerifier: txVerifier,
-	}
+func (app *BaseApp) TxDecode(txBytes []byte) (sdk.Tx, error) {
+	return app.txDecoder(txBytes)
 }
 
-// PrepareProposalHandler returns the default implementation for processing an
-// ABCI proposal. The application's mempool is enumerated and all valid
-// transactions are added to the proposal. Transactions are valid if they:
-//
-// 1) Successfully encode to bytes.
-// 2) Are valid (i.e. pass runTx, AnteHandler only).
-//
-// Enumeration is halted once RequestPrepareProposal.MaxBytes of transactions is
-// reached or the mempool is exhausted.
-//
-// Note:
-//
-// - Step (2) is identical to the validation step performed in
-// DefaultProcessProposal. It is very important that the same validation logic
-// is used in both steps, and applications must ensure that this is the case in
-// non-default handlers.
-//
-// - If no mempool is set or if the mempool is a no-op mempool, the transactions
-// requested from Tendermint will simply be returned, which, by default, are in
-// FIFO order.
-func (h DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
-	return func(ctx sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-		// If the mempool is nil or NoOp we simply return the transactions
-		// requested from CometBFT, which, by default, should be in FIFO order.
-		_, isNoOp := h.mempool.(mempool.NoOpMempool)
-		if h.mempool == nil || isNoOp {
-			return abci.ResponsePrepareProposal{Txs: req.Txs}
-		}
-
-		var (
-			selectedTxs  [][]byte
-			totalTxBytes int64
-		)
-
-		iterator := h.mempool.Select(ctx, req.Txs)
-
-		for iterator != nil {
-			memTx := iterator.Tx()
-
-			// NOTE: Since transaction verification was already executed in CheckTx,
-			// which calls mempool.Insert, in theory everything in the pool should be
-			// valid. But some mempool implementations may insert invalid txs, so we
-			// check again.
-			bz, err := h.txVerifier.PrepareProposalVerifyTx(memTx)
-			if err != nil {
-				err := h.mempool.Remove(memTx)
-				if err != nil && !errors.Is(err, mempool.ErrTxNotFound) {
-					panic(err)
-				}
-			} else {
-				txSize := int64(len(bz))
-				if totalTxBytes += txSize; totalTxBytes <= req.MaxTxBytes {
-					selectedTxs = append(selectedTxs, bz)
-				} else {
-					// We've reached capacity per req.MaxTxBytes so we cannot select any
-					// more transactions.
-					break
-				}
-			}
-
-			iterator = iterator.Next()
-		}
-
-		return abci.ResponsePrepareProposal{Txs: selectedTxs}
-	}
-}
-
-// ProcessProposalHandler returns the default implementation for processing an
-// ABCI proposal. Every transaction in the proposal must pass 2 conditions:
-//
-// 1. The transaction bytes must decode to a valid transaction.
-// 2. The transaction must be valid (i.e. pass runTx, AnteHandler only)
-//
-// If any transaction fails to pass either condition, the proposal is rejected.
-// Note that step (2) is identical to the validation step performed in
-// DefaultPrepareProposal. It is very important that the same validation logic
-// is used in both steps, and applications must ensure that this is the case in
-// non-default handlers.
-func (h DefaultProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
-	// If the mempool is nil or NoOp we simply return ACCEPT,
-	// because PrepareProposal may have included txs that could fail verification.
-	_, isNoOp := h.mempool.(mempool.NoOpMempool)
-	if h.mempool == nil || isNoOp {
-		return NoOpProcessProposal()
-	}
-
-	return func(ctx sdk.Context, req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-		for _, txBytes := range req.Txs {
-			_, err := h.txVerifier.ProcessProposalVerifyTx(txBytes)
-			if err != nil {
-				return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}
-			}
-		}
-
-		return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}
-	}
-}
-
-// NoOpPrepareProposal defines a no-op PrepareProposal handler. It will always
-// return the transactions sent by the client's request.
-func NoOpPrepareProposal() sdk.PrepareProposalHandler {
-	return func(_ sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-		return abci.ResponsePrepareProposal{Txs: req.Txs}
-	}
-}
-
-// NoOpProcessProposal defines a no-op ProcessProposal Handler. It will always
-// return ACCEPT.
-func NoOpProcessProposal() sdk.ProcessProposalHandler {
-	return func(_ sdk.Context, _ abci.RequestProcessProposal) abci.ResponseProcessProposal {
-		return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}
-	}
+func (app *BaseApp) TxEncode(tx sdk.Tx) ([]byte, error) {
+	return app.txEncoder(tx)
 }
 
 // Close is called in start cmd to gracefully cleanup resources.
 func (app *BaseApp) Close() error {
-	return nil
+	var errs []error
+
+	// Close app.db (opened by cosmos-sdk/server/start.go call to openDB)
+	if app.db != nil {
+		app.logger.Info("Closing application.db")
+		if err := app.db.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	// Close app.snapshotManager
+	// - opened when app chains use cosmos-sdk/server/util.go/DefaultBaseappOptions (boilerplate)
+	// - which calls cosmos-sdk/server/util.go/GetSnapshotStore
+	// - which is passed to baseapp/options.go/SetSnapshot
+	// - to set app.snapshotManager = snapshots.NewManager
+	if app.snapshotManager != nil {
+		app.logger.Info("Closing snapshots/metadata.db")
+		if err := app.snapshotManager.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }
