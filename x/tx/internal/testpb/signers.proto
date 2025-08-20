@@ -101,7 +101,7 @@ message NoSignerOption {
 
 message ValidatorSigner {
   option (cosmos.msg.v1.signer) = "signer";
-  string signer                 = 1 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  string signer                 = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 
 service TestSimpleSigner {

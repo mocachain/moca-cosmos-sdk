@@ -39,7 +39,7 @@ import (
 
 var (
 	emptyDelAddr sdk.AccAddress
-	emptyValAddr sdk.ValAddress
+	emptyValAddr sdk.AccAddress
 )
 
 type fixture struct {
@@ -265,7 +265,7 @@ func TestMsgWithdrawDelegatorReward(t *testing.T) {
 			name: "validator with no delegations",
 			msg: &distrtypes.MsgWithdrawDelegatorReward{
 				DelegatorAddress: delAddr.String(),
-				ValidatorAddress: sdk.ValAddress(sdk.AccAddress(PKS[2].Address())).String(),
+				ValidatorAddress: sdk.AccAddress(sdk.AccAddress(PKS[2].Address())).String(),
 			},
 			expErr:    true,
 			expErrMsg: "validator does not exist",
@@ -515,7 +515,7 @@ func TestMsgWithdrawValidatorCommission(t *testing.T) {
 		{
 			name: "validator with no commission",
 			msg: &distrtypes.MsgWithdrawValidatorCommission{
-				ValidatorAddress: sdk.ValAddress([]byte("addr1_______________")).String(),
+				ValidatorAddress: sdk.AccAddress([]byte("addr1_______________")).String(),
 			},
 			expErr:    true,
 			expErrMsg: "no validator commission to withdraw",
@@ -814,7 +814,7 @@ func TestMsgCommunityPoolSpend(t *testing.T) {
 	err := f.bankKeeper.MintCoins(f.sdkCtx, distrtypes.ModuleName, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initTokens)))
 	require.NoError(t, err)
 
-	recipient := sdk.AccAddress([]byte("addr1"))
+	recipient := sdk.AccAddress([]byte("addr1_______________"))
 
 	testCases := []struct {
 		name      string
@@ -897,7 +897,7 @@ func TestMsgDepositValidatorRewardsPool(t *testing.T) {
 	// Set default staking params
 	require.NoError(t, f.stakingKeeper.SetParams(f.sdkCtx, stakingtypes.DefaultParams()))
 
-	addr := sdk.AccAddress("addr")
+	addr := sdk.AccAddress("0addr_______________")
 	addr1 := sdk.AccAddress(PKS[0].Address())
 	valAddr1 := sdk.AccAddress(addr1)
 
@@ -946,7 +946,7 @@ func TestMsgDepositValidatorRewardsPool(t *testing.T) {
 			name: "invalid validator",
 			msg: &distrtypes.MsgDepositValidatorRewardsPool{
 				Depositor:        addr.String(),
-				ValidatorAddress: sdk.ValAddress([]byte("addr1_______________")).String(),
+				ValidatorAddress: sdk.AccAddress([]byte("addr1_______________")).String(),
 				Amount:           sdk.NewCoins(sdk.NewCoin(bondDenom, math.NewInt(100))),
 			},
 			expErr:    true,
@@ -973,7 +973,7 @@ func TestMsgDepositValidatorRewardsPool(t *testing.T) {
 				err = f.cdc.Unmarshal(res.Value, &result)
 				assert.NilError(t, err)
 
-				val, err := sdk.ValAddressFromHex(tc.msg.ValidatorAddress)
+				val, err := sdk.AccAddressFromHexUnsafe(tc.msg.ValidatorAddress)
 				assert.NilError(t, err)
 
 				// check validator outstanding rewards

@@ -120,7 +120,9 @@ func TestDecode(t *testing.T) {
 				tx := txBuilder.GetTx()
 				txBytes, err := encCfg.TxConfig.TxEncoder()(tx)
 				require.NoError(t, err)
-				signContext, err := txsigning.NewContext(txsigning.Options{})
+				signContext, err := txsigning.NewContext(txsigning.Options{
+					AddressCodec: dummyAddressCodec{},
+				})
 				require.NoError(t, err)
 				decodeCtx, err := decode.NewDecoder(decode.Options{SigningContext: signContext})
 				require.NoError(t, err)
@@ -148,4 +150,14 @@ func TestDecode(t *testing.T) {
 	}
 
 	legacytx.RegressionTestingAminoCodec = nil
+}
+
+type dummyAddressCodec struct{}
+
+func (d dummyAddressCodec) StringToBytes(text string) ([]byte, error) {
+	return []byte(text), nil
+}
+
+func (d dummyAddressCodec) BytesToString(bz []byte) (string, error) {
+	return string(bz), nil
 }
