@@ -1,6 +1,7 @@
 package decode
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/cosmos/cosmos-proto/anyutil"
@@ -96,7 +97,10 @@ func FuzzDecode(f *testing.F) {
 	generateAndAddSeedsFromTx(f)
 
 	// 2. Now fuzz it.
-	signingCtx, err := signing.NewContext(signing.Options{})
+	cdc := new(asHexCodec)
+	signingCtx, err := signing.NewContext(signing.Options{
+		AddressCodec: cdc,
+	})
 	if err != nil {
 		return
 	}
@@ -122,4 +126,14 @@ func mustMarshal(f *testing.F, m proto.Message) []byte {
 		f.Fatal(err)
 	}
 	return blob
+}
+
+type asHexCodec int
+
+func (d asHexCodec) StringToBytes(text string) ([]byte, error) {
+	return hex.DecodeString(text)
+}
+
+func (d asHexCodec) BytesToString(bz []byte) (string, error) {
+	return hex.EncodeToString(bz), nil
 }

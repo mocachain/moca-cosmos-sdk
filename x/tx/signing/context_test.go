@@ -9,6 +9,7 @@ import (
 
 	bankv1beta1 "cosmossdk.io/api/cosmos/bank/v1beta1"
 	groupv1 "cosmossdk.io/api/cosmos/group/v1"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/internal/testpb"
 )
 
@@ -50,7 +51,9 @@ var deeplyNestedRepeatedSigner = &testpb.DeeplyNestedRepeatedSigner{
 }
 
 func TestGetGetSignersFnConcurrent(t *testing.T) {
-	ctx, err := NewContext(Options{})
+	ctx, err := NewContext(Options{
+		AddressCodec:          dummyAddressCodec{},
+	})
 	require.NoError(t, err)
 
 	desc := (&testpb.RepeatedSigner{}).ProtoReflect().Descriptor()
@@ -62,7 +65,9 @@ func TestGetGetSignersFnConcurrent(t *testing.T) {
 }
 
 func TestGetSigners(t *testing.T) {
-	ctx, err := NewContext(Options{})
+	ctx, err := NewContext(Options{
+		AddressCodec:          dummyAddressCodec{},
+	})
 	require.NoError(t, err)
 	tests := []struct {
 		name    string
@@ -208,6 +213,7 @@ func TestGetSigners(t *testing.T) {
 
 func TestMaxRecursionDepth(t *testing.T) {
 	ctx, err := NewContext(Options{
+		AddressCodec:      dummyAddressCodec{},
 		MaxRecursionDepth: 1,
 	})
 	require.NoError(t, err)
@@ -216,6 +222,7 @@ func TestMaxRecursionDepth(t *testing.T) {
 	require.ErrorContains(t, err, "maximum recursion depth exceeded")
 
 	ctx, err = NewContext(Options{
+		AddressCodec:      dummyAddressCodec{},
 		MaxRecursionDepth: 5,
 	})
 	require.NoError(t, err)
@@ -226,7 +233,9 @@ func TestMaxRecursionDepth(t *testing.T) {
 func TestDefineCustomGetSigners(t *testing.T) {
 	customMsg := &testpb.Ballot{}
 	signers := [][]byte{[]byte("foo")}
-	options := Options{}
+	options := Options{
+		AddressCodec:          dummyAddressCodec{},
+	}
 	context, err := NewContext(options)
 	require.NoError(t, err)
 
@@ -255,3 +264,15 @@ func TestDefineCustomGetSigners(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorContains(t, context.Validate(), "a custom signer function as been defined for message SimpleSigner")
 }
+
+type dummyAddressCodec struct{}
+
+func (d dummyAddressCodec) StringToBytes(text string) ([]byte, error) {
+	return hex.DecodeString(text)
+}
+
+func (d dummyAddressCodec) BytesToString(bz []byte) (string, error) {
+	return hex.EncodeToString(bz), nil
+}
+
+var _ address.Codec = dummyAddressCodec{}

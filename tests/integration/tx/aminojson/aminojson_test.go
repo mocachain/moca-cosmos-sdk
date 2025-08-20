@@ -202,7 +202,7 @@ func TestAminoJSON_LegacyParity(t *testing.T) {
 	legacytx.RegressionTestingAminoCodec = encCfg.Amino
 
 	aj := aminojson.NewEncoder(aminojson.EncoderOptions{DoNotSortFields: true})
-	addr1 := types.AccAddress("addr1")
+	addr1 := types.AccAddress("addr1_______________")
 	now := time.Now()
 
 	genericAuth, _ := codectypes.NewAnyWithValue(&authztypes.GenericAuthorization{Msg: "foo"})

@@ -125,7 +125,9 @@ type interfaceMap = map[string]reflect.Type
 func NewInterfaceRegistry() InterfaceRegistry {
 	registry, err := NewInterfaceRegistryWithOptions(InterfaceRegistryOptions{
 		ProtoFiles:     proto.HybridResolver,
-		SigningOptions: signing.Options{},
+		SigningOptions: signing.Options{
+			AddressCodec: failingAddressCodec{},
+		},
 	})
 	if err != nil {
 		panic(err)
@@ -407,4 +409,14 @@ func UnpackInterfaces(x interface{}, unpacker AnyUnpacker) error {
 		return msg.UnpackInterfaces(unpacker)
 	}
 	return nil
+}
+
+type failingAddressCodec struct{}
+
+func (f failingAddressCodec) StringToBytes(string) ([]byte, error) {
+	return nil, fmt.Errorf("InterfaceRegistry requires a proper address codec implementation to do address conversion")
+}
+
+func (f failingAddressCodec) BytesToString([]byte) (string, error) {
+	return "", fmt.Errorf("InterfaceRegistry requires a proper address codec implementation to do address conversion")
 }

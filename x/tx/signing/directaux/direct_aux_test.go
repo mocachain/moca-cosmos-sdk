@@ -2,6 +2,7 @@ package directaux_test
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"cosmossdk.io/api/cosmos/crypto/secp256k1"
 	signingv1beta1 "cosmossdk.io/api/cosmos/tx/signing/v1beta1"
 	txv1beta1 "cosmossdk.io/api/cosmos/tx/v1beta1"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/tx/signing/directaux"
 )
@@ -81,7 +83,9 @@ func TestDirectAuxHandler(t *testing.T) {
 		AuthInfoBytes: authInfoBz,
 		BodyBytes:     bodyBz,
 	}
-	signersCtx, err := signing.NewContext(signing.Options{})
+	signersCtx, err := signing.NewContext(signing.Options{
+		AddressCodec:          dummyAddressCodec{},
+	})
 	require.NoError(t, err)
 	modeHandler, err := directaux.NewSignModeHandler(directaux.SignModeHandlerOptions{
 		SignersContext: signersCtx,
@@ -143,3 +147,15 @@ func TestDirectAuxHandler(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, expectedSignBytes, signBytes)
 }
+
+type dummyAddressCodec struct{}
+
+func (d dummyAddressCodec) StringToBytes(text string) ([]byte, error) {
+	return hex.DecodeString(text)
+}
+
+func (d dummyAddressCodec) BytesToString(bz []byte) (string, error) {
+	return hex.EncodeToString(bz), nil
+}
+
+var _ address.Codec = dummyAddressCodec{}

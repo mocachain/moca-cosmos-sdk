@@ -1,6 +1,7 @@
 package decode_test
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -38,7 +39,9 @@ func TestDecode(t *testing.T) {
 		Sequence: accSeq,
 	})
 
-	signingCtx, err := signing.NewContext(signing.Options{})
+	signingCtx, err := signing.NewContext(signing.Options{
+		AddressCodec:          dummyAddressCodec{},
+	})
 	require.NoError(t, err)
 	decoder, err := decode.NewDecoder(decode.Options{
 		SigningContext: signingCtx,
@@ -102,12 +105,25 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+type dummyAddressCodec struct{}
+
+func (d dummyAddressCodec) StringToBytes(text string) ([]byte, error) {
+	return hex.DecodeString(text)
+}
+
+func (d dummyAddressCodec) BytesToString(bz []byte) (string, error) {
+	return hex.EncodeToString(bz), nil
+}
+
 func TestDecodeTxBodyPanic(t *testing.T) {
 	crashVector := []byte{
 		0x0a, 0x0a, 0x09, 0xe7, 0xbf, 0xba, 0xe6, 0x82, 0x9a, 0xe6, 0xaa, 0x30,
 	}
 
-	signingCtx, err := signing.NewContext(signing.Options{})
+	cdc := new(dummyAddressCodec)
+	signingCtx, err := signing.NewContext(signing.Options{
+		AddressCodec: cdc,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

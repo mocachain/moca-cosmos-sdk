@@ -189,8 +189,9 @@ func createValidator(rt *rapid.T, f *deterministicFixture, t *testing.T) staking
 	pubkey := pubKeyGenerator().Draw(rt, "pubkey")
 	pubkeyAny, err := codectypes.NewAnyWithValue(&pubkey)
 	assert.NilError(t, err)
+	operatorAddr := sdk.AccAddress(testdata.AddressGenerator(rt).Draw(rt, "address")).String()
 	return stakingtypes.Validator{
-		OperatorAddress: sdk.AccAddress(testdata.AddressGenerator(rt).Draw(rt, "address")).String(),
+		OperatorAddress: operatorAddr,
 		ConsensusPubkey: pubkeyAny,
 		Jailed:          rapid.Bool().Draw(rt, "jailed"),
 		Status:          bondTypeGenerator().Draw(rt, "bond-status"),
@@ -211,6 +212,7 @@ func createValidator(rt *rapid.T, f *deterministicFixture, t *testing.T) staking
 			math.LegacyNewDecWithPrec(rapid.Int64Range(0, 100).Draw(rt, "max-change-rate"), 2),
 		),
 		MinSelfDelegation: math.NewInt(rapid.Int64Min(1).Draw(rt, "tokens")),
+		SelfDelAddress:    operatorAddr,
 	}
 }
 
@@ -274,6 +276,7 @@ func getStaticValidator(f *deterministicFixture, t *testing.T) stakingtypes.Vali
 			math.LegacyNewDecWithPrec(5, 2),
 		),
 		MinSelfDelegation: math.NewInt(10),
+		SelfDelAddress:    validator1,
 	}
 
 	setValidator(f, t, validator)
@@ -308,6 +311,7 @@ func getStaticValidator2(f *deterministicFixture, t *testing.T) stakingtypes.Val
 			math.LegacyNewDecWithPrec(51, 2),
 		),
 		MinSelfDelegation: math.NewInt(1),
+		SelfDelAddress:    validator2,
 	}
 	setValidator(f, t, validator)
 

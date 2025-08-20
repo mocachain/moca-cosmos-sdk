@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 
 	msgv1 "cosmossdk.io/api/cosmos/msg/v1"
+	"cosmossdk.io/core/address"
 )
 
 type TypeResolver interface {
@@ -27,6 +28,7 @@ type TypeResolver interface {
 type Context struct {
 	fileResolver         ProtoFileResolver
 	typeResolver         protoregistry.MessageTypeResolver
+	addressCodec         address.Codec
 	getSignersFuncs      sync.Map
 	customGetSignerFuncs map[protoreflect.FullName]GetSignersFunc
 	maxRecursionDepth    int
@@ -40,6 +42,9 @@ type Options struct {
 
 	// TypeResolver is the protobuf type resolver to use for resolving message types.
 	TypeResolver TypeResolver
+
+	// AddressCodec is the codec for converting addresses between strings and bytes.
+	AddressCodec address.Codec
 
 	// CustomGetSigners is a map of message types to custom GetSignersFuncs.
 	CustomGetSigners map[protoreflect.FullName]GetSignersFunc
@@ -92,6 +97,7 @@ func NewContext(options Options) (*Context, error) {
 	c := &Context{
 		fileResolver:         protoFiles,
 		typeResolver:         protoTypes,
+		addressCodec:         options.AddressCodec,
 		getSignersFuncs:      sync.Map{},
 		customGetSignerFuncs: customGetSignerFuncs,
 		maxRecursionDepth:    options.MaxRecursionDepth,
@@ -162,6 +168,8 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 		return nil, err
 	}
 
+	var stringToBytes stringToBytesFunc
+	stringToBytes = accAddressFromHexUnsafe
 	fieldGetters := make([]func(proto.Message, [][]byte) ([][]byte, error), len(signersFields))
 	for i, fieldName := range signersFields {
 		field := descriptor.Fields().ByName(protoreflect.Name(fieldName))
@@ -175,13 +183,17 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 
 		switch field.Kind() {
 		case protoreflect.StringKind:
+			addrCdc := c.getAddressCodec(field)
+			if addrCdc != nil {
+				stringToBytes = addrCdc.StringToBytes
+			}
 			if field.IsList() {
 				fieldGetters[i] = func(msg proto.Message, arr [][]byte) ([][]byte, error) {
 					signers := msg.ProtoReflect().Get(field).List()
 					n := signers.Len()
 					for i := 0; i < n; i++ {
 						addrStr := signers.Get(i).String()
-						addrBz, err := accAddressFromHexUnsafe(addrStr)
+						addrBz, err := stringToBytes(addrStr)
 						if err != nil {
 							return nil, err
 						}
@@ -192,7 +204,7 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 			} else {
 				fieldGetters[i] = func(msg proto.Message, arr [][]byte) ([][]byte, error) {
 					addrStr := msg.ProtoReflect().Get(field).String()
-					addrBz, err := accAddressFromHexUnsafe(addrStr)
+					addrBz, err := stringToBytes(addrStr)
 					if err != nil {
 						return nil, err
 					}
@@ -234,13 +246,17 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 				case childField.IsMap() || childField.HasOptionalKeyword():
 					return nil, fmt.Errorf("cosmos.msg.v1.signer field %s in message %s must not be a map or optional", signerFieldName, desc.FullName())
 				case childField.Kind() == protoreflect.StringKind:
+					addrCdc := c.getAddressCodec(childField)
+					if addrCdc != nil {
+						stringToBytes = addrCdc.StringToBytes
+					}
 					if childField.IsList() {
 						childMsgs := msg.Get(childField).List()
 						n := childMsgs.Len()
 						var res [][]byte
 						for i := 0; i < n; i++ {
 							addrStr := childMsgs.Get(i).String()
-							addrBz, err := accAddressFromHexUnsafe(addrStr)
+							addrBz, err := stringToBytes(addrStr)
 							if err != nil {
 								return nil, err
 							}
@@ -250,7 +266,7 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 					}
 
 					addrStr := msg.Get(childField).String()
-					addrBz, err := accAddressFromHexUnsafe(addrStr)
+					addrBz, err := stringToBytes(addrStr)
 					if err != nil {
 						return nil, err
 					}
@@ -297,6 +313,12 @@ func (c *Context) makeGetSignersFunc(descriptor protoreflect.MessageDescriptor) 
 	}, nil
 }
 
+func (c *Context) getAddressCodec(field protoreflect.FieldDescriptor) address.Codec {
+	addrCdc := c.addressCodec
+
+	return addrCdc
+}
+
 func (c *Context) getGetSignersFn(messageDescriptor protoreflect.MessageDescriptor) (GetSignersFunc, error) {
 	f, ok := c.customGetSignerFuncs[messageDescriptor.FullName()]
 	if ok {
@@ -338,10 +360,12 @@ func (c *Context) TypeResolver() protoregistry.MessageTypeResolver {
 	return c.typeResolver
 }
 
+type stringToBytesFunc func(string) ([]byte, error)
+
 func accAddressFromHexUnsafe(address string) ([]byte, error) {
 	ethAddressLength := 20
 	if len(address) == 0 {
-		return []byte{}, errors.New("decoding address from hex string failed: empty address")
+		return []byte{}, errors.New("decoding address from hex string failed: empty address.")
 	}
 
 	if len(address) >= 2 && address[0] == '0' && (address[1] == 'x' || address[1] == 'X') {

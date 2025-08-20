@@ -203,6 +203,7 @@ $ %[1]s tx distribution withdraw-all-rewards --from mykey
 			}
 
 			chunkSize, _ := cmd.Flags().GetInt(FlagMaxMessagesPerTx)
+			clientCtx = clientCtx.WithFeePayerAddress(clientCtx.GetFromAddress())
 
 			return newSplitAndApply(tx.GenerateOrBroadcastTxCLI, clientCtx, cmd.Flags(), msgs, chunkSize)
 		},

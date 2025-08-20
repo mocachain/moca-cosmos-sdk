@@ -161,7 +161,7 @@ func makeMultiSignCmd() func(cmd *cobra.Command, args []string) (err error) {
 				if !skipSigVerify {
 					switch data := sig.Data.(type) {
 					case *signingtypes.SingleSignatureData:
-						err = signing.EIP712VerifySignature(cmd.Context(), txSignerData, builtTx, data.Signature, pubKey)
+						err = signing.EIP712VerifySignature(cmd.Context(), txSignerData, builtTx, data.Signature, sig.PubKey)
 						if err != nil {
 							return fmt.Errorf("signature verification failed; please verify account number (%d) and chain-id (%s): (%s), pubkeyType: %s, txData: (%+v)", txFactory.AccountNumber(), txFactory.ChainID(), err.Error(), pubKey.Type(), txData)
 						}
