@@ -648,6 +648,11 @@ func SignWithLedger(k *Record, msg []byte, signMode signing.SignMode) (sig []byt
 		if err != nil {
 			return nil, nil, err
 		}
+	case signing.SignMode_SIGN_MODE_EIP_712:
+		sig, err = priv.Sign(msg)
+		if err != nil {
+			return nil, nil, err
+		}
 	default:
 		return nil, nil, errorsmod.Wrap(ErrInvalidSignMode, fmt.Sprintf("%v", signMode))
 	}
