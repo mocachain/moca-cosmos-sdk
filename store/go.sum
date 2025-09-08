@@ -7,6 +7,10 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/DataDog/zstd v1.5.5 h1:oWf5W7GtOLgp6bciQYDmhHHjdhYkALu6S/5Ni9ZgSvQ=
 github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
+github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1 h1:B1cSEnwgw3uZM7xEwPU8+N5mDGGH1N/B8qIv9oxD+Do=
+github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1/go.mod h1:w1AUS9Dp3sd7Jryv/lVxlzvOwY1dBnlLyZrlZpyV3sg=
+github.com/MocaFoundation/moca-iavl v1.0.0-alpha.1 h1:Lfy4shis0U3NOd89SQiElwGozCfOUvM49ugIUZlx2oA=
+github.com/MocaFoundation/moca-iavl v1.0.0-alpha.1/go.mod h1:HidWWLVAtODJqFD6Hbne2Y0q3SdxByJepHUOeoH4LiI=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
@@ -253,10 +257,6 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/zkMeLabs/moca-cometbft v1.4.2 h1:ONaLQ3jkty6MEKmStAYJyYqVG0FSxw6PP3RxnbGprfg=
-github.com/zkMeLabs/moca-cometbft v1.4.2/go.mod h1:HqxWeJ/Pk+qLqbyShPvV4bvLWTwYUjtOKL7NFZyTXjY=
-github.com/zkMeLabs/moca-iavl v1.2.0 h1:fjzWZeuD5g/J5F/IqmPjVJkdXNFkcv/AY9VBI3XLmQw=
-github.com/zkMeLabs/moca-iavl v1.2.0/go.mod h1:HidWWLVAtODJqFD6Hbne2Y0q3SdxByJepHUOeoH4LiI=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=

@@ -218,10 +218,9 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.4.2
-	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v0.11.0-alpha.1
-	// github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-moca.1
-	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.2.0
+	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1
+	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1
+	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.0-alpha.1
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2

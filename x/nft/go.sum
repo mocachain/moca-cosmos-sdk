@@ -22,6 +22,10 @@ github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwS
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
+github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1 h1:B1cSEnwgw3uZM7xEwPU8+N5mDGGH1N/B8qIv9oxD+Do=
+github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1/go.mod h1:w1AUS9Dp3sd7Jryv/lVxlzvOwY1dBnlLyZrlZpyV3sg=
+github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1 h1:8C9Z1DvIIn9xLpQxF6zTNscSlWC89vuysYL7Jk/Ycvk=
+github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8D7ML55dXQrVaamCz2vxCfdQBasLZfHKk=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
@@ -833,10 +837,6 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/zkMeLabs/moca-cometbft v1.4.2 h1:ONaLQ3jkty6MEKmStAYJyYqVG0FSxw6PP3RxnbGprfg=
-github.com/zkMeLabs/moca-cometbft v1.4.2/go.mod h1:HqxWeJ/Pk+qLqbyShPvV4bvLWTwYUjtOKL7NFZyTXjY=
-github.com/zkMeLabs/moca-cometbft-db v0.11.0-alpha.1 h1:2VwezUQy5DK4M9rkih4xP8mnCtd3NcV7XhxGYw01Hr8=
-github.com/zkMeLabs/moca-cometbft-db v0.11.0-alpha.1/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/zkMeLabs/polygon-edge v1.3.3-moca.1 h1:M+3b3w2qWjVw9ZKA+WwkRDmloZYmGgeozXMuMsggyk0=
 github.com/zkMeLabs/polygon-edge v1.3.3-moca.1/go.mod h1:bDvHrg7QQKSx31K588TEWgHICl5dCPkotffzK9CE6IE=
 github.com/zondax/hid v0.9.2 h1:WCJFnEDMiqGF64nlZz28E9qLVZ0KSJ7xpc5DLEyma2U=

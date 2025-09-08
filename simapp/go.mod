@@ -256,13 +256,12 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.4.2
-	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v0.11.0-alpha.1
+	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1
+	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1
 
 	// Simapp always use the latest version of the cosmos-sdk
 	github.com/cosmos/cosmos-sdk => ../.
-	// github.com/cosmos/gogoproto => github.com/zkMeLabs/gogoproto v1.4.10-moca.1
-	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.2.0
+	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.0-alpha.1
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
