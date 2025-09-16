@@ -40,10 +40,10 @@ make lint
 See the [Cosmos Docs](https://cosmos.network/docs/) and [Getting started with the SDK](https://tutorials.cosmos.network/academy/1-what-is-cosmos/).
 
 ## Related Projects
-- [Moca](https://github.com/zkMeLabs/moca): the official Moca blockchain client.
-- [Moca-Storage-Provider](https://github.com/zkMeLabs/moca-storage-provider): the storage service infrastructures provided by either organizations or individuals.
-- [Moca-Relayer](https://github.com/zkMeLabs/moca-relayer): the service that relay cross chain package to both chains.
-- [Moca-Cmd](https://github.com/zkMeLabs/moca-cmd): the most powerful command line to interact with Moca system.
+- [Moca](https://github.com/MocaFoundation/moca): the official Moca blockchain client.
+- [Moca-Storage-Provider](https://github.com/MocaFoundation/moca-storage-provider): the storage service infrastructures provided by either organizations or individuals.
+- [Moca-Relayer](https://github.com/MocaFoundation/moca-relayer): the service that relay cross chain package to both chains.
+- [Moca-Cmd](https://github.com/MocaFoundation/moca-cmd): the most powerful command line to interact with Moca system.
 - [Awesome Cosmos](https://github.com/cosmos/awesome-cosmos): Collection of Cosmos related resources which also fits Moca.
 
 

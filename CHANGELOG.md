@@ -3,7 +3,7 @@
 ## v0.1.0
 This is a maintenance release. The changelog includes all the changes since v0.0.2
 
-* [#140](https://github.com/zkMeLabs/moca-cosmos-sdk/pull/140) feat: introduce the greenfield-cosmos-sdk v1.7.1 upgrade
+* [#140](https://github.com/MocaFoundation/moca-cosmos-sdk/pull/140) feat: introduce the greenfield-cosmos-sdk v1.7.1 upgrade
 
 ## v0.0.2
 This is a maintenance release. The changelog includes all the changes since v0.47.3-moca.
