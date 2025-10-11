@@ -338,14 +338,14 @@ func (k Keeper) GetDestOptimismChainID() sdk.ChainID {
 	return k.cfg.destOptimismChainId
 }
 
-// SetDestOptimismChainID sets the destination chain id of optimism chain
+// SetDestBaseChainID sets the destination chain id of base chain
 func (k Keeper) SetDestBaseChainID(destChainId sdk.ChainID) {
-	k.cfg.destOptimismChainId = destChainId
+	k.cfg.destBaseChainId = destChainId
 }
 
-// GetDestOptimismChainID gets the destination chain id of optimism chain
+// GetDestBaseChainID gets the destination chain id of base chain
 func (k Keeper) GetDestBaseChainID() sdk.ChainID {
-	return k.cfg.destOptimismChainId
+	return k.cfg.destBaseChainId
 }
 
 // GetCrossChainPackage returns the ibc package by sequence
