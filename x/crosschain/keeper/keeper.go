@@ -137,7 +137,10 @@ func (k Keeper) CreateRawIBCPackageWithFee(ctx context.Context, destChainId sdk.
 	key := types.BuildCrossChainPackageKey(k.GetSrcChainID(), destChainId, channelID, sequence)
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	kvStore := k.storeService.OpenKVStore(ctx)
-	haskey, _ := kvStore.Has(key)
+	haskey, err := kvStore.Has(key)
+	if err != nil {
+		return 0, fmt.Errorf("failed to check key existence: %w", err)
+	}
 	if haskey {
 		return 0, fmt.Errorf("duplicated sequence")
 	}
@@ -154,7 +157,7 @@ func (k Keeper) CreateRawIBCPackageWithFee(ctx context.Context, destChainId sdk.
 
 	k.IncrSendSequence(ctx, destChainId, channelID)
 
-	err := sdkCtx.EventManager().EmitTypedEvent(&types.EventCrossChain{
+	err = sdkCtx.EventManager().EmitTypedEvent(&types.EventCrossChain{
 		SrcChainId:    uint32(k.GetSrcChainID()),
 		DestChainId:   uint32(destChainId),
 		ChannelId:     uint32(channelID),
