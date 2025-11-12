@@ -11,7 +11,9 @@ require (
 	cosmossdk.io/log v1.4.1
 	cosmossdk.io/math v1.4.0
 	cosmossdk.io/store v1.1.1
+	cosmossdk.io/x/evidence v0.1.1
 	cosmossdk.io/x/feegrant v0.1.1
+	cosmossdk.io/x/upgrade v0.1.4
 	cosmossdk.io/x/tx v0.13.8
 	github.com/0xPolygon/polygon-edge v1.3.3
 	github.com/99designs/keyring v1.2.1
