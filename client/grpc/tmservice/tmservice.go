@@ -3,7 +3,7 @@
 package tmservice
 
 import (
-	"github.com/zkMeLabs/moca-cosmos-sdk/client/grpc/cmtservice"
+	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 )
 
 // Re-export all types and functions from the new cmtservice module
