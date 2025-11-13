@@ -44,8 +44,15 @@ var (
 	ErrInvalidHeight     = Register("sdk", 22, "invalid height")
 	ErrOutOfGas          = Register("sdk", 11, "out of gas")
 	ErrInvalidChainID    = Register("sdk", 28, "invalid chain-id")
-	ErrInvalidVersion    = Register("sdk", 42, "invalid version")
-	ErrInsufficientFunds = Register("sdk", 5, "insufficient funds")
+	ErrInvalidVersion      = Register("sdk", 42, "invalid version")
+	ErrInsufficientFunds   = Register("sdk", 5, "insufficient funds")
+	ErrMemoTooLarge        = Register("sdk", 14, "memo too large")
+	ErrTxTimeoutHeight     = Register("sdk", 15, "tx timeout height")
+	ErrUnknownExtensionOptions = Register("sdk", 16, "unknown extension options")
+	ErrInvalidGasLimit     = Register("sdk", 12, "invalid gas limit")
+	ErrWrongSequence       = Register("sdk", 3, "wrong sequence")
+	ErrTooManySignatures   = Register("sdk", 17, "too many signatures")
+	ErrNotSupported        = Register("sdk", 39, "not supported")
 )
 
 // Common constants

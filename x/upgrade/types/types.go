@@ -14,11 +14,34 @@ type (
 	MsgCancelUpgrade = types.MsgCancelUpgrade
 )
 
-// Re-export functions
+// Compatibility functions for legacy API
+// These functions create new instances of the types
+func NewPlan(name string, height int64, info string) *Plan {
+	p := types.Plan{
+		Name:   name,
+		Height: height,
+		Info:   info,
+	}
+	return (*Plan)(&p)
+}
+
+func NewMsgSoftwareUpgrade(authority string, plan *Plan) *MsgSoftwareUpgrade {
+	msg := types.MsgSoftwareUpgrade{
+		Authority: authority,
+		Plan:      (*types.Plan)(plan),
+	}
+	return (*MsgSoftwareUpgrade)(&msg)
+}
+
+func NewMsgCancelUpgrade(authority string) *MsgCancelUpgrade {
+	msg := types.MsgCancelUpgrade{
+		Authority: authority,
+	}
+	return (*MsgCancelUpgrade)(&msg)
+}
+
+// Re-export functions that exist in the new module
 var (
-	NewPlan = types.NewPlan
 	NewSoftwareUpgradeProposal = types.NewSoftwareUpgradeProposal
 	NewCancelSoftwareUpgradeProposal = types.NewCancelSoftwareUpgradeProposal
-	NewMsgSoftwareUpgrade = types.NewMsgSoftwareUpgrade
-	NewMsgCancelUpgrade = types.NewMsgCancelUpgrade
 )
