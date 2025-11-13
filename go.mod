@@ -213,6 +213,18 @@ replace (
 	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
 	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
 	
+	// Redirect legacy x/* imports to cosmossdk.io/x/* via compatibility wrappers
+	github.com/cosmos/cosmos-sdk/x/feegrant => ./x/feegrant-compat
+	github.com/cosmos/cosmos-sdk/x/feegrant/keeper => ./x/feegrant-compat
+	github.com/cosmos/cosmos-sdk/x/feegrant/module => ./x/feegrant-compat
+	github.com/cosmos/cosmos-sdk/x/evidence => ./x/evidence-compat
+	github.com/cosmos/cosmos-sdk/x/evidence/keeper => ./x/evidence-compat
+	github.com/cosmos/cosmos-sdk/x/evidence/types => ./x/evidence-compat
+	github.com/cosmos/cosmos-sdk/x/upgrade => ./x/upgrade-compat
+	github.com/cosmos/cosmos-sdk/x/upgrade/client => ./x/upgrade-compat
+	github.com/cosmos/cosmos-sdk/x/upgrade/keeper => ./x/upgrade-compat
+	github.com/cosmos/cosmos-sdk/x/upgrade/types => ./x/upgrade-compat
+	
 	cosmossdk.io/api => ./api
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
