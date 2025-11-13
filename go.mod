@@ -213,18 +213,6 @@ replace (
 	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
 	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
 	
-	// Redirect legacy x/* imports to new independent modules
-	github.com/cosmos/cosmos-sdk/x/evidence => ./x/evidence
-	github.com/cosmos/cosmos-sdk/x/evidence/keeper => ./x/evidence/keeper
-	github.com/cosmos/cosmos-sdk/x/evidence/types => ./x/evidence/types
-	github.com/cosmos/cosmos-sdk/x/feegrant => ./x/feegrant
-	github.com/cosmos/cosmos-sdk/x/feegrant/keeper => ./x/feegrant/keeper
-	github.com/cosmos/cosmos-sdk/x/feegrant/module => ./x/feegrant/module
-	github.com/cosmos/cosmos-sdk/x/upgrade => ./x/upgrade
-	github.com/cosmos/cosmos-sdk/x/upgrade/client => ./x/upgrade/client
-	github.com/cosmos/cosmos-sdk/x/upgrade/keeper => ./x/upgrade/keeper
-	github.com/cosmos/cosmos-sdk/x/upgrade/types => ./x/upgrade/types
-	
 	cosmossdk.io/api => ./api
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
@@ -234,11 +222,10 @@ replace (
 	cosmossdk.io/simapp => ./simapp
 	cosmossdk.io/store => ./store
 	cosmossdk.io/x/circuit => ./x/circuit
-	cosmossdk.io/x/evidence => ./x/evidence
-	cosmossdk.io/x/feegrant => ./x/feegrant
 	cosmossdk.io/x/nft => ./x/nft
 	cosmossdk.io/x/tx => ./x/tx
-	cosmossdk.io/x/upgrade => ./x/upgrade
+	// Note: cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade 
+	// will use standard dependencies from the cosmos ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
