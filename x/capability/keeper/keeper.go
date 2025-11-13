@@ -38,3 +38,4 @@ func (k Keeper) AuthenticateCapability(ctx sdk.Context, cap *types.Capability, n
 	// Compatibility stub - always returns true
 	return true
 }
+

@@ -66,3 +66,4 @@ func (am AppModule) BeginBlock(_ context.Context) error {
 func (am AppModule) EndBlock(_ context.Context) error {
 	return nil
 }
+
