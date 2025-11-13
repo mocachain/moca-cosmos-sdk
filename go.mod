@@ -227,7 +227,8 @@ replace (
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
 	cosmossdk.io/errors => ./errors
-	// cosmossdk.io/math => ./math
+	cosmossdk.io/math => ./math
+	cosmossdk.io/depinject => ./depinject
 	cosmossdk.io/simapp => ./simapp
 	cosmossdk.io/store => ./store
 	cosmossdk.io/x/circuit => ./x/circuit
