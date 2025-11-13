@@ -209,6 +209,8 @@ replace (
 	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
 	// Redirect types/errors to our compatibility layer
 	github.com/cosmos/cosmos-sdk/types/errors => ./types/errors
+	// Redirect client to our local implementation
+	github.com/cosmos/cosmos-sdk/client => ./client
 	github.com/cosmos/cosmos-sdk/x/capability => ./x/capability
 	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
 	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
