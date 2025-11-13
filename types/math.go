@@ -13,10 +13,14 @@ type CommitMultiStore = storetypes.CommitMultiStore
 
 // Legacy Dec constructor functions for backward compatibility
 var (
-	NewDec         = math.LegacyNewDec
-	NewDecWithPrec = math.LegacyNewDecWithPrec
-	NewDecFromStr  = math.LegacyNewDecFromStr
-	NewIntFromString = math.NewIntFromString
+	NewDec               = math.LegacyNewDec
+	NewDecWithPrec       = math.LegacyNewDecWithPrec
+	NewDecFromStr        = math.LegacyNewDecFromStr
+	NewDecFromIntWithPrec = math.LegacyNewDecFromIntWithPrec
+	NewInt               = math.NewInt
+	NewIntFromString     = math.NewIntFromString
+	OneDec               = math.LegacyOneDec
+	ZeroInt              = math.ZeroInt
 )
 
 func (ip IntProto) String() string {
