@@ -13,8 +13,8 @@ require (
 	cosmossdk.io/store v1.1.1
 	cosmossdk.io/x/evidence v0.1.1
 	cosmossdk.io/x/feegrant v0.1.1
-	cosmossdk.io/x/upgrade v0.1.4
 	cosmossdk.io/x/tx v0.13.8
+	cosmossdk.io/x/upgrade v0.1.4
 	github.com/0xPolygon/polygon-edge v1.3.3
 	github.com/99designs/keyring v1.2.1
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816
@@ -28,6 +28,7 @@ require (
 	github.com/cosmos/btcutil v1.0.5
 	github.com/cosmos/cosmos-db v1.1.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
+	github.com/cosmos/cosmos-sdk v0.50.6
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/gogogateway v1.2.0
 	github.com/cosmos/gogoproto v1.7.0
@@ -77,12 +78,20 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.112.2 // indirect
+	cloud.google.com/go/auth v0.3.0 // indirect
+	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
+	cloud.google.com/go/compute/metadata v0.5.0 // indirect
+	cloud.google.com/go/iam v1.1.7 // indirect
+	cloud.google.com/go/storage v1.39.1 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
+	github.com/aws/aws-sdk-go v1.52.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/bufbuild/protocompile v0.6.0 // indirect
@@ -115,26 +124,38 @@ require (
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.2 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
+	github.com/google/s2a-go v0.1.7 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
+	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-getter v1.7.4 // indirect
 	github.com/hashicorp/go-hclog v1.6.2 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-plugin v1.5.2 // indirect
+	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/herumi/bls-eth-go-binary v1.31.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
@@ -145,6 +166,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
@@ -174,16 +196,26 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/umbracle/go-eth-bn256 v0.0.0-20230125114011-47cb310d9b0b // indirect
 	github.com/wealdtech/go-bytesutil v1.2.1 // indirect
 	github.com/wealdtech/go-eth2-types/v2 v2.8.2 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.etcd.io/bbolt v1.3.10 // indirect
+	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
+	google.golang.org/api v0.177.0 // indirect
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -201,44 +233,19 @@ require (
 
 // Below are the long-lived replace of the Cosmos SDK
 replace (
-	// Legacy cosmos-sdk package compatibility for v0.50
-	// Note: client/docs/statik and client/grpc/tmservice have been removed in v0.50.13
-	// Upstream projects should migrate to use cmtservice instead of tmservice
-	
-	// Redirect store imports to cosmossdk.io/store
-	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
-	// Redirect types/errors to our compatibility layer
-	github.com/cosmos/cosmos-sdk/types/errors => ./types/errors
-	// Redirect client to our local implementation
-	github.com/cosmos/cosmos-sdk/client => ./client
-	github.com/cosmos/cosmos-sdk/x/capability => ./x/capability
-	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
-	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
-	
-	// Redirect legacy x/* imports to cosmossdk.io/x/* via compatibility wrappers
-	github.com/cosmos/cosmos-sdk/x/feegrant => ./x/feegrant
-	github.com/cosmos/cosmos-sdk/x/feegrant/keeper => ./x/feegrant/keeper
-	github.com/cosmos/cosmos-sdk/x/feegrant/module => ./x/feegrant/module
-	github.com/cosmos/cosmos-sdk/x/evidence => ./x/evidence
-	github.com/cosmos/cosmos-sdk/x/evidence/keeper => ./x/evidence/keeper
-	github.com/cosmos/cosmos-sdk/x/evidence/types => ./x/evidence/types
-	github.com/cosmos/cosmos-sdk/x/upgrade => ./x/upgrade
-	github.com/cosmos/cosmos-sdk/x/upgrade/client => ./x/upgrade/client
-	github.com/cosmos/cosmos-sdk/x/upgrade/keeper => ./x/upgrade/keeper
-	github.com/cosmos/cosmos-sdk/x/upgrade/types => ./x/upgrade/types
-	
+
 	cosmossdk.io/api => ./api
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
+	cosmossdk.io/depinject => ./depinject
 	cosmossdk.io/errors => ./errors
 	cosmossdk.io/math => ./math
-	cosmossdk.io/depinject => ./depinject
 	cosmossdk.io/simapp => ./simapp
 	cosmossdk.io/store => ./store
 	cosmossdk.io/x/circuit => ./x/circuit
 	cosmossdk.io/x/nft => ./x/nft
 	cosmossdk.io/x/tx => ./x/tx
-	// Note: cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade 
+	// Note: cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade
 	// will use standard dependencies from the cosmos ecosystem
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
 	// use cosmos fork of keyring
@@ -248,6 +255,22 @@ replace (
 
 	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v1.0.0
+	// Redirect client to our local implementation
+	github.com/cosmos/cosmos-sdk/client => ./client
+	// Legacy cosmos-sdk package compatibility for v0.50
+	// Note: client/docs/statik and client/grpc/tmservice have been removed in v0.50.13
+	// Upstream projects should migrate to use cmtservice instead of tmservice
+
+	// Redirect store imports to cosmossdk.io/store
+	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
+	// Redirect types/errors to our compatibility layer
+	github.com/cosmos/cosmos-sdk/types/errors => ./types/errors
+	github.com/cosmos/cosmos-sdk/x/evidence => ./x/evidence
+
+	// Redirect legacy x/* imports to cosmossdk.io/x/* via compatibility wrappers
+	// Note: Sub-packages are handled automatically by Go modules
+	github.com/cosmos/cosmos-sdk/x/feegrant => ./x/feegrant
+	github.com/cosmos/cosmos-sdk/x/upgrade => ./x/upgrade
 	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.0.0
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134

@@ -19,10 +19,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/gashub/client/cli"
-	"github.com/cosmos/cosmos-sdk/x/gashub/keeper"
-	"github.com/cosmos/cosmos-sdk/x/gashub/simulation"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/client/cli"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/keeper"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/simulation"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 

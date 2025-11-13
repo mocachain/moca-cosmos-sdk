@@ -3,7 +3,7 @@ package keeper_test
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 )
 
 func (suite *KeeperTestSuite) TestExportGenesis() {

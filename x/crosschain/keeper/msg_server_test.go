@@ -2,7 +2,7 @@ package keeper_test
 
 import (
 	"cosmossdk.io/math"
-	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
 )
 
 func (s *TestSuite) TestUpdateParams() {

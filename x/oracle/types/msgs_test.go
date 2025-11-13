@@ -13,7 +13,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/testutil"
-	"github.com/cosmos/cosmos-sdk/x/oracle/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
 )
 
 func TestBlsClaim(t *testing.T) {

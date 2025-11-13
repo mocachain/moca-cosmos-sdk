@@ -6,7 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 )
 
 // RandomGenesisMaxTxSizeParam creates randomized MaxTxSize

@@ -8,7 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 )
 
 // Keeper encodes/decodes accounts using the go-amino (binary)

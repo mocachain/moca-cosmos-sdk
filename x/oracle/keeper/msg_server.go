@@ -15,10 +15,10 @@ import (
 	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	"github.com/cosmos/cosmos-sdk/bsc/rlp"
+	"github.com/zkMeLabs/moca-cosmos-sdk/bsc/rlp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
-	"github.com/cosmos/cosmos-sdk/x/oracle/types"
+	crosschaintypes "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
 )
 
 const (

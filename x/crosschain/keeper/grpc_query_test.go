@@ -3,7 +3,7 @@ package keeper_test
 import (
 	gocontext "context"
 
-	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
 )
 
 func (s *TestSuite) TestQueryParams() {

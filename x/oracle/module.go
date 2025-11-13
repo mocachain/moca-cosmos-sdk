@@ -20,8 +20,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/cosmos/cosmos-sdk/x/oracle/keeper"
-	"github.com/cosmos/cosmos-sdk/x/oracle/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/keeper"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
 )
 
 var (

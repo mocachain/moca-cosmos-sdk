@@ -1,7 +1,7 @@
 package appmodule
 
 import (
-	depinjectappconfig "cosmossdk.io/depinject/appconfig"
+	depinjectappconfig "cosmossdk.io/core/appconfig"
 )
 
 // Register registers a module with the global module registry. The provided

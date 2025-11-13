@@ -9,7 +9,7 @@ import (
 	"cosmossdk.io/math"
 	"cosmossdk.io/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
+	crosschaintypes "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
 
 	"github.com/stretchr/testify/suite"
 )

@@ -10,7 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 )
 
 var _ types.QueryServer = Keeper{}

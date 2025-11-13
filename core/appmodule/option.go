@@ -1,7 +1,7 @@
 package appmodule
 
 import (
-	depinjectappconfig "cosmossdk.io/depinject/appconfig"
+	depinjectappconfig "cosmossdk.io/core/appconfig"
 )
 
 // Option is a functional option for implementing modules.

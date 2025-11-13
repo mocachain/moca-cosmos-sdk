@@ -11,11 +11,11 @@ import (
 	"github.com/bits-and-blooms/bitset"
 	"github.com/golang/mock/gomock"
 
-	"github.com/cosmos/cosmos-sdk/bsc/rlp"
+	"github.com/zkMeLabs/moca-cosmos-sdk/bsc/rlp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/oracle/keeper"
-	"github.com/cosmos/cosmos-sdk/x/oracle/testutil"
-	"github.com/cosmos/cosmos-sdk/x/oracle/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/keeper"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/testutil"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 

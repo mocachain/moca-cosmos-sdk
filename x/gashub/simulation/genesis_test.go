@@ -12,8 +12,8 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/cosmos/cosmos-sdk/x/gashub/simulation"
-	"github.com/cosmos/cosmos-sdk/x/gashub/types"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/simulation"
+	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
 )
 
 // TestRandomizedGenState tests the normal scenario of applying RandomizedGenState.
