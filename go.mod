@@ -202,13 +202,11 @@ require (
 // Below are the long-lived replace of the Cosmos SDK
 replace (
 	// Legacy cosmos-sdk package compatibility for v0.50
-	github.com/cosmos/cosmos-sdk/client/docs/statik => ./client/docs
-	github.com/cosmos/cosmos-sdk/client/grpc/tmservice => ./client/grpc/cmtservice
-	github.com/cosmos/cosmos-sdk/store => ./store
-	github.com/cosmos/cosmos-sdk/store/iavl => ./store/iavl
-	github.com/cosmos/cosmos-sdk/store/prefix => ./store/prefix
-	github.com/cosmos/cosmos-sdk/store/rootmulti => ./store/rootmulti
-	github.com/cosmos/cosmos-sdk/store/types => ./store/types
+	// Note: client/docs/statik and client/grpc/tmservice have been removed in v0.50.13
+	// Upstream projects should migrate to use cmtservice instead of tmservice
+	
+	// Redirect store imports to cosmossdk.io/store
+	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
 	github.com/cosmos/cosmos-sdk/x/capability => ./x/capability
 	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
 	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
