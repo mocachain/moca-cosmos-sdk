@@ -1,10 +1,20 @@
-// Package errors provides compatibility for legacy cosmos-sdk errors
+// Package errors provides compatibility for legacy cosmos-sdk errors.
+//
+// Deprecated: This package provides backward compatibility for code that uses
+// github.com/cosmos/cosmos-sdk/types/errors. New code should use cosmossdk.io/errors directly.
+// Migration guide: https://docs.cosmos.network/v0.50/migrations
+//
+// Migration examples:
+//   - sdkerrors.Register → errors.Register
+//   - sdkerrors.Wrap → errors.Wrap
+//   - sdkerrors.ErrUnknownAddress → errors.Register("sdk", 7, "unknown address")
 package errors
 
 import (
 	"cosmossdk.io/errors"
 )
 
+// Deprecated: Use cosmossdk.io/errors.Register directly.
 // Legacy error functions for backward compatibility
 var (
 	Register = errors.Register
@@ -13,9 +23,11 @@ var (
 	New      = errors.New
 )
 
+// Deprecated: Use cosmossdk.io/errors.Error directly.
 // Legacy error types
 type Error = errors.Error
 
+// Deprecated: Use cosmossdk.io/errors.Register to create custom error constants.
 // Common error constants for backward compatibility
 var (
 	ErrUnknownAddress  = Register("sdk", 7, "unknown address")
