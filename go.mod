@@ -213,6 +213,18 @@ replace (
 	github.com/cosmos/cosmos-sdk/x/capability/keeper => ./x/capability/keeper
 	github.com/cosmos/cosmos-sdk/x/capability/types => ./x/capability/types
 	
+	// Redirect legacy x/* imports to new independent modules
+	github.com/cosmos/cosmos-sdk/x/evidence => ./x/evidence
+	github.com/cosmos/cosmos-sdk/x/evidence/keeper => ./x/evidence/keeper
+	github.com/cosmos/cosmos-sdk/x/evidence/types => ./x/evidence/types
+	github.com/cosmos/cosmos-sdk/x/feegrant => ./x/feegrant
+	github.com/cosmos/cosmos-sdk/x/feegrant/keeper => ./x/feegrant/keeper
+	github.com/cosmos/cosmos-sdk/x/feegrant/module => ./x/feegrant/module
+	github.com/cosmos/cosmos-sdk/x/upgrade => ./x/upgrade
+	github.com/cosmos/cosmos-sdk/x/upgrade/client => ./x/upgrade/client
+	github.com/cosmos/cosmos-sdk/x/upgrade/keeper => ./x/upgrade/keeper
+	github.com/cosmos/cosmos-sdk/x/upgrade/types => ./x/upgrade/types
+	
 	cosmossdk.io/api => ./api
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
