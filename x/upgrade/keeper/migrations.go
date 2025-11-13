@@ -3,12 +3,10 @@ package keeper
 import (
 	"encoding/binary"
 
-	storetypes "cosmossdk.io/core/store"
-	"cosmossdk.io/store/prefix"
-	"cosmossdk.io/x/upgrade/types"
-
-	"github.com/cosmos/cosmos-sdk/runtime"
+	"github.com/cosmos/cosmos-sdk/store/prefix"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 // Migrator is a struct for handling in-place store migrations.
@@ -23,12 +21,12 @@ func NewMigrator(keeper *Keeper) Migrator {
 
 // Migrate1to2 migrates from version 1 to 2.
 func (m Migrator) Migrate1to2(ctx sdk.Context) error {
-	return migrateDoneUpgradeKeys(ctx, m.keeper.storeService)
+	return migrateDoneUpgradeKeys(ctx, m.keeper.storeKey)
 }
 
-func migrateDoneUpgradeKeys(ctx sdk.Context, storeService storetypes.KVStoreService) error {
-	store := storeService.OpenKVStore(ctx)
-	oldDoneStore := prefix.NewStore(runtime.KVStoreAdapter(store), []byte{types.DoneByte})
+func migrateDoneUpgradeKeys(ctx sdk.Context, storeKey storetypes.StoreKey) error {
+	store := ctx.KVStore(storeKey)
+	oldDoneStore := prefix.NewStore(store, []byte{types.DoneByte})
 	oldDoneStoreIter := oldDoneStore.Iterator(nil, nil)
 	defer oldDoneStoreIter.Close()
 
@@ -38,11 +36,7 @@ func migrateDoneUpgradeKeys(ctx sdk.Context, storeService storetypes.KVStoreServ
 		upgradeHeight := int64(binary.BigEndian.Uint64(oldDoneStoreIter.Value()))
 		newKey := encodeDoneKey(upgradeName, upgradeHeight)
 
-		err := store.Set(newKey, []byte{1})
-		if err != nil {
-			return err
-		}
-
+		store.Set(newKey, []byte{1})
 		oldDoneStore.Delete(oldKey)
 	}
 	return nil

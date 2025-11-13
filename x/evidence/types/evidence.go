@@ -4,24 +4,36 @@ import (
 	"fmt"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/tmhash"
-
-	"cosmossdk.io/core/comet"
-	"cosmossdk.io/x/evidence/exported"
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
+	"sigs.k8s.io/yaml"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/evidence/exported"
 )
 
 // Evidence type constants
-const RouteEquivocation = "equivocation"
+const (
+	RouteEquivocation = "equivocation"
+	TypeEquivocation  = "equivocation"
+)
 
 var _ exported.Evidence = &Equivocation{}
 
 // Route returns the Evidence Handler route for an Equivocation type.
 func (e *Equivocation) Route() string { return RouteEquivocation }
 
+// Type returns the Evidence Handler type for an Equivocation type.
+func (e *Equivocation) Type() string { return TypeEquivocation }
+
+func (e *Equivocation) String() string {
+	bz, _ := yaml.Marshal(e)
+	return string(bz)
+}
+
 // Hash returns the hash of an Equivocation object.
-func (e *Equivocation) Hash() []byte {
+func (e *Equivocation) Hash() tmbytes.HexBytes {
 	bz, err := e.Marshal()
 	if err != nil {
 		panic(err)
@@ -50,7 +62,7 @@ func (e *Equivocation) ValidateBasic() error {
 // GetConsensusAddress returns the validator's consensus address at time of the
 // Equivocation infraction.
 func (e Equivocation) GetConsensusAddress() sdk.ConsAddress {
-	addr, _ := sdk.ConsAddressFromHex(e.ConsensusAddress)
+	addr, _ := sdk.ConsAddressFromBech32(e.ConsensusAddress)
 	return addr
 }
 
@@ -73,15 +85,19 @@ func (e Equivocation) GetValidatorPower() int64 {
 // GetTotalPower is a no-op for the Equivocation type.
 func (e Equivocation) GetTotalPower() int64 { return 0 }
 
-// FromABCIEvidence converts a CometBFT concrete Evidence type to
+// FromABCIEvidence converts a Tendermint concrete Evidence type to
 // SDK Evidence using Equivocation as the concrete type.
-func FromABCIEvidence(e comet.Evidence) *Equivocation {
-	consAddr := sdk.ConsAddress(e.Validator().Address())
+func FromABCIEvidence(e abci.Misbehavior) exported.Evidence {
+	bech32PrefixConsAddr := sdk.GetConfig().GetBech32ConsensusAddrPrefix()
+	consAddr, err := sdk.Bech32ifyAddressBytes(bech32PrefixConsAddr, e.Validator.Address)
+	if err != nil {
+		panic(err)
+	}
 
 	return &Equivocation{
-		Height:           e.Height(),
-		Power:            e.Validator().Power(),
-		ConsensusAddress: consAddr.String(),
-		Time:             e.Time(),
+		Height:           e.Height,
+		Power:            e.Validator.Power,
+		ConsensusAddress: consAddr,
+		Time:             e.Time,
 	}
 }
