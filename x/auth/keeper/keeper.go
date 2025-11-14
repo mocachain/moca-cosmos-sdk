@@ -7,6 +7,7 @@ import (
 
 	"cosmossdk.io/collections"
 	"cosmossdk.io/collections/indexes"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/store"
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -52,6 +53,9 @@ type AccountKeeperI interface {
 
 	// GetModulePermissions fetches per-module account permissions
 	GetModulePermissions() map[string]types.PermissionsForAddress
+
+	// AddressCodec returns the account address codec.
+	AddressCodec() address.Codec
 }
 
 func NewAccountIndexes(sb *collections.SchemaBuilder) AccountsIndexes {
@@ -79,9 +83,10 @@ func (a AccountsIndexes) IndexesList() []collections.Index[sdk.AccAddress, sdk.A
 // AccountKeeper encodes/decodes accounts using the go-amino (binary)
 // encoding/decoding library.
 type AccountKeeper struct {
-	storeService store.KVStoreService
-	cdc          codec.BinaryCodec
-	permAddrs    map[string]types.PermissionsForAddress
+	addressCodec address.Codec
+	storeService  store.KVStoreService
+	cdc           codec.BinaryCodec
+	permAddrs     map[string]types.PermissionsForAddress
 
 	// The prototypical AccountI constructor.
 	proto func() sdk.AccountI
@@ -99,6 +104,11 @@ type AccountKeeper struct {
 
 var _ AccountKeeperI = &AccountKeeper{}
 
+// AddressCodec returns the account address codec.
+func (ak AccountKeeper) AddressCodec() address.Codec {
+	return ak.addressCodec
+}
+
 // NewAccountKeeper returns a new AccountKeeperI that uses go-amino to
 // (binary) encode and decode concrete sdk.Accounts.
 // `maccPerms` is a map that takes accounts' addresses as keys, and their respective permissions as values. This map is used to construct
@@ -107,7 +117,7 @@ var _ AccountKeeperI = &AccountKeeper{}
 // may use auth.Keeper to access the accounts permissions map.
 func NewAccountKeeper(
 	cdc codec.BinaryCodec, storeService store.KVStoreService, proto func() sdk.AccountI,
-	maccPerms map[string][]string, authority string,
+	maccPerms map[string][]string, ac address.Codec, authority string,
 ) AccountKeeper {
 	permAddrs := make(map[string]types.PermissionsForAddress)
 	for name, perms := range maccPerms {
@@ -117,6 +127,7 @@ func NewAccountKeeper(
 	sb := collections.NewSchemaBuilder(storeService)
 
 	ak := AccountKeeper{
+		addressCodec:  ac,
 		storeService:  storeService,
 		proto:         proto,
 		cdc:           cdc,
