@@ -13,7 +13,7 @@ import (
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	_ "github.com/cosmos/cosmos-sdk/x/authz/module"
-	_ "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain"
+	_ "github.com/cosmos/cosmos-sdk/x/crosschain"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
 	_ "github.com/cosmos/cosmos-sdk/x/mint"

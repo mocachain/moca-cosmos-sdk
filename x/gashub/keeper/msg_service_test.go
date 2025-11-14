@@ -1,7 +1,7 @@
 package keeper_test
 
 import (
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 func (suite *KeeperTestSuite) TestMsgUpdateParams() {

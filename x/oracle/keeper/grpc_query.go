@@ -4,7 +4,7 @@ import (
 	"context"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
+	"github.com/cosmos/cosmos-sdk/x/oracle/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

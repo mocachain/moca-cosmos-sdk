@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 // GetMsgGasParams get the MsgGasParams associated with a msg type url

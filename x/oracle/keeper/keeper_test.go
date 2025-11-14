@@ -22,9 +22,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/x/mint"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/keeper"
-	otestutil "github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/testutil"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
+	"github.com/cosmos/cosmos-sdk/x/oracle/keeper"
+	otestutil "github.com/cosmos/cosmos-sdk/x/oracle/testutil"
+	"github.com/cosmos/cosmos-sdk/x/oracle/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 

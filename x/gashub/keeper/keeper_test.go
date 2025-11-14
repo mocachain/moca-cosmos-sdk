@@ -17,8 +17,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/keeper"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	"github.com/cosmos/cosmos-sdk/x/gashub/keeper"
+	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 )

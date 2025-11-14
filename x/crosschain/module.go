@@ -20,8 +20,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/keeper"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/keeper"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 )
 
 var (

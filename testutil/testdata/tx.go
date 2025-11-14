@@ -6,7 +6,7 @@ import (
 	"gotest.tools/v3/assert"
 	"pgregory.net/rapid"
 
-	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256r1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"

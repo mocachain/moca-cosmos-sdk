@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 func (suite *KeeperTestSuite) TestQueryParams() {

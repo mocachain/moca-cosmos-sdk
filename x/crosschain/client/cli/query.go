@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 )
 
 // GetQueryCmd returns the transaction commands for this module

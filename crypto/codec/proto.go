@@ -3,8 +3,8 @@ package codec
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
-	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/bls"
-	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/bls"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256r1"

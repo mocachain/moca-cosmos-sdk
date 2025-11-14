@@ -26,7 +26,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/bank"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	_ "github.com/cosmos/cosmos-sdk/x/consensus"
-	_ "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain"
+	_ "github.com/cosmos/cosmos-sdk/x/crosschain"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	"github.com/cosmos/cosmos-sdk/x/gov/keeper"

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	errorsmod "cosmossdk.io/errors"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 

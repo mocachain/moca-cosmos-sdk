@@ -10,7 +10,7 @@ import (
 	// ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	// "github.com/ethereum/go-ethereum/crypto/secp256k1"
 
-	// "github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+	// "github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	// sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"

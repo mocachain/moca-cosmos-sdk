@@ -6,7 +6,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	"github.com/cosmos/cosmos-sdk/x/gashub/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 

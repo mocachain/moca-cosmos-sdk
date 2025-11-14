@@ -7,7 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/errors"
+	"github.com/cosmos/cosmos-sdk/x/gashub/errors"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 

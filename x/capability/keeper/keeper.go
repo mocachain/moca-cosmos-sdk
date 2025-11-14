@@ -4,7 +4,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/capability/types"
+	"github.com/cosmos/cosmos-sdk/x/capability/types"
 )
 
 // Keeper defines the capability module keeper

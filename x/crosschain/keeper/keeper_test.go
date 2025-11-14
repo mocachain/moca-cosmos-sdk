@@ -13,9 +13,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/keeper"
-	testutil2 "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/testutil"
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/keeper"
+	testutil2 "github.com/cosmos/cosmos-sdk/x/crosschain/testutil"
+	"github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	govtestutil "github.com/cosmos/cosmos-sdk/x/gov/testutil"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 )

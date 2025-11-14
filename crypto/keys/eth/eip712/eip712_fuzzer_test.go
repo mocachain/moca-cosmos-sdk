@@ -7,7 +7,7 @@ package eip712_test
 
 // 	rand "github.com/cometbft/cometbft/libs/rand"
 
-// 	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/eip712"
+// 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
 // 	"github.com/tidwall/gjson"
 // 	"github.com/tidwall/sjson"
 // )

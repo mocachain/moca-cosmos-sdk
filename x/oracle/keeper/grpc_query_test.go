@@ -3,7 +3,7 @@ package keeper_test
 import (
 	gocontext "context"
 
-	"github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
+	"github.com/cosmos/cosmos-sdk/x/oracle/types"
 )
 
 func (s *TestSuite) TestQueryParams() {

@@ -7,13 +7,13 @@ package eip712_test
 // 	"testing"
 
 // 	"cosmossdk.io/math"
-// 	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/eip712"
+// 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/eip712"
 // 	"github.com/ethereum/go-ethereum/crypto"
 // 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 // 	"github.com/tidwall/gjson"
 // 	"github.com/tidwall/sjson"
 
-// 	"github.com/zkMeLabs/moca-cosmos-sdk/crypto/keys/eth/ethsecp256k1"
+// 	"github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 // 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 // 	sdk "github.com/cosmos/cosmos-sdk/types"
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/testutil"
-	crosschaintypes "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 
 	"github.com/cosmos/gogoproto/proto"
 )

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	crosschaintypes "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 
 	"github.com/stretchr/testify/suite"
 )
