@@ -32,3 +32,9 @@ func (dbw *DBWrapper) Iterator(start, end []byte) (idb.Iterator, error) {
 func (dbw *DBWrapper) ReverseIterator(start, end []byte) (idb.Iterator, error) {
 	return dbw.DB.ReverseIterator(start, end)
 }
+
+func (dbw *DBWrapper) Compact(start, end []byte) error {
+	// cosmos-db doesn't have Compact method, return nil for compatibility
+	// The actual compaction is handled by the underlying database implementation
+	return nil
+}

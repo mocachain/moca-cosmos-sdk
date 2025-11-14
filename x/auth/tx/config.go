@@ -126,7 +126,6 @@ func NewSigningHandlerMap(configOpts ConfigOptions) (*txsigning.HandlerMap, erro
 			handlers[i] = aminojson.NewSignModeHandler(aminojson.SignModeHandlerOptions{
 				FileResolver: signingOpts.FileResolver,
 				TypeResolver: signingOpts.TypeResolver,
-				IsEIP712:     true,
 			})
 		case signingtypes.SignMode_SIGN_MODE_DIRECT:
 			handlers[i] = &direct.SignModeHandler{}

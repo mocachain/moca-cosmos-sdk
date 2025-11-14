@@ -8,7 +8,7 @@ import (
 	cmtprotocrypto "github.com/cometbft/cometbft/proto/tendermint/crypto"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
-	ics23 "github.com/cosmos/ics23/go"
+	ics23 "github.com/confio/ics23/go"
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -53,7 +53,10 @@ func LoadStore(db dbm.DB, logger log.Logger, key types.StoreKey, id types.Commit
 // provided DB. An error is returned if the version fails to load, or if called with a positive
 // version on an empty tree.
 func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKey, id types.CommitID, initialVersion uint64, cacheSize int, disableFastNode bool, metrics metrics.StoreMetrics) (types.CommitKVStore, error) {
-	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, iavl.InitialVersionOption(initialVersion))
+	tree, err := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode)
+	if err != nil {
+		return nil, err
+	}
 
 	isUpgradeable, err := tree.IsUpgradeable()
 	if err != nil {
@@ -79,7 +82,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 	}
 
 	return &Store{
-		tree:    tree,
+		tree:    &mutableTreeWrapper{tree},
 		logger:  logger,
 		metrics: metrics,
 	}, nil
@@ -93,7 +96,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 // passed into iavl.MutableTree
 func UnsafeNewStore(tree *iavl.MutableTree) *Store {
 	return &Store{
-		tree:    tree,
+		tree:    &mutableTreeWrapper{tree},
 		metrics: metrics.NewNoOpMetrics(),
 	}
 }
@@ -296,11 +299,11 @@ func (st *Store) Export(version int64) (*iavl.Exporter, error) {
 
 // Import imports an IAVL tree at the given version, returning an iavl.Importer for importing.
 func (st *Store) Import(version int64) (*iavl.Importer, error) {
-	tree, ok := st.tree.(*iavl.MutableTree)
+	mtw, ok := st.tree.(*mutableTreeWrapper)
 	if !ok {
 		return nil, errors.New("iavl import failed: unable to find mutable tree")
 	}
-	return tree.Import(version)
+	return mtw.MutableTree.Import(version)
 }
 
 // Handle gatest the latest height, if height is 0
@@ -404,7 +407,7 @@ func (st *Store) Query(req *types.RequestQuery) (res *types.ResponseQuery, err e
 }
 
 // TraverseStateChanges traverses the state changes between two versions and calls the given function.
-func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet *iavl.ChangeSet) error) error {
+func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error {
 	return st.tree.TraverseStateChanges(startVersion, endVersion, fn)
 }
 

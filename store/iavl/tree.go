@@ -9,8 +9,54 @@ import (
 
 var (
 	_ Tree = (*immutableTree)(nil)
-	_ Tree = (*iavl.MutableTree)(nil)
+	_ Tree = (*mutableTreeWrapper)(nil)
 )
+
+// mutableTreeWrapper wraps iavl.MutableTree to implement the Tree interface
+type mutableTreeWrapper struct {
+	*iavl.MutableTree
+}
+
+// DeleteVersionsTo implements Tree interface for mutableTreeWrapper
+// Note: moca-iavl may not have this method, so we return an error
+func (mtw *mutableTreeWrapper) DeleteVersionsTo(version int64) error {
+	// moca-iavl doesn't have DeleteVersionsTo method
+	// Return an error indicating it's not implemented
+	return fmt.Errorf("DeleteVersionsTo is not implemented in moca-iavl")
+}
+
+// TraverseStateChanges implements Tree interface for mutableTreeWrapper
+func (mtw *mutableTreeWrapper) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error {
+	// moca-iavl may not have this method
+	return fmt.Errorf("TraverseStateChanges is not implemented in moca-iavl")
+}
+
+// Hash implements Tree interface for mutableTreeWrapper
+// moca-iavl's Hash() returns ([]byte, error), but Tree interface requires []byte
+func (mtw *mutableTreeWrapper) Hash() []byte {
+	hash, err := mtw.MutableTree.Hash()
+	if err != nil {
+		panic(fmt.Errorf("failed to get hash: %w", err))
+	}
+	return hash
+}
+
+// WorkingHash implements Tree interface for mutableTreeWrapper
+// moca-iavl's WorkingHash() returns ([]byte, error), but Tree interface requires []byte
+func (mtw *mutableTreeWrapper) WorkingHash() []byte {
+	hash, err := mtw.MutableTree.WorkingHash()
+	if err != nil {
+		panic(fmt.Errorf("failed to get working hash: %w", err))
+	}
+	return hash
+}
+
+// LoadVersionForOverwriting implements Tree interface for mutableTreeWrapper
+// moca-iavl's LoadVersionForOverwriting() returns (int64, error), but Tree interface requires error
+func (mtw *mutableTreeWrapper) LoadVersionForOverwriting(targetVersion int64) error {
+	_, err := mtw.MutableTree.LoadVersionForOverwriting(targetVersion)
+	return err
+}
 
 type (
 	// Tree defines an interface that both mutable and immutable IAVL trees
@@ -34,7 +80,7 @@ type (
 		Iterator(start, end []byte, ascending bool) (idb.Iterator, error)
 		AvailableVersions() []int
 		LoadVersionForOverwriting(targetVersion int64) error
-		TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet *iavl.ChangeSet) error) error
+		TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error
 	}
 
 	// immutableTree is a simple wrapper around a reference to an iavl.ImmutableTree
@@ -93,6 +139,18 @@ func (it *immutableTree) LoadVersionForOverwriting(targetVersion int64) error {
 	panic("cannot call 'LoadVersionForOverwriting' on an immutable IAVL tree")
 }
 
+func (it *immutableTree) Hash() []byte {
+	hash, err := it.ImmutableTree.Hash()
+	if err != nil {
+		panic(fmt.Errorf("failed to get hash: %w", err))
+	}
+	return hash
+}
+
 func (it *immutableTree) WorkingHash() []byte {
 	panic("cannot call 'WorkingHash' on an immutable IAVL tree")
+}
+
+func (it *immutableTree) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error {
+	panic("cannot call 'TraverseStateChanges' on an immutable IAVL tree")
 }
