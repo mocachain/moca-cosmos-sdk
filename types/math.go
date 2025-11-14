@@ -31,10 +31,12 @@ var (
 	NewDec               = math.LegacyNewDec
 	NewDecWithPrec       = math.LegacyNewDecWithPrec
 	NewDecFromStr        = math.LegacyNewDecFromStr
+	NewDecFromInt        = math.LegacyNewDecFromInt
 	NewDecFromIntWithPrec = math.LegacyNewDecFromIntWithPrec
 	NewInt               = math.NewInt
 	NewIntFromString     = math.NewIntFromString
 	OneDec               = math.LegacyOneDec
+	ZeroDec              = math.LegacyZeroDec
 	ZeroInt              = math.ZeroInt
 )
 
