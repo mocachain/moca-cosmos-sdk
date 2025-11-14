@@ -261,6 +261,7 @@ replace (
 	// Upstream projects should migrate to use cmtservice instead of tmservice
 
 	// Redirect store imports to cosmossdk.io/store
+	// Note: store/prefix is still part of github.com/cosmos/cosmos-sdk and not affected by this replace
 	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
 	// Redirect types/errors to our compatibility layer
 	github.com/cosmos/cosmos-sdk/types/errors => ./types/errors
