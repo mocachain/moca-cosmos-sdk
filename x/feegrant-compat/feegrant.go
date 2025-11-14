@@ -13,18 +13,18 @@ type (
 	// Module types
 	AppModule = module.AppModule
 	AppModuleBasic = module.AppModuleBasic
-	
+
 	// Keeper types
 	Keeper = keeper.Keeper
-	
+
 	// Basic allowance types
 	BasicAllowance = feegrant.BasicAllowance
 	PeriodicAllowance = feegrant.PeriodicAllowance
 	AllowedMsgAllowance = feegrant.AllowedMsgAllowance
-	
+
 	// Grant types
 	Grant = feegrant.Grant
-	
+
 	// Message types
 	MsgGrantAllowance = feegrant.MsgGrantAllowance
 	MsgRevokeAllowance = feegrant.MsgRevokeAllowance
@@ -48,3 +48,4 @@ const (
 	StoreKey = feegrant.StoreKey
 	RouterKey = feegrant.RouterKey
 )
+

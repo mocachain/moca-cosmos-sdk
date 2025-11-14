@@ -3,6 +3,7 @@ package upgrade
 
 import (
 	upgrade "cosmossdk.io/x/upgrade"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 )
 
 // Re-export all types and functions from the new module
@@ -16,9 +17,19 @@ var (
 	NewAppModule = upgrade.NewAppModule
 )
 
+// Re-export types package types and functions
+type (
+	QueryClient = upgradetypes.QueryClient
+)
+
+var (
+	NewQueryClient = upgradetypes.NewQueryClient
+)
+
 // Re-export constants
 const (
-	ModuleName = upgrade.ModuleName
-	StoreKey = upgrade.StoreKey
-	RouterKey = upgrade.RouterKey
+	ModuleName = upgradetypes.ModuleName
+	StoreKey   = upgradetypes.StoreKey
+	RouterKey  = upgradetypes.RouterKey
 )
+

@@ -19,3 +19,4 @@ func (c *Capability) GetIndex() uint64 {
 	return c.Index
 }
 
+

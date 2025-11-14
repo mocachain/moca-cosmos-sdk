@@ -3,6 +3,7 @@ package evidence
 
 import (
 	evidence "cosmossdk.io/x/evidence"
+	evidencetypes "cosmossdk.io/x/evidence/types"
 )
 
 // Re-export all types and functions from the new module
@@ -16,9 +17,15 @@ var (
 	NewAppModule = evidence.NewAppModule
 )
 
+// Re-export types functions
+var (
+	RegisterInterfaces = evidencetypes.RegisterInterfaces
+)
+
 // Re-export constants
 const (
-	ModuleName = evidence.ModuleName
-	StoreKey = evidence.StoreKey
-	RouterKey = evidence.RouterKey
+	ModuleName = evidencetypes.ModuleName
+	StoreKey   = evidencetypes.StoreKey
+	// RouterKey is deprecated in v0.50, routing is handled via module manager
 )
+

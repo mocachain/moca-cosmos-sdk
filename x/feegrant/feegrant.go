@@ -12,23 +12,29 @@ type (
 	BasicAllowance = feegrant.BasicAllowance
 	PeriodicAllowance = feegrant.PeriodicAllowance
 	AllowedMsgAllowance = feegrant.AllowedMsgAllowance
-	
+
 	// Grant types
 	Grant = feegrant.Grant
-	
+
 	// Message types
 	MsgGrantAllowance = feegrant.MsgGrantAllowance
 	MsgRevokeAllowance = feegrant.MsgRevokeAllowance
+
+	// Query client types
+	QueryClient = feegrant.QueryClient
 )
 
 // Re-export functions
 var (
-	NewBasicAllowance = feegrant.NewBasicAllowance
-	NewPeriodicAllowance = feegrant.NewPeriodicAllowance
+	// NewBasicAllowance and NewPeriodicAllowance are removed in v0.50
+	// NewBasicAllowance = feegrant.NewBasicAllowance
+	// NewPeriodicAllowance = feegrant.NewPeriodicAllowance
 	NewAllowedMsgAllowance = feegrant.NewAllowedMsgAllowance
 	NewGrant = feegrant.NewGrant
 	NewMsgGrantAllowance = feegrant.NewMsgGrantAllowance
 	NewMsgRevokeAllowance = feegrant.NewMsgRevokeAllowance
+	RegisterInterfaces = feegrant.RegisterInterfaces
+	NewQueryClient = feegrant.NewQueryClient
 )
 
 // Re-export constants
@@ -37,3 +43,4 @@ const (
 	StoreKey = feegrant.StoreKey
 	RouterKey = feegrant.RouterKey
 )
+

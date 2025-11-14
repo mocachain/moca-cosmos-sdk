@@ -9,3 +9,4 @@ package statik
 // FS is a placeholder for the legacy statik file system
 // In cosmos-sdk v0.50+, this functionality has been replaced or removed
 var FS interface{}
+

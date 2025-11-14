@@ -9,13 +9,12 @@
 package types
 
 import (
+	exported "cosmossdk.io/x/evidence/exported"
 	"cosmossdk.io/x/evidence/types"
 )
 
-// Deprecated: Use cosmossdk.io/x/evidence/types.Evidence directly.
-// Re-export all types and functions from the new module
 type (
-	Evidence = types.Evidence
+	Evidence = exported.Evidence
 	Equivocation = types.Equivocation
 	MsgSubmitEvidence = types.MsgSubmitEvidence
 )
@@ -24,5 +23,10 @@ type (
 // Re-export functions
 var (
 	NewMsgSubmitEvidence = types.NewMsgSubmitEvidence
-	NewEquivocation = types.NewEquivocation
+)
+
+// Re-export constants
+const (
+	StoreKey   = types.StoreKey
+	ModuleName = types.ModuleName
 )

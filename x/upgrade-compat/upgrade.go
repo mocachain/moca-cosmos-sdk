@@ -13,15 +13,15 @@ type (
 	// Module types
 	AppModule = upgrade.AppModule
 	AppModuleBasic = upgrade.AppModuleBasic
-	
+
 	// Keeper types
 	Keeper = keeper.Keeper
-	
+
 	// Plan types
 	Plan = types.Plan
 	SoftwareUpgradeProposal = types.SoftwareUpgradeProposal
 	CancelSoftwareUpgradeProposal = types.CancelSoftwareUpgradeProposal
-	
+
 	// Message types
 	MsgSoftwareUpgrade = types.MsgSoftwareUpgrade
 	MsgCancelUpgrade = types.MsgCancelUpgrade
@@ -44,3 +44,4 @@ const (
 	StoreKey = upgrade.StoreKey
 	RouterKey = upgrade.RouterKey
 )
+

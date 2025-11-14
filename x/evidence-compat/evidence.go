@@ -13,14 +13,14 @@ type (
 	// Module types
 	AppModule = evidence.AppModule
 	AppModuleBasic = evidence.AppModuleBasic
-	
+
 	// Keeper types
 	Keeper = keeper.Keeper
-	
+
 	// Evidence types
 	Evidence = types.Evidence
 	Equivocation = types.Equivocation
-	
+
 	// Message types
 	MsgSubmitEvidence = types.MsgSubmitEvidence
 )
@@ -39,3 +39,4 @@ const (
 	StoreKey = evidence.StoreKey
 	RouterKey = evidence.RouterKey
 )
+

@@ -21,6 +21,7 @@ type (
 	CancelSoftwareUpgradeProposal = types.CancelSoftwareUpgradeProposal
 	MsgSoftwareUpgrade = types.MsgSoftwareUpgrade
 	MsgCancelUpgrade = types.MsgCancelUpgrade
+	QueryClient = types.QueryClient
 )
 
 // Deprecated: Use cosmossdk.io/x/upgrade/types.NewPlan directly.
@@ -38,7 +39,7 @@ func NewPlan(name string, height int64, info string) *Plan {
 func NewMsgSoftwareUpgrade(authority string, plan *Plan) *MsgSoftwareUpgrade {
 	msg := types.MsgSoftwareUpgrade{
 		Authority: authority,
-		Plan:      (*types.Plan)(plan),
+		Plan:      types.Plan(*plan),
 	}
 	return (*MsgSoftwareUpgrade)(&msg)
 }
@@ -54,4 +55,16 @@ func NewMsgCancelUpgrade(authority string) *MsgCancelUpgrade {
 var (
 	NewSoftwareUpgradeProposal = types.NewSoftwareUpgradeProposal
 	NewCancelSoftwareUpgradeProposal = types.NewCancelSoftwareUpgradeProposal
+	NewQueryClient = types.NewQueryClient
+)
+
+// Re-export constants
+const (
+	StoreKey   = types.StoreKey
+	ModuleName = types.ModuleName
+)
+
+// Re-export UpgradeStoreLoader
+var (
+	UpgradeStoreLoader = types.UpgradeStoreLoader
 )
