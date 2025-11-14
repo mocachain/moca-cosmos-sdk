@@ -66,6 +66,8 @@ var (
 	ErrTooManySignatures   = Register("sdk", 17, "too many signatures")
 	ErrNotSupported        = Register("sdk", 37, "feature not supported")
 	ErrIO                  = Register("sdk", 39, "Internal IO error")
+	ErrUnpackAny           = Register("sdk", 40, "failed to unpack Any")
+	ErrJSONMarshal         = Register("sdk", 41, "failed to marshal JSON bytes")
 )
 
 // Common constants
