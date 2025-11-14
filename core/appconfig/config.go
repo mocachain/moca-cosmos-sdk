@@ -1,7 +1,7 @@
 package appconfig
 
 import (
-	depinjectappconfig "cosmossdk.io/core/appconfig"
+	depinjectappconfig "cosmossdk.io/depinject/appconfig"
 )
 
 // LoadJSON loads an app config in JSON format.

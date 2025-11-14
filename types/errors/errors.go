@@ -64,7 +64,8 @@ var (
 	ErrInvalidGasLimit     = Register("sdk", 12, "invalid gas limit")
 	ErrWrongSequence       = Register("sdk", 3, "wrong sequence")
 	ErrTooManySignatures   = Register("sdk", 17, "too many signatures")
-	ErrNotSupported        = Register("sdk", 39, "not supported")
+	ErrNotSupported        = Register("sdk", 37, "feature not supported")
+	ErrIO                  = Register("sdk", 39, "Internal IO error")
 )
 
 // Common constants
