@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	gashubtypes "github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 // AccountKeeper defines the contract needed for AccountKeeper related APIs.

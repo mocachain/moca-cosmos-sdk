@@ -10,7 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	gashubtypes "github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	"github.com/golang/mock/gomock"
 )
 
