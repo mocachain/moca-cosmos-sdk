@@ -1,6 +1,6 @@
 go 1.21
 
-module github.com/zkMeLabs/moca-cosmos-sdk
+module github.com/cosmos/cosmos-sdk
 
 require (
 	cosmossdk.io/api v0.7.6
@@ -233,7 +233,6 @@ require (
 
 // Below are the long-lived replace of the Cosmos SDK
 replace (
-
 	cosmossdk.io/api => ./api
 	cosmossdk.io/client/v2 => ./client/v2
 	cosmossdk.io/core => ./core
