@@ -260,8 +260,6 @@ replace (
 
 	// Simapp always use the latest version of the cosmos-sdk
 	github.com/cosmos/cosmos-sdk => ../.
-	// Also replace direct references to moca-cosmos-sdk (for crosschain, oracle, etc.)
-	github.com/zkMeLabs/moca-cosmos-sdk => ../.
 	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.0.0
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409

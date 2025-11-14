@@ -57,12 +57,12 @@ import (
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	_ "github.com/cosmos/cosmos-sdk/x/crisis" // import for side-effects
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	_ "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain" // import for side-effects
-	crosschaintypes "github.com/zkMeLabs/moca-cosmos-sdk/x/crosschain/types"
+	_ "github.com/cosmos/cosmos-sdk/x/crosschain" // import for side-effects
+	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution" // import for side-effects
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	_ "github.com/cosmos/cosmos-sdk/x/gashub" // import for side-effects
-	gashubtypes "github.com/zkMeLabs/moca-cosmos-sdk/x/gashub/types"
+	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
@@ -72,8 +72,8 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/group/module" // import for side-effects
 	_ "github.com/cosmos/cosmos-sdk/x/mint"         // import for side-effects
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	_ "github.com/zkMeLabs/moca-cosmos-sdk/x/oracle" // import for side-effects
-	oracletypes "github.com/zkMeLabs/moca-cosmos-sdk/x/oracle/types"
+	_ "github.com/cosmos/cosmos-sdk/x/oracle" // import for side-effects
+	oracletypes "github.com/cosmos/cosmos-sdk/x/oracle/types"
 	_ "github.com/cosmos/cosmos-sdk/x/params" // import for side-effects
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
