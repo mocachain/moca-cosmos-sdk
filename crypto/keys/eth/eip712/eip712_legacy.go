@@ -24,11 +24,11 @@ import (
 	"time"
 
 	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmath "cosmossdk.io/math"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -55,7 +55,7 @@ func LegacyWrapTxToTypedData(
 	txData := make(map[string]interface{})
 
 	if err := json.Unmarshal(data, &txData); err != nil {
-		return apitypes.TypedData{}, errorsmod.Wrap(errortypes.ErrJSONUnmarshal, "failed to JSON unmarshal data")
+		return apitypes.TypedData{}, errorsmod.Wrap(sdkerrors.ErrJSONUnmarshal, "failed to JSON unmarshal data")
 	}
 
 	domain := apitypes.TypedDataDomain{
@@ -74,7 +74,7 @@ func LegacyWrapTxToTypedData(
 	if feeDelegation != nil {
 		feeInfo, ok := txData["fee"].(map[string]interface{})
 		if !ok {
-			return apitypes.TypedData{}, errorsmod.Wrap(errortypes.ErrInvalidType, "cannot parse fee from tx data")
+			return apitypes.TypedData{}, errorsmod.Wrap(sdkerrors.ErrInvalidType, "cannot parse fee from tx data")
 		}
 
 		feeInfo["feePayer"] = feeDelegation.FeePayer.String()
@@ -360,7 +360,7 @@ func jsonNameFromTag(tag reflect.StructTag) string {
 func unpackAny(cdc codectypes.AnyUnpacker, field reflect.Value) (reflect.Type, reflect.Value, error) {
 	anyData, ok := field.Interface().(*codectypes.Any)
 	if !ok {
-		return nil, reflect.Value{}, errorsmod.Wrapf(errortypes.ErrPackAny, "%T", field.Interface())
+		return nil, reflect.Value{}, errorsmod.Wrapf(sdkerrors.ErrPackAny, "%T", field.Interface())
 	}
 
 	anyWrapper := &cosmosAnyWrapper{

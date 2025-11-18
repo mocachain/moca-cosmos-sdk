@@ -32,30 +32,21 @@ func (mtw *mutableTreeWrapper) TraverseStateChanges(startVersion, endVersion int
 }
 
 // Hash implements Tree interface for mutableTreeWrapper
-// moca-iavl's Hash() returns ([]byte, error), but Tree interface requires []byte
+// moca-iavl's Hash() returns []byte
 func (mtw *mutableTreeWrapper) Hash() []byte {
-	hash, err := mtw.MutableTree.Hash()
-	if err != nil {
-		panic(fmt.Errorf("failed to get hash: %w", err))
-	}
-	return hash
+	return mtw.MutableTree.Hash()
 }
 
 // WorkingHash implements Tree interface for mutableTreeWrapper
-// moca-iavl's WorkingHash() returns ([]byte, error), but Tree interface requires []byte
+// moca-iavl's WorkingHash() returns []byte
 func (mtw *mutableTreeWrapper) WorkingHash() []byte {
-	hash, err := mtw.MutableTree.WorkingHash()
-	if err != nil {
-		panic(fmt.Errorf("failed to get working hash: %w", err))
-	}
-	return hash
+	return mtw.MutableTree.WorkingHash()
 }
 
 // LoadVersionForOverwriting implements Tree interface for mutableTreeWrapper
-// moca-iavl's LoadVersionForOverwriting() returns (int64, error), but Tree interface requires error
+// moca-iavl's LoadVersionForOverwriting() returns error
 func (mtw *mutableTreeWrapper) LoadVersionForOverwriting(targetVersion int64) error {
-	_, err := mtw.MutableTree.LoadVersionForOverwriting(targetVersion)
-	return err
+	return mtw.MutableTree.LoadVersionForOverwriting(targetVersion)
 }
 
 type (
@@ -140,11 +131,7 @@ func (it *immutableTree) LoadVersionForOverwriting(targetVersion int64) error {
 }
 
 func (it *immutableTree) Hash() []byte {
-	hash, err := it.ImmutableTree.Hash()
-	if err != nil {
-		panic(fmt.Errorf("failed to get hash: %w", err))
-	}
-	return hash
+	return it.ImmutableTree.Hash()
 }
 
 func (it *immutableTree) WorkingHash() []byte {

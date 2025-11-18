@@ -5,10 +5,10 @@ import (
 	"runtime/debug"
 
 	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // RecoveryHandler handles recovery() object.
@@ -70,7 +70,7 @@ func newOutOfGasRecoveryMiddleware(gasWanted uint64, ctx sdk.Context, next recov
 func newDefaultRecoveryMiddleware() recoveryMiddleware {
 	handler := func(recoveryObj interface{}) error {
 		return errorsmod.Wrap(
-			sdkerrors.ErrPanic, fmt.Sprintf(
+			errorsmod.ErrPanic, fmt.Sprintf(
 				"recovered: %v\nstack:\n%v", recoveryObj, string(debug.Stack()),
 			),
 		)

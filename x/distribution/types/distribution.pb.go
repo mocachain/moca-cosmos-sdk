@@ -486,7 +486,7 @@ var xxx_messageInfo_CommunityPoolSpendProposal proto.InternalMessageInfo
 // staking token, and the creation height (to check later on if any slashes have
 // occurred). NOTE: Even though validators are slashed to whole staking tokens,
 // the delegators within the validator may be left with less than a full token,
-// thus sdk.Dec is used.
+// thus math.LegacyDec is used.
 type DelegatorStartingInfo struct {
 	PreviousPeriod uint64                      `protobuf:"varint,1,opt,name=previous_period,json=previousPeriod,proto3" json:"previous_period,omitempty"`
 	Stake          cosmossdk_io_math.LegacyDec `protobuf:"bytes,2,opt,name=stake,proto3,customtype=cosmossdk.io/math.LegacyDec" json:"stake"`

@@ -6,14 +6,20 @@ package capability
 
 import (
 	"context"
+	"encoding/json"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 var (
-	_ module.AppModule = AppModule{}
+	_ module.AppModule      = AppModule{}
+	_ module.AppModuleBasic = AppModule{}
 )
 
 // AppModule implements an application module for the capability module.
@@ -24,6 +30,12 @@ func NewAppModule() AppModule {
 	return AppModule{}
 }
 
+// IsAppModule implements the module.AppModule interface
+func (AppModule) IsAppModule() {}
+
+// IsOnePerModuleType implements the depinject.OnePerModuleType interface.
+func (AppModule) IsOnePerModuleType() {}
+
 // Name returns the capability module's name.
 func (AppModule) Name() string { return "capability" }
 
@@ -31,7 +43,10 @@ func (AppModule) Name() string { return "capability" }
 func (AppModule) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 // RegisterInterfaces registers the module's interface types
-func (AppModule) RegisterInterfaces(_ codec.InterfaceRegistry) {}
+func (AppModule) RegisterInterfaces(_ codectypes.InterfaceRegistry) {}
+
+// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the capability module.
+func (AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *gwruntime.ServeMux) {}
 
 // DefaultGenesis returns default genesis state as raw bytes for the capability module.
 func (AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage { return nil }

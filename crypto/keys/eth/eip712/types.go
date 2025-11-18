@@ -25,7 +25,7 @@ import (
 	"golang.org/x/text/language"
 
 	errorsmod "cosmossdk.io/errors"
-	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"github.com/tidwall/gjson"
@@ -107,7 +107,7 @@ func addMsgTypesToRoot(eip712Types apitypes.Types, msgField string, msg gjson.Re
 	defer doRecover(&err)
 
 	if !msg.IsObject() {
-		return errorsmod.Wrapf(errortypes.ErrInvalidRequest, "message is not valid JSON, cannot parse types")
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "message is not valid JSON, cannot parse types")
 	}
 
 	msgRootType, err := msgRootType(msg)
@@ -131,7 +131,7 @@ func msgRootType(msg gjson.Result) (string, error) {
 	msgType := msg.Get(msgTypeField).Str
 	if msgType == "" {
 		// .Str is empty for arrays and objects
-		return "", errorsmod.Wrap(errortypes.ErrInvalidType, "malformed message type value, expected type string")
+		return "", errorsmod.Wrap(sdkerrors.ErrInvalidType, "malformed message type value, expected type string")
 	}
 
 	// Convert e.g. cosmos-sdk/MsgSend to TypeMsgSend
@@ -238,7 +238,7 @@ func recursivelyAddTypesToRoot(
 // to be used for deterministic iteration.
 func sortedJSONKeys(json gjson.Result) ([]string, error) {
 	if !json.IsObject() {
-		return nil, errorsmod.Wrap(errortypes.ErrInvalidType, "expected JSON map to parse")
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, "expected JSON map to parse")
 	}
 
 	jsonMap := json.Map()
@@ -313,7 +313,7 @@ func addTypesToRoot(typeMap apitypes.Types, typeDef string, types []apitypes.Typ
 		indexAsDuplicate++
 
 		if indexAsDuplicate == maxDuplicateTypeDefs {
-			return "", errorsmod.Wrap(errortypes.ErrInvalidRequest, "exceeded maximum number of duplicates for a single type definition")
+			return "", errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "exceeded maximum number of duplicates for a single type definition")
 		}
 	}
 

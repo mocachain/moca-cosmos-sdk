@@ -13,10 +13,10 @@ import (
 	"golang.org/x/crypto/ripemd160" //nolint: staticcheck // keep around for backwards compatibility
 
 	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 var (
@@ -188,7 +188,7 @@ func (pubKey PubKey) MarshalAmino() ([]byte, error) {
 // UnmarshalAmino overrides Amino binary marshaling.
 func (pubKey *PubKey) UnmarshalAmino(bz []byte) error {
 	if len(bz) != PubKeySize {
-		return errorsmod.Wrap(errors.ErrInvalidPubKey, "invalid pubkey size")
+		return errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "invalid pubkey size")
 	}
 	pubKey.Key = bz
 

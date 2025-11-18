@@ -14,6 +14,6 @@ type (
 
 // Re-export functions
 var (
-	NewServiceServer = cmtservice.NewServiceServer
+	NewServiceServer = cmtservice.NewQueryServer
 	RegisterServiceServer = cmtservice.RegisterServiceServer
 )

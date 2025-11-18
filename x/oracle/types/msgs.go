@@ -3,8 +3,6 @@ package types
 import (
 	"fmt"
 
-	errormods "cosmossdk.io/errors"
-
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/cosmos/cosmos-sdk/bsc/rlp"
@@ -48,32 +46,32 @@ func (m *MsgClaim) ValidateBasic() error {
 	}
 
 	// if m.SrcChainId > math.MaxUint16 {
-	// 	return errormods.Wrap(sdkerrors.ErrInvalidRequest,
+	// 	return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest,
 	// 		fmt.Sprintf("chain id should not be larger than %d", math.MaxUint16))
 	// }
 
 	// if m.DestChainId > math.MaxUint16 {
-	// 	return errormods.Wrap(sdkerrors.ErrInvalidRequest,
+	// 	return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest,
 	// 		fmt.Sprintf("chain id should not be larger than %d", math.MaxUint16))
 	// }
 
 	if len(m.Payload) == 0 {
-		return errormods.Wrap(sdkerrors.ErrInvalidRequest, "payload should not be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "payload should not be empty")
 	}
 
 	if len(m.VoteAddressSet) != ValidatorBitSetLength {
-		return errormods.Wrap(sdkerrors.ErrInvalidRequest,
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest,
 			fmt.Sprintf("length of vote address set should be %d", ValidatorBitSetLength))
 	}
 
 	if len(m.AggSignature) != BLSSignatureLength {
-		return errormods.Wrap(sdkerrors.ErrInvalidRequest,
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest,
 			fmt.Sprintf("length of signature should be %d", BLSSignatureLength),
 		)
 	}
 
 	if m.Timestamp == 0 {
-		return errormods.Wrap(sdkerrors.ErrInvalidRequest, "timestamp should not be 0")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "timestamp should not be 0")
 	}
 
 	return nil
@@ -132,7 +130,7 @@ func (m *MsgUpdateParams) GetSigners() []sdk.AccAddress {
 // ValidateBasic does a sanity check on the provided data.
 func (m *MsgUpdateParams) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromHexUnsafe(m.Authority); err != nil {
-		return errormods.Wrap(err, "invalid authority address")
+		return sdkerrors.Wrap(err, "invalid authority address")
 	}
 
 	if err := m.Params.Validate(); err != nil {

@@ -53,10 +53,11 @@ func LoadStore(db dbm.DB, logger log.Logger, key types.StoreKey, id types.Commit
 // provided DB. An error is returned if the version fails to load, or if called with a positive
 // version on an empty tree.
 func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKey, id types.CommitID, initialVersion uint64, cacheSize int, disableFastNode bool, metrics metrics.StoreMetrics) (types.CommitKVStore, error) {
-	tree, err := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode)
-	if err != nil {
-		return nil, err
+	var opts []iavl.Option
+	if initialVersion > 0 {
+		opts = append(opts, iavl.InitialVersionOption(initialVersion))
 	}
+	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, opts...)
 
 	isUpgradeable, err := tree.IsUpgradeable()
 	if err != nil {
