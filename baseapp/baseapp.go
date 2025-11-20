@@ -18,12 +18,12 @@ import (
 
 	"cosmossdk.io/core/header"
 	errorsmod "cosmossdk.io/errors"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	storemetrics "cosmossdk.io/store/metrics"
 	"cosmossdk.io/store/snapshots"
 	storetypes "cosmossdk.io/store/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/cosmos/cosmos-sdk/baseapp/oe"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -782,7 +782,7 @@ func (app *BaseApp) beginBlock(_ *abci.RequestFinalizeBlock) (sdk.BeginBlock, er
 		for i, event := range resp.Events {
 			resp.Events[i].Attributes = append(
 				event.Attributes,
-				abci.EventAttribute{Key: "mode", Value: "BeginBlock"},
+				abci.EventAttribute{Key: "mode", Value: `"BeginBlock"`},
 			)
 		}
 
@@ -845,7 +845,7 @@ func (app *BaseApp) endBlock(_ context.Context) (sdk.EndBlock, error) {
 		for i, event := range eb.Events {
 			eb.Events[i].Attributes = append(
 				event.Attributes,
-				abci.EventAttribute{Key: "mode", Value: "EndBlock"},
+				abci.EventAttribute{Key: "mode", Value: `"EndBlock"`},
 			)
 		}
 
