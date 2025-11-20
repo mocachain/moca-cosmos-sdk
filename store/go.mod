@@ -98,10 +98,10 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
-	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0
+	github.com/cometbft/cometbft => ../../moca-cometbft
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v1.0.0
 	github.com/cosmos/cosmos-sdk => ../../.
-	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.0.0
+	github.com/cosmos/iavl => ../../moca-iavl
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7

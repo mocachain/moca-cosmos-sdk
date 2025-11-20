@@ -104,7 +104,6 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
-	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/ferranbt/fastssz v0.1.3 // indirect
@@ -218,7 +217,7 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0
+	github.com/cometbft/cometbft => ../moca-cometbft
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v1.0.0
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
@@ -229,7 +228,7 @@ replace (
 	// Redirect store imports to cosmossdk.io/store
 	// Note: store/prefix is still part of github.com/cosmos/cosmos-sdk and not affected by this replace
 	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
-	github.com/cosmos/iavl => github.com/zkMeLabs/moca-iavl v1.0.0
+	github.com/cosmos/iavl => ../moca-iavl
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
