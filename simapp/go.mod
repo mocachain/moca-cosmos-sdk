@@ -254,7 +254,7 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0
+	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0-cosmos-sdk-upgrade
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v1.0.0
 
 	// Simapp always use the latest version of the cosmos-sdk
