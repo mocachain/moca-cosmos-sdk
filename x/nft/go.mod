@@ -197,14 +197,11 @@ replace (
 	cosmossdk.io/store => ../../store
 	cosmossdk.io/tools/confix => ../../tools/confix
 	cosmossdk.io/x/circuit => ../../x/circuit
-	cosmossdk.io/x/evidence => ../../x/evidence
-	cosmossdk.io/x/feegrant => ../../x/feegrant
 	cosmossdk.io/x/tx => ../../x/tx
-	cosmossdk.io/x/upgrade => ../../x/upgrade
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
+	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => github.com/zkMeLabs/moca-cometbft v1.0.0
 	github.com/cometbft/cometbft-db => github.com/zkMeLabs/moca-cometbft-db v1.0.0
 	github.com/cosmos/cosmos-sdk => ../../.
