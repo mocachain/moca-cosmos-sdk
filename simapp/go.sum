@@ -1132,6 +1132,10 @@ github.com/zkMeLabs/moca-cometbft v1.0.0 h1:G9fDBHiPRjGz4C3euYhBeNpsx5t/psYn7EeW
 github.com/zkMeLabs/moca-cometbft v1.0.0/go.mod h1:+w5ZLAlxRxjyqWxaNs+pkwU4tg8v2cg2boz77DSQJjI=
 github.com/zkMeLabs/moca-cometbft-db v1.0.0 h1:6/ei321vmF3mOE0dxsCUGYxcLAuVkRK7+Nr09rn8u2Q=
 github.com/zkMeLabs/moca-cometbft-db v1.0.0/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
+github.com/zkMeLabs/moca-cosmos-sdk v1.0.0-cosmos-sdk-upgrade h1:eHd21pAlBAgYvV58DmEyIdNZkQcgybhWeLutBB11thk=
+github.com/zkMeLabs/moca-cosmos-sdk v1.0.0-cosmos-sdk-upgrade/go.mod h1:nhUTCEBNNMYiI2trXH+Iy7+z/C5CDlnWh0zRV3bzsg0=
+github.com/zkMeLabs/moca-iavl v1.0.0-cosmos-sdk-upgrade h1:3cn7nTHTnjYFckmHsyHgFn3JKgMGR0XnxEFvSz9YlZw=
+github.com/zkMeLabs/moca-iavl v1.0.0-cosmos-sdk-upgrade/go.mod h1:0H0uCzRxzrVMB+2WnADFpFatMcWYXkqYiwtwG6lGOOU=
 github.com/zkMeLabs/polygon-edge v1.3.3-moca.1 h1:M+3b3w2qWjVw9ZKA+WwkRDmloZYmGgeozXMuMsggyk0=
 github.com/zkMeLabs/polygon-edge v1.3.3-moca.1/go.mod h1:bDvHrg7QQKSx31K588TEWgHICl5dCPkotffzK9CE6IE=
 github.com/zondax/hid v0.9.2 h1:WCJFnEDMiqGF64nlZz28E9qLVZ0KSJ7xpc5DLEyma2U=
