@@ -248,3 +248,5 @@ retract (
 	// do not use
 	v0.43.0
 )
+
+replace cosmossdk.io/store/types => ./store/types
