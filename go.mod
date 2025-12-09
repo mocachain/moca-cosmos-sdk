@@ -218,7 +218,7 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1
+	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.0.0-audit-fix
 	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1
 	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.0-alpha.1
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
