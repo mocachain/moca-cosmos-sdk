@@ -1133,7 +1133,7 @@ github.com/zkMeLabs/moca-cometbft v1.0.0-cosmos-sdk-upgrade h1:VLNSLeQ6MhOg0LA+1
 github.com/zkMeLabs/moca-cometbft v1.0.0-cosmos-sdk-upgrade/go.mod h1:KvyXN8SItjxhqU9+LhknNKHx1nf/XAH40gvzRHFhfYs=
 github.com/zkMeLabs/moca-cometbft-db v1.0.0 h1:6/ei321vmF3mOE0dxsCUGYxcLAuVkRK7+Nr09rn8u2Q=
 github.com/zkMeLabs/moca-cometbft-db v1.0.0/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
-github.com/zkMeLabs/moca-cosmos-sdk v1.0.0-cosmos-sdk-upgrade h1:8PtxM/50d/iEc0kxBkA9bD/Va9SGUSHZYIvKdgFpmrI=
+github.com/zkMeLabs/moca-cosmos-sdk v1.0.0-cosmos-sdk-upgrade h1:4A87PzJxvVnEwBk7X9b/x4oiK6JyVZKpA5d4HHZ6dCg=
 github.com/zkMeLabs/moca-cosmos-sdk v1.0.0-cosmos-sdk-upgrade/go.mod h1:fyLPItzpZcTPPoPii4MjKBFxWIsKrdWZrTsb2zt8nns=
 github.com/zkMeLabs/moca-iavl v1.0.0-cosmos-sdk-upgrade h1:DDrc5/Suj76HTQ6KP0SgNaNlSIUKuz1lDrn/lNj4eLI=
 github.com/zkMeLabs/moca-iavl v1.0.0-cosmos-sdk-upgrade/go.mod h1:0H0uCzRxzrVMB+2WnADFpFatMcWYXkqYiwtwG6lGOOU=
