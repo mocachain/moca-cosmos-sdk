@@ -53,7 +53,11 @@ func LoadStore(db dbm.DB, logger log.Logger, key types.StoreKey, id types.Commit
 // provided DB. An error is returned if the version fails to load, or if called with a positive
 // version on an empty tree.
 func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKey, id types.CommitID, initialVersion uint64, cacheSize int, disableFastNode bool, metrics metrics.StoreMetrics) (types.CommitKVStore, error) {
-	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, iavl.InitialVersionOption(initialVersion))
+	var options []iavl.Option
+	if initialVersion > 0 {
+		options = append(options, iavl.InitialVersionOption(initialVersion))
+	}
+	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, options...)
 
 	isUpgradeable, err := tree.IsUpgradeable()
 	if err != nil {
@@ -79,7 +83,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 	}
 
 	return &Store{
-		tree:    tree,
+		tree:    &mutableTreeWrapper{MutableTree: tree},
 		logger:  logger,
 		metrics: metrics,
 	}, nil
@@ -93,7 +97,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 // passed into iavl.MutableTree
 func UnsafeNewStore(tree *iavl.MutableTree) *Store {
 	return &Store{
-		tree:    tree,
+		tree:    &mutableTreeWrapper{tree},
 		metrics: metrics.NewNoOpMetrics(),
 	}
 }
@@ -124,27 +128,41 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 func (st *Store) Commit() types.CommitID {
 	defer st.metrics.MeasureSince("store", "iavl", "commit")
 
-	hash, version, err := st.tree.SaveVersion()
+	_, version, err := st.tree.SaveVersion()
+	if err != nil {
+		panic(err)
+	}
+
+	// Hash() returns ([]byte, error) in moca-iavl
+	treeHash, err := st.tree.Hash()
 	if err != nil {
 		panic(err)
 	}
 
 	return types.CommitID{
 		Version: version,
-		Hash:    hash,
+		Hash:    treeHash,
 	}
 }
 
 // WorkingHash returns the hash of the current working tree.
 func (st *Store) WorkingHash() []byte {
-	return st.tree.WorkingHash()
+	hash, err := st.tree.WorkingHash()
+	if err != nil {
+		panic(err)
+	}
+	return hash
 }
 
 // LastCommitID implements Committer.
 func (st *Store) LastCommitID() types.CommitID {
+	hash, err := st.tree.Hash()
+	if err != nil {
+		panic(err)
+	}
 	return types.CommitID{
 		Version: st.tree.Version(),
-		Hash:    st.tree.Hash(),
+		Hash:    hash,
 	}
 }
 
@@ -254,7 +272,8 @@ func (st *Store) DeleteVersionsTo(version int64) error {
 // LoadVersionForOverwriting attempts to load a tree at a previously committed
 // version. Any versions greater than targetVersion will be deleted.
 func (st *Store) LoadVersionForOverwriting(targetVersion int64) error {
-	return st.tree.LoadVersionForOverwriting(targetVersion)
+	_, err := st.tree.LoadVersionForOverwriting(targetVersion)
+	return err
 }
 
 // Implements types.KVStore.
@@ -291,16 +310,16 @@ func (st *Store) Export(version int64) (*iavl.Exporter, error) {
 	if !ok || tree == nil {
 		return nil, fmt.Errorf("iavl export failed: unable to fetch tree for version %v", version)
 	}
-	return tree.Export()
+	return tree.ImmutableTree.Export()
 }
 
 // Import imports an IAVL tree at the given version, returning an iavl.Importer for importing.
 func (st *Store) Import(version int64) (*iavl.Importer, error) {
-	tree, ok := st.tree.(*iavl.MutableTree)
+	mtw, ok := st.tree.(*mutableTreeWrapper)
 	if !ok {
 		return nil, errors.New("iavl import failed: unable to find mutable tree")
 	}
-	return tree.Import(version)
+	return mtw.MutableTree.Import(version)
 }
 
 // Handle gatest the latest height, if height is 0
@@ -404,7 +423,7 @@ func (st *Store) Query(req *types.RequestQuery) (res *types.ResponseQuery, err e
 }
 
 // TraverseStateChanges traverses the state changes between two versions and calls the given function.
-func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet *iavl.ChangeSet) error) error {
+func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error {
 	return st.tree.TraverseStateChanges(startVersion, endVersion, fn)
 }
 

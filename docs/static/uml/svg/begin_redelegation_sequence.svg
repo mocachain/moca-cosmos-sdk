@@ -95,7 +95,6 @@ end
 msgServer <- - keeper : completion time of the redelegation
 msgServer -> msgServer : emit event: delegator, valSrc, valSrc,\nsharesAmount, completionTime
 @enduml
-
 PlantUML version 1.2021.5beta3(Unknown compile time)
 (GPL source distribution)
 Java Runtime: Java(TM) SE Runtime Environment

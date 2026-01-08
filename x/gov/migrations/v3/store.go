@@ -44,7 +44,7 @@ func migrateProposals(store storetypes.KVStore, cdc codec.BinaryCodec) error {
 	return nil
 }
 
-// migrateVotes migrates all v1beta1 weighted votes (with sdk.Dec as weight)
+// migrateVotes migrates all v1beta1 weighted votes (with math.LegacyDec as weight)
 // to v1 weighted votes (with string as weight)
 func migrateVotes(store storetypes.KVStore, cdc codec.BinaryCodec) error {
 	votesStore := prefix.NewStore(store, v1.VotesKeyPrefix)

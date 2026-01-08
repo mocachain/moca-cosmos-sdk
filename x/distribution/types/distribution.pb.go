@@ -4,23 +4,26 @@
 package types
 
 import (
-	cosmossdk_io_math "cosmossdk.io/math"
 	fmt "fmt"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+
+	cosmossdk_io_math "cosmossdk.io/math"
 	_ "github.com/cosmos/cosmos-proto"
 	github_com_cosmos_cosmos_sdk_types "github.com/cosmos/cosmos-sdk/types"
 	types "github.com/cosmos/cosmos-sdk/types"
 	_ "github.com/cosmos/cosmos-sdk/types/tx/amino"
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	proto "github.com/cosmos/gogoproto/proto"
-	io "io"
-	math "math"
-	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
+var (
+	_ = proto.Marshal
+	_ = fmt.Errorf
+	_ = math.Inf
+)
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -46,9 +49,11 @@ func (*Params) ProtoMessage()    {}
 func (*Params) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{0}
 }
+
 func (m *Params) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *Params) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_Params.Marshal(b, m, deterministic)
@@ -61,12 +66,15 @@ func (m *Params) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
+
 func (m *Params) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_Params.Merge(m, src)
 }
+
 func (m *Params) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *Params) XXX_DiscardUnknown() {
 	xxx_messageInfo_Params.DiscardUnknown(m)
 }
@@ -104,9 +112,11 @@ func (*ValidatorHistoricalRewards) ProtoMessage()    {}
 func (*ValidatorHistoricalRewards) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{1}
 }
+
 func (m *ValidatorHistoricalRewards) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorHistoricalRewards) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorHistoricalRewards.Marshal(b, m, deterministic)
@@ -119,12 +129,15 @@ func (m *ValidatorHistoricalRewards) XXX_Marshal(b []byte, deterministic bool) (
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorHistoricalRewards) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorHistoricalRewards.Merge(m, src)
 }
+
 func (m *ValidatorHistoricalRewards) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorHistoricalRewards) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorHistoricalRewards.DiscardUnknown(m)
 }
@@ -159,9 +172,11 @@ func (*ValidatorCurrentRewards) ProtoMessage()    {}
 func (*ValidatorCurrentRewards) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{2}
 }
+
 func (m *ValidatorCurrentRewards) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorCurrentRewards) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorCurrentRewards.Marshal(b, m, deterministic)
@@ -174,12 +189,15 @@ func (m *ValidatorCurrentRewards) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorCurrentRewards) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorCurrentRewards.Merge(m, src)
 }
+
 func (m *ValidatorCurrentRewards) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorCurrentRewards) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorCurrentRewards.DiscardUnknown(m)
 }
@@ -212,9 +230,11 @@ func (*ValidatorAccumulatedCommission) ProtoMessage()    {}
 func (*ValidatorAccumulatedCommission) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{3}
 }
+
 func (m *ValidatorAccumulatedCommission) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorAccumulatedCommission) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorAccumulatedCommission.Marshal(b, m, deterministic)
@@ -227,12 +247,15 @@ func (m *ValidatorAccumulatedCommission) XXX_Marshal(b []byte, deterministic boo
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorAccumulatedCommission) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorAccumulatedCommission.Merge(m, src)
 }
+
 func (m *ValidatorAccumulatedCommission) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorAccumulatedCommission) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorAccumulatedCommission.DiscardUnknown(m)
 }
@@ -258,9 +281,11 @@ func (*ValidatorOutstandingRewards) ProtoMessage()    {}
 func (*ValidatorOutstandingRewards) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{4}
 }
+
 func (m *ValidatorOutstandingRewards) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorOutstandingRewards) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorOutstandingRewards.Marshal(b, m, deterministic)
@@ -273,12 +298,15 @@ func (m *ValidatorOutstandingRewards) XXX_Marshal(b []byte, deterministic bool) 
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorOutstandingRewards) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorOutstandingRewards.Merge(m, src)
 }
+
 func (m *ValidatorOutstandingRewards) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorOutstandingRewards) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorOutstandingRewards.DiscardUnknown(m)
 }
@@ -307,9 +335,11 @@ func (*ValidatorSlashEvent) ProtoMessage()    {}
 func (*ValidatorSlashEvent) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{5}
 }
+
 func (m *ValidatorSlashEvent) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorSlashEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorSlashEvent.Marshal(b, m, deterministic)
@@ -322,12 +352,15 @@ func (m *ValidatorSlashEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorSlashEvent) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorSlashEvent.Merge(m, src)
 }
+
 func (m *ValidatorSlashEvent) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorSlashEvent) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorSlashEvent.DiscardUnknown(m)
 }
@@ -352,9 +385,11 @@ func (*ValidatorSlashEvents) ProtoMessage()    {}
 func (*ValidatorSlashEvents) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{6}
 }
+
 func (m *ValidatorSlashEvents) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *ValidatorSlashEvents) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_ValidatorSlashEvents.Marshal(b, m, deterministic)
@@ -367,12 +402,15 @@ func (m *ValidatorSlashEvents) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
+
 func (m *ValidatorSlashEvents) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_ValidatorSlashEvents.Merge(m, src)
 }
+
 func (m *ValidatorSlashEvents) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *ValidatorSlashEvents) XXX_DiscardUnknown() {
 	xxx_messageInfo_ValidatorSlashEvents.DiscardUnknown(m)
 }
@@ -397,9 +435,11 @@ func (*FeePool) ProtoMessage()    {}
 func (*FeePool) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{7}
 }
+
 func (m *FeePool) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *FeePool) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_FeePool.Marshal(b, m, deterministic)
@@ -412,12 +452,15 @@ func (m *FeePool) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
+
 func (m *FeePool) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_FeePool.Merge(m, src)
 }
+
 func (m *FeePool) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *FeePool) XXX_DiscardUnknown() {
 	xxx_messageInfo_FeePool.DiscardUnknown(m)
 }
@@ -454,9 +497,11 @@ func (*CommunityPoolSpendProposal) ProtoMessage()    {}
 func (*CommunityPoolSpendProposal) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{8}
 }
+
 func (m *CommunityPoolSpendProposal) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *CommunityPoolSpendProposal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_CommunityPoolSpendProposal.Marshal(b, m, deterministic)
@@ -469,12 +514,15 @@ func (m *CommunityPoolSpendProposal) XXX_Marshal(b []byte, deterministic bool) (
 		return b[:n], nil
 	}
 }
+
 func (m *CommunityPoolSpendProposal) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CommunityPoolSpendProposal.Merge(m, src)
 }
+
 func (m *CommunityPoolSpendProposal) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *CommunityPoolSpendProposal) XXX_DiscardUnknown() {
 	xxx_messageInfo_CommunityPoolSpendProposal.DiscardUnknown(m)
 }
@@ -486,7 +534,7 @@ var xxx_messageInfo_CommunityPoolSpendProposal proto.InternalMessageInfo
 // staking token, and the creation height (to check later on if any slashes have
 // occurred). NOTE: Even though validators are slashed to whole staking tokens,
 // the delegators within the validator may be left with less than a full token,
-// thus sdk.Dec is used.
+// thus math.LegacyDec is used.
 type DelegatorStartingInfo struct {
 	PreviousPeriod uint64                      `protobuf:"varint,1,opt,name=previous_period,json=previousPeriod,proto3" json:"previous_period,omitempty"`
 	Stake          cosmossdk_io_math.LegacyDec `protobuf:"bytes,2,opt,name=stake,proto3,customtype=cosmossdk.io/math.LegacyDec" json:"stake"`
@@ -499,9 +547,11 @@ func (*DelegatorStartingInfo) ProtoMessage()    {}
 func (*DelegatorStartingInfo) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{9}
 }
+
 func (m *DelegatorStartingInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *DelegatorStartingInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_DelegatorStartingInfo.Marshal(b, m, deterministic)
@@ -514,12 +564,15 @@ func (m *DelegatorStartingInfo) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return b[:n], nil
 	}
 }
+
 func (m *DelegatorStartingInfo) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_DelegatorStartingInfo.Merge(m, src)
 }
+
 func (m *DelegatorStartingInfo) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *DelegatorStartingInfo) XXX_DiscardUnknown() {
 	xxx_messageInfo_DelegatorStartingInfo.DiscardUnknown(m)
 }
@@ -553,9 +606,11 @@ func (*DelegationDelegatorReward) ProtoMessage()    {}
 func (*DelegationDelegatorReward) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{10}
 }
+
 func (m *DelegationDelegatorReward) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *DelegationDelegatorReward) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_DelegationDelegatorReward.Marshal(b, m, deterministic)
@@ -568,12 +623,15 @@ func (m *DelegationDelegatorReward) XXX_Marshal(b []byte, deterministic bool) ([
 		return b[:n], nil
 	}
 }
+
 func (m *DelegationDelegatorReward) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_DelegationDelegatorReward.Merge(m, src)
 }
+
 func (m *DelegationDelegatorReward) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *DelegationDelegatorReward) XXX_DiscardUnknown() {
 	xxx_messageInfo_DelegationDelegatorReward.DiscardUnknown(m)
 }
@@ -596,9 +654,11 @@ func (*CommunityPoolSpendProposalWithDeposit) ProtoMessage()    {}
 func (*CommunityPoolSpendProposalWithDeposit) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cd78a31ea281a992, []int{11}
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
 		return xxx_messageInfo_CommunityPoolSpendProposalWithDeposit.Marshal(b, m, deterministic)
@@ -611,12 +671,15 @@ func (m *CommunityPoolSpendProposalWithDeposit) XXX_Marshal(b []byte, determinis
 		return b[:n], nil
 	}
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CommunityPoolSpendProposalWithDeposit.Merge(m, src)
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) XXX_Size() int {
 	return m.Size()
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) XXX_DiscardUnknown() {
 	xxx_messageInfo_CommunityPoolSpendProposalWithDeposit.DiscardUnknown(m)
 }
@@ -743,6 +806,7 @@ func (this *Params) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorHistoricalRewards) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -775,6 +839,7 @@ func (this *ValidatorHistoricalRewards) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorCurrentRewards) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -807,6 +872,7 @@ func (this *ValidatorCurrentRewards) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorAccumulatedCommission) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -836,6 +902,7 @@ func (this *ValidatorAccumulatedCommission) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorOutstandingRewards) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -865,6 +932,7 @@ func (this *ValidatorOutstandingRewards) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorSlashEvent) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -892,6 +960,7 @@ func (this *ValidatorSlashEvent) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *ValidatorSlashEvents) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -921,6 +990,7 @@ func (this *ValidatorSlashEvents) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *FeePool) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -950,6 +1020,7 @@ func (this *FeePool) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *DelegatorStartingInfo) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -980,6 +1051,7 @@ func (this *DelegatorStartingInfo) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *DelegationDelegatorReward) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -1012,6 +1084,7 @@ func (this *DelegationDelegatorReward) Equal(that interface{}) bool {
 	}
 	return true
 }
+
 func (this *CommunityPoolSpendProposalWithDeposit) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -1048,6 +1121,7 @@ func (this *CommunityPoolSpendProposalWithDeposit) Equal(that interface{}) bool 
 	}
 	return true
 }
+
 func (m *Params) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1595,6 +1669,7 @@ func encodeVarintDistribution(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+
 func (m *Params) Size() (n int) {
 	if m == nil {
 		return 0
@@ -1818,9 +1893,11 @@ func (m *CommunityPoolSpendProposalWithDeposit) Size() (n int) {
 func sovDistribution(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
+
 func sozDistribution(x uint64) (n int) {
 	return sovDistribution(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
+
 func (m *Params) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1993,6 +2070,7 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorHistoricalRewards) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2096,6 +2174,7 @@ func (m *ValidatorHistoricalRewards) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorCurrentRewards) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2199,6 +2278,7 @@ func (m *ValidatorCurrentRewards) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorAccumulatedCommission) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2283,6 +2363,7 @@ func (m *ValidatorAccumulatedCommission) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorOutstandingRewards) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2367,6 +2448,7 @@ func (m *ValidatorOutstandingRewards) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorSlashEvent) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2470,6 +2552,7 @@ func (m *ValidatorSlashEvent) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *ValidatorSlashEvents) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2554,6 +2637,7 @@ func (m *ValidatorSlashEvents) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *FeePool) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2638,6 +2722,7 @@ func (m *FeePool) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *CommunityPoolSpendProposal) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2818,6 +2903,7 @@ func (m *CommunityPoolSpendProposal) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *DelegatorStartingInfo) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2940,6 +3026,7 @@ func (m *DelegatorStartingInfo) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *DelegationDelegatorReward) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -3056,6 +3143,7 @@ func (m *DelegationDelegatorReward) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func (m *CommunityPoolSpendProposalWithDeposit) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -3266,6 +3354,7 @@ func (m *CommunityPoolSpendProposalWithDeposit) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+
 func skipDistribution(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0

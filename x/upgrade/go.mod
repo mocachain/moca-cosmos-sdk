@@ -1,6 +1,6 @@
 module cosmossdk.io/x/upgrade
 
-go 1.21
+go 1.23.2
 
 require (
 	cosmossdk.io/api v0.7.6
@@ -238,8 +238,8 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
-	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.0.0-alpha.1
-	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1
+	github.com/cometbft/cometbft => ../../../moca-cometbft
+	github.com/cometbft/cometbft-db => ../../../moca-cometbft-db
 	github.com/cosmos/cosmos-sdk => ../../.
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

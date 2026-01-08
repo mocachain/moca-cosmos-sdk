@@ -91,7 +91,6 @@ Staking <|- - Slashing
 Auth <|- - Staking
 Bank <|- - Staking
 @enduml
-
 PlantUML version 1.2021.5beta3(Unknown compile time)
 (GPL source distribution)
 Java Runtime: Java(TM) SE Runtime Environment

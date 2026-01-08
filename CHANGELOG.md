@@ -14,7 +14,7 @@ This is a maintenance release. The changelog includes all the changes since v0.4
 This is a maintenance release. The changelog includes all the changes since v0.47.2-moca.
 
 * feat: upgrade cosmos sdk to v0.47.3
-  
+
 ## v0.47.2-moca
 This is a maintenance release. The changelog includes all the changes since v0.0.1.
 

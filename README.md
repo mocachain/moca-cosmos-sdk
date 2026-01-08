@@ -33,7 +33,7 @@ make build
 ## test
 make test
 
-## lint check 
+## lint check
 make lint
 ```
 
@@ -45,7 +45,6 @@ See the [Cosmos Docs](https://cosmos.network/docs/) and [Getting started with th
 - [Moca-Relayer](https://github.com/MocaFoundation/moca-relayer): the service that relay cross chain package to both chains.
 - [Moca-Cmd](https://github.com/MocaFoundation/moca-cmd): the most powerful command line to interact with Moca system.
 - [Awesome Cosmos](https://github.com/cosmos/awesome-cosmos): Collection of Cosmos related resources which also fits Moca.
-
 
 ## Contribution
 Thank you for considering helping with the source code! We appreciate contributions from anyone on the internet, no

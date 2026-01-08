@@ -7,7 +7,6 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 
 	errorsmod "cosmossdk.io/errors"
-
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 

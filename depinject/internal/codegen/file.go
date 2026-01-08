@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -61,7 +62,7 @@ func NewFileGen(file *ast.File, codegenPkgPath string) (*FileGen, error) {
 		if spec.Name != nil {
 			name := spec.Name.Name
 			if name == "." {
-				return nil, fmt.Errorf(". package imports are not allowed")
+				return nil, errors.New(". package imports are not allowed")
 			}
 
 			info = &importInfo{importPrefix: name, ImportSpec: spec}
