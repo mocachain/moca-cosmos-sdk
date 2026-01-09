@@ -208,7 +208,7 @@ replace (
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/MocaFoundation/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
+	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => ../../../moca-cometbft
 	github.com/cometbft/cometbft-db => ../../../moca-cometbft-db
 	github.com/cosmos/cosmos-sdk => ../../.
