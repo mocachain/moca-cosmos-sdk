@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 
 	modulev1 "cosmossdk.io/api/cosmos/upgrade/module/v1"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
@@ -96,7 +97,7 @@ type AppModule struct {
 }
 
 // NewAppModule creates a new AppModule object
-func NewAppModule(keeper *keeper.Keeper) AppModule {
+func NewAppModule(keeper *keeper.Keeper, ac address.Codec) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         keeper,
@@ -177,6 +178,7 @@ type ModuleInputs struct {
 	Config       *modulev1.Module
 	StoreService store.KVStoreService
 	Cdc          codec.Codec
+	AddressCodec address.Codec
 
 	AppOpts servertypes.AppOptions `optional:"true"`
 	Viper   *viper.Viper           `optional:"true"`
@@ -221,7 +223,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	baseappOpt := func(app *baseapp.BaseApp) {
 		k.SetVersionSetter(app)
 	}
-	m := NewAppModule(k)
+	m := NewAppModule(k, in.AddressCodec)
 
 	return ModuleOutputs{UpgradeKeeper: k, Module: m, BaseAppOption: baseappOpt}
 }

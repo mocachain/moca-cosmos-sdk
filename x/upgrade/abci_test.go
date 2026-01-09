@@ -18,6 +18,7 @@ import (
 	"cosmossdk.io/x/upgrade/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -125,7 +126,7 @@ func setupTest(t *testing.T, height int64, skip map[int64]bool) *TestSuite {
 
 	s.ctx = testCtx.Ctx.WithHeaderInfo(header.Info{Time: time.Now(), Height: height})
 
-	s.preModule = upgrade.NewAppModule(s.keeper)
+	s.preModule = upgrade.NewAppModule(s.keeper, address.NewBech32Codec("cosmos"))
 	return &s
 }
 
@@ -458,7 +459,7 @@ func TestDowngradeVerification(t *testing.T) {
 
 	skip := map[int64]bool{}
 	k := keeper.NewKeeper(skip, storeService, encCfg.Codec, t.TempDir(), nil, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-	m := upgrade.NewAppModule(k)
+	m := upgrade.NewAppModule(k, address.NewBech32Codec("cosmos"))
 
 	// submit a plan.
 	planName := "downgrade"
@@ -504,7 +505,7 @@ func TestDowngradeVerification(t *testing.T) {
 
 		// downgrade. now keeper does not have the handler.
 		k := keeper.NewKeeper(skip, storeService, encCfg.Codec, t.TempDir(), nil, authtypes.NewModuleAddress(govtypes.ModuleName).String())
-		m := upgrade.NewAppModule(k)
+		m := upgrade.NewAppModule(k, address.NewBech32Codec("cosmos"))
 
 		// assertions
 		lastAppliedPlan, _, err := k.GetLastCompletedUpgrade(ctx)
