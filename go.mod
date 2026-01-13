@@ -212,13 +212,13 @@ replace (
 	cosmossdk.io/x/nft => ./x/nft
 	cosmossdk.io/x/tx => ./x/tx
 	cosmossdk.io/x/upgrade => ./x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.0.0-alpha.1
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.0.0-audit-fix
 	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.0.0-alpha.1
 	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v1.0.0-alpha.1
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
@@ -248,3 +248,5 @@ retract (
 	// do not use
 	v0.43.0
 )
+
+replace cosmossdk.io/store/types => ./store/types
