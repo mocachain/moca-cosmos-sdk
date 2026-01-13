@@ -51,7 +51,7 @@ replace (
 	cosmossdk.io/x/feegrant => ../../x/feegrant
 	cosmossdk.io/x/nft => ../../x/nft
 	cosmossdk.io/x/upgrade => ../../x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/zkMeLabs/polygon-edge v1.3.3-moca.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.0.0-alpha.1
