@@ -221,7 +221,7 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 
 	// check the delegate staking authorization from the delegator to the gov module account
 	if sdkCtx.BlockHeight() != 0 {
-		err = k.CheckStakeAuthorization(sdkCtx, govModuleAddr, delAddr, types.NewMsgDelegate(delAddr.String(), string(valAddr), msg.Value))
+		err = k.CheckStakeAuthorization(sdkCtx, govModuleAddr, delAddr, types.NewMsgDelegate(delAddr.String(), valAddr.String(), msg.Value))
 		if err != nil {
 			return nil, err
 		}
