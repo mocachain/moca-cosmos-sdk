@@ -190,8 +190,6 @@ replace (
 	cosmossdk.io/client/v2 => ../../client/v2
 	cosmossdk.io/core => ../../core
 	cosmossdk.io/errors => ../../errors
-	// cosmossdk.io/log => ../../log
-	// cosmossdk.io/math => ../../math
 	cosmossdk.io/simapp => ../../simapp
 	cosmossdk.io/store => ../../store
 	cosmossdk.io/tools/confix => ../../tools/confix

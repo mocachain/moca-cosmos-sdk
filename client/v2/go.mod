@@ -188,8 +188,6 @@ replace (
 	cosmossdk.io/api => ../../api
 	cosmossdk.io/core => ../../core
 	cosmossdk.io/errors => ../../errors
-	// cosmossdk.io/log => ../../log
-	// cosmossdk.io/math => ../../math
 	cosmossdk.io/simapp => ../../simapp
 	cosmossdk.io/store => ../../store
 	cosmossdk.io/x/feegrant => ../../x/feegrant

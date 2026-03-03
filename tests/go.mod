@@ -244,8 +244,6 @@ replace (
 	cosmossdk.io/client/v2 => ../client/v2
 	cosmossdk.io/core => ../core
 	cosmossdk.io/errors => ../errors
-	// cosmossdk.io/log => ../log
-	// cosmossdk.io/math => ../math
 	// We always want to test against the latest version of the simapp.
 	cosmossdk.io/simapp => ../simapp
 	cosmossdk.io/store => ../store
