@@ -220,14 +220,14 @@ replace (
 	cosmossdk.io/x/tx => ./x/tx
 	// Note: cosmossdk.io/x/evidence, cosmossdk.io/x/feegrant, cosmossdk.io/x/upgrade
 	// will use standard dependencies from the cosmos ecosystem
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/MocaFoundation/polygon-edge v1.3.3-moca.1
+	github.com/0xPolygon/polygon-edge => github.com/0xPolygon/polygon-edge v1.3.3
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
-	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.3.0-moca.4.0.20260228073825-f8771dc783fe
-	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.1-0.20251128074958-84197920c64c
+	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v0.0.0-20260303121607-dafa0d1b80cb
+	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// Legacy cosmos-sdk package compatibility for v0.50
