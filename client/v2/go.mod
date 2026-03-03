@@ -205,7 +205,7 @@ replace (
 	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v0.0.0-20260303121607-dafa0d1b80cb
 	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c
 	github.com/cosmos/cosmos-sdk => ../../.
-	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.0-cosmos-sdk-upgrade.0.20260303072656-38ee886536c8
+	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7

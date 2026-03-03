@@ -264,7 +264,7 @@ replace (
 	// We always want to test against the latest version of the SDK.
 	github.com/cosmos/cosmos-sdk => ../.
 
-	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.0-cosmos-sdk-upgrade.0.20260303072656-38ee886536c8
+	github.com/cosmos/iavl => github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1

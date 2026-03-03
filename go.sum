@@ -107,8 +107,8 @@ github.com/MocaFoundation/moca-cometbft v0.0.0-20260303121607-dafa0d1b80cb h1:xJ
 github.com/MocaFoundation/moca-cometbft v0.0.0-20260303121607-dafa0d1b80cb/go.mod h1:j9zyzYaZ3JP1hFDugri97B3rSzkKj5vL+s3yXKI2zS0=
 github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c h1:iWuoofilFcjOJNrIRZLZFxiHUTQ7oIQcouFSusrTIGM=
 github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
-github.com/MocaFoundation/moca-iavl v1.0.0-cosmos-sdk-upgrade.0.20260303072656-38ee886536c8 h1:hPNqIavY/uBpXoD9emABAgEKebF+6tGW++/kNDkkED4=
-github.com/MocaFoundation/moca-iavl v1.0.0-cosmos-sdk-upgrade.0.20260303072656-38ee886536c8/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
+github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1 h1:Aktxahv3zoaT03t0vh3Cc66U1j96WUvphZ1uEN09FwU=
+github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8D7ML55dXQrVaamCz2vxCfdQBasLZfHKk=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
