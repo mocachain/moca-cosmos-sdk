@@ -51,6 +51,7 @@ var (
 
 // AppModuleBasic implements the sdk.AppModuleBasic interface
 type AppModuleBasic struct {
+	ac address.Codec
 }
 
 // Name returns the ModuleName
@@ -72,7 +73,7 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *g
 
 // GetTxCmd returns the CLI transaction commands for this module
 func (ab AppModuleBasic) GetTxCmd() *cobra.Command {
-	return cli.GetTxCmd()
+	return cli.GetTxCmd(ab.ac)
 }
 
 // RegisterInterfaces registers interfaces and implementations of the upgrade module.
@@ -99,7 +100,7 @@ type AppModule struct {
 // NewAppModule creates a new AppModule object
 func NewAppModule(keeper *keeper.Keeper, ac address.Codec) AppModule {
 	return AppModule{
-		AppModuleBasic: AppModuleBasic{},
+		AppModuleBasic: AppModuleBasic{ac: ac},
 		keeper:         keeper,
 	}
 }
