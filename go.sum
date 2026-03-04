@@ -103,8 +103,8 @@ github.com/Masterminds/sprig v2.22.0+incompatible/go.mod h1:y6hNFY5UBTIWBxnzTeuN
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:/d/d2S31NXhUvm85irOvanxN8BLjqfcnOPxsZymCBZI=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:j9zyzYaZ3JP1hFDugri97B3rSzkKj5vL+s3yXKI2zS0=
+github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:qZ6Fii4aCotm2rcsyrAs0gGDdyaSu+zP/lnhP4OxXXY=
+github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:zQUoCeuTUtQSpdWUc4GtjNtrzJ7ZWvqKpLiC0ivIcik=
 github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1.0.20251128074958-84197920c64c h1:wsVwCmua4JJ+p2QjLoICYBs8Ic+Gt2cM8iVWciC7XdQ=
 github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1.0.20251128074958-84197920c64c/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1 h1:Aktxahv3zoaT03t0vh3Cc66U1j96WUvphZ1uEN09FwU=
