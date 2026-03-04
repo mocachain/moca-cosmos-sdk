@@ -7,8 +7,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/DataDog/zstd v1.5.5 h1:oWf5W7GtOLgp6bciQYDmhHHjdhYkALu6S/5Ni9ZgSvQ=
 github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:qZ6Fii4aCotm2rcsyrAs0gGDdyaSu+zP/lnhP4OxXXY=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:zQUoCeuTUtQSpdWUc4GtjNtrzJ7ZWvqKpLiC0ivIcik=
+github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:7VELH5DSo/EvwNHxVJZq/UX38Qf97ZpZb8YNhg9Rt+0=
+github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:3MvnGdlfbz0SFIbn6lrJo7YTekUz8gwFdHHVX3bQczM=
 github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1 h1:Aktxahv3zoaT03t0vh3Cc66U1j96WUvphZ1uEN09FwU=
 github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
