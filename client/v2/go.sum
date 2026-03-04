@@ -22,12 +22,12 @@ github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwS
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:7VELH5DSo/EvwNHxVJZq/UX38Qf97ZpZb8YNhg9Rt+0=
-github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:3MvnGdlfbz0SFIbn6lrJo7YTekUz8gwFdHHVX3bQczM=
+github.com/MocaFoundation/moca-cometbft v1.3.1-fix-audit-Q1 h1:nr6MUiMIBomq/pp1fx09aAkehkS+9mnbvRM2bXvzzGg=
+github.com/MocaFoundation/moca-cometbft v1.3.1-fix-audit-Q1/go.mod h1:3MvnGdlfbz0SFIbn6lrJo7YTekUz8gwFdHHVX3bQczM=
 github.com/MocaFoundation/moca-cometbft-db v1.0.1-0.20251128074958-84197920c64c h1:WAjHXbIwJQgIEnkTkYzKnpRkKiiFNSG1qI5UlWq3l90=
 github.com/MocaFoundation/moca-cometbft-db v1.0.1-0.20251128074958-84197920c64c/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
-github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1 h1:Aktxahv3zoaT03t0vh3Cc66U1j96WUvphZ1uEN09FwU=
-github.com/MocaFoundation/moca-iavl v1.0.1-audit-Q1/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
+github.com/MocaFoundation/moca-iavl v1.0.2-fix-audit-Q1 h1:E/DjA+/NCB3V1u3PJo+3sLFJf3hOrWIqp44AJWNGluE=
+github.com/MocaFoundation/moca-iavl v1.0.2-fix-audit-Q1/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/MocaFoundation/polygon-edge v1.3.3-moca.1 h1:yGF37VCBpKg6QC+3lg6tgv07MnU/2e9J2IyqtcOBCXw=
 github.com/MocaFoundation/polygon-edge v1.3.3-moca.1/go.mod h1:bDvHrg7QQKSx31K588TEWgHICl5dCPkotffzK9CE6IE=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=
