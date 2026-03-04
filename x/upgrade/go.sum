@@ -210,8 +210,8 @@ github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migc
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
 github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1 h1:/d/d2S31NXhUvm85irOvanxN8BLjqfcnOPxsZymCBZI=
 github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1/go.mod h1:j9zyzYaZ3JP1hFDugri97B3rSzkKj5vL+s3yXKI2zS0=
-github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c h1:iWuoofilFcjOJNrIRZLZFxiHUTQ7oIQcouFSusrTIGM=
-github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
+github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1.0.20251128074958-84197920c64c h1:wsVwCmua4JJ+p2QjLoICYBs8Ic+Gt2cM8iVWciC7XdQ=
+github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1.0.20251128074958-84197920c64c/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/MocaFoundation/polygon-edge v1.3.3-moca.1 h1:yGF37VCBpKg6QC+3lg6tgv07MnU/2e9J2IyqtcOBCXw=
 github.com/MocaFoundation/polygon-edge v1.3.3-moca.1/go.mod h1:bDvHrg7QQKSx31K588TEWgHICl5dCPkotffzK9CE6IE=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=

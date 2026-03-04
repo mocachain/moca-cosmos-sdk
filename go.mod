@@ -227,7 +227,7 @@ replace (
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
 	github.com/cometbft/cometbft => github.com/MocaFoundation/moca-cometbft v1.3.0-moca.5-audit-Q1
-	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v0.0.0-20251128074958-84197920c64c
+	github.com/cometbft/cometbft-db => github.com/MocaFoundation/moca-cometbft-db v1.0.0-alpha.1.0.20251128074958-84197920c64c
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// Legacy cosmos-sdk package compatibility for v0.50
