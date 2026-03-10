@@ -14,7 +14,7 @@ import (
 func TestImmutableTreePanics(t *testing.T) {
 	t.Parallel()
 	immTree := iavl.NewImmutableTree(wrapper.NewDBWrapper(dbm.NewMemDB()), 100, false, log.NewNopLogger())
-	it := &immutableTree{immTree}
+	it := &immutableTree{tree: immTree}
 	require.Panics(t, func() {
 		_, err := it.Set([]byte{}, []byte{})
 		require.NoError(t, err)

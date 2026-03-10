@@ -11,7 +11,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	errors "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
@@ -39,7 +39,7 @@ func TestValidateBasic(t *testing.T) {
 	antehandler := sdk.ChainAnteDecorators(vbd)
 	_, err = antehandler(suite.ctx, invalidTx, false)
 
-	require.ErrorIs(t, err, sdkerrors.ErrNoSignatures, "Did not error on invalid tx")
+	require.ErrorIs(t, err, errors.ErrNoSignatures, "Did not error on invalid tx")
 
 	privs, accNums, accSeqs = []cryptotypes.PrivKey{priv1}, []uint64{0}, []uint64{0}
 	validTx, err := suite.CreateTestTx(suite.ctx, privs, accNums, accSeqs, suite.ctx.ChainID(), signing.SignMode_SIGN_MODE_DIRECT)
@@ -82,7 +82,7 @@ func TestValidateMemo(t *testing.T) {
 	antehandler := sdk.ChainAnteDecorators(vmd)
 	_, err = antehandler(suite.ctx, invalidTx, false)
 
-	require.ErrorIs(t, err, sdkerrors.ErrMemoTooLarge, "Did not error on tx with high memo")
+	require.ErrorIs(t, err, errors.ErrMemoTooLarge, "Did not error on tx with high memo")
 
 	suite.txBuilder.SetMemo(strings.Repeat("01234567890", 10))
 	validTx, err := suite.CreateTestTx(suite.ctx, privs, accNums, accSeqs, suite.ctx.ChainID(), signing.SignMode_SIGN_MODE_DIRECT)
@@ -168,7 +168,7 @@ func TestTxHeightTimeoutDecorator(t *testing.T) {
 		{"default value", 0, 10, nil},
 		{"no timeout (greater height)", 15, 10, nil},
 		{"no timeout (same height)", 10, 10, nil},
-		{"timeout (smaller height)", 9, 10, sdkerrors.ErrTxTimeoutHeight},
+		{"timeout (smaller height)", 9, 10, errors.ErrTxTimeoutHeight},
 	}
 
 	for _, tc := range testCases {

@@ -13,17 +13,14 @@ import (
 	circuitmodulev1 "cosmossdk.io/api/cosmos/circuit/module/v1"
 	consensusmodulev1 "cosmossdk.io/api/cosmos/consensus/module/v1"
 	crisismodulev1 "cosmossdk.io/api/cosmos/crisis/module/v1"
-	crosschainmodulev1 "cosmossdk.io/api/cosmos/crosschain/module/v1"
 	distrmodulev1 "cosmossdk.io/api/cosmos/distribution/module/v1"
 	evidencemodulev1 "cosmossdk.io/api/cosmos/evidence/module/v1"
 	feegrantmodulev1 "cosmossdk.io/api/cosmos/feegrant/module/v1"
-	gashubmodulev1 "cosmossdk.io/api/cosmos/gashub/module/v1"
 	genutilmodulev1 "cosmossdk.io/api/cosmos/genutil/module/v1"
 	govmodulev1 "cosmossdk.io/api/cosmos/gov/module/v1"
 	groupmodulev1 "cosmossdk.io/api/cosmos/group/module/v1"
 	mintmodulev1 "cosmossdk.io/api/cosmos/mint/module/v1"
 	nftmodulev1 "cosmossdk.io/api/cosmos/nft/module/v1"
-	oraclemodulev1 "cosmossdk.io/api/cosmos/oracle/module/v1"
 	paramsmodulev1 "cosmossdk.io/api/cosmos/params/module/v1"
 	slashingmodulev1 "cosmossdk.io/api/cosmos/slashing/module/v1"
 	stakingmodulev1 "cosmossdk.io/api/cosmos/staking/module/v1"
@@ -57,12 +54,8 @@ import (
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	_ "github.com/cosmos/cosmos-sdk/x/crisis" // import for side-effects
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	_ "github.com/cosmos/cosmos-sdk/x/crosschain" // import for side-effects
-	crosschaintypes "github.com/cosmos/cosmos-sdk/x/crosschain/types"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution" // import for side-effects
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	_ "github.com/cosmos/cosmos-sdk/x/gashub" // import for side-effects
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
@@ -72,8 +65,6 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/group/module" // import for side-effects
 	_ "github.com/cosmos/cosmos-sdk/x/mint"         // import for side-effects
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	_ "github.com/cosmos/cosmos-sdk/x/oracle" // import for side-effects
-	oracletypes "github.com/cosmos/cosmos-sdk/x/oracle/types"
 	_ "github.com/cosmos/cosmos-sdk/x/params" // import for side-effects
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -93,7 +84,6 @@ var (
 		{Account: stakingtypes.NotBondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: nft.ModuleName},
-		{Account: crosschaintypes.ModuleName, Permissions: []string{authtypes.Minter}},
 	}
 
 	// blocked account addresses
@@ -130,9 +120,6 @@ var (
 						evidencetypes.ModuleName,
 						stakingtypes.ModuleName,
 						authz.ModuleName,
-						crosschaintypes.ModuleName,
-						oracletypes.ModuleName,
-						gashubtypes.ModuleName,
 					},
 					EndBlockers: []string{
 						crisistypes.ModuleName,
@@ -140,9 +127,6 @@ var (
 						stakingtypes.ModuleName,
 						feegrant.ModuleName,
 						group.ModuleName,
-						crosschaintypes.ModuleName,
-						oracletypes.ModuleName,
-						gashubtypes.ModuleName,
 					},
 					OverrideStoreKeys: []*runtimev1alpha1.StoreKeyConfig{
 						{
@@ -172,9 +156,6 @@ var (
 						upgradetypes.ModuleName,
 						vestingtypes.ModuleName,
 						circuittypes.ModuleName,
-						crosschaintypes.ModuleName,
-						oracletypes.ModuleName,
-						gashubtypes.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -190,7 +171,7 @@ var (
 					ModuleAccountPermissions: moduleAccPerms,
 					// By default modules authority is the governance module. This is configurable with the following:
 					// Authority: "group", // A custom module authority can be set using a module name
-					// Authority: "0x4110D9a5a4fc8C0c95024cff4c7C002B924AC520", // or a specific address
+					// Authority: "cosmos1cwwv22j5ca08ggdv9c2uky355k908694z577tv", // or a specific address
 				}),
 			},
 			{
@@ -204,8 +185,13 @@ var (
 				}),
 			},
 			{
-				Name:   stakingtypes.ModuleName,
-				Config: appconfig.WrapAny(&stakingmodulev1.Module{}),
+				Name: stakingtypes.ModuleName,
+				Config: appconfig.WrapAny(&stakingmodulev1.Module{
+					// NOTE: specifying a prefix is only necessary when using bech32 addresses
+					// If not specfied, the auth Bech32Prefix appended with "valoper" and "valcons" is used by default
+					Bech32PrefixValidator: "cosmosvaloper",
+					Bech32PrefixConsensus: "cosmosvalcons",
+				}),
 			},
 			{
 				Name:   slashingtypes.ModuleName,
@@ -275,18 +261,6 @@ var (
 			{
 				Name:   circuittypes.ModuleName,
 				Config: appconfig.WrapAny(&circuitmodulev1.Module{}),
-			},
-			{
-				Name:   crosschaintypes.ModuleName,
-				Config: appconfig.WrapAny(&crosschainmodulev1.Module{}),
-			},
-			{
-				Name:   oracletypes.ModuleName,
-				Config: appconfig.WrapAny(&oraclemodulev1.Module{}),
-			},
-			{
-				Name:   gashubtypes.ModuleName,
-				Config: appconfig.WrapAny(&gashubmodulev1.Module{}),
 			},
 		},
 	}),

@@ -905,3 +905,14 @@ func ParseCoinsNormalized(coinStr string) (Coins, error) {
 	}
 	return NormalizeCoins(coins), nil
 }
+
+// String methods for IntProto and DecProto
+// These were previously in types/math.go which was removed
+
+func (ip *IntProto) String() string {
+	return ip.Int.String()
+}
+
+func (dp *DecProto) String() string {
+	return dp.Dec.String()
+}

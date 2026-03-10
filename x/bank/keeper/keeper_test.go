@@ -25,7 +25,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -1248,7 +1247,7 @@ func (suite *KeeperTestSuite) TestSendCoins_Invalid_NoSpendableCoins() {
 
 	suite.authKeeper.EXPECT().GetAccount(suite.ctx, accAddrs[0]).Return(vacc)
 	e := errorsmod.Wrapf(
-		sdkerrors.ErrInsufficientFunds,
+		errorsmod.ErrInsufficientFunds,
 		"spendable balance 0stake is smaller than %s",
 		coin,
 	)

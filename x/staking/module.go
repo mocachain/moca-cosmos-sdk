@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	modulev1 "cosmossdk.io/api/cosmos/staking/module/v1"
+	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
@@ -203,6 +204,8 @@ type ModuleInputs struct {
 	BankKeeper            types.BankKeeper
 	Cdc                   codec.Codec
 	StoreService          store.KVStoreService
+	ValidatorAddressCodec addresscodec.Codec
+	ConsensusAddressCodec addresscodec.Codec
 
 	// LegacySubspace is used solely for migration of x/params managed parameters
 	LegacySubspace exported.Subspace `optional:"true"`
@@ -230,6 +233,8 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		in.AuthzKeeper,
 		in.BankKeeper,
 		authority.String(),
+		in.ValidatorAddressCodec,
+		in.ConsensusAddressCodec,
 	)
 	m := NewAppModule(in.Cdc, k, in.AccountKeeper, in.BankKeeper, in.LegacySubspace)
 	return ModuleOutputs{StakingKeeper: k, Module: m}

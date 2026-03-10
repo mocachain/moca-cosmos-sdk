@@ -7,11 +7,10 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 
 	bankv1beta1 "cosmossdk.io/api/cosmos/bank/v1beta1"
-	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
@@ -138,7 +137,7 @@ func decodeTx(txBytes []byte) (sdk.Tx, error) {
 		k, v, addr := split[0], split[1], split[2]
 		tx = &KVStoreTx{k, v, txBytes, addr}
 	default:
-		return nil, errorsmod.Wrap(sdkerrors.ErrTxDecode, "too many '='")
+		return nil, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "too many '='")
 	}
 
 	return tx, nil
