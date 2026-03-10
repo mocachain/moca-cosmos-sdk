@@ -181,7 +181,16 @@ func ParseTypedEvent(event abci.Event) (proto.Message, error) {
 
 	attrMap := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
-		attrMap[attr.Key] = json.RawMessage(attr.Value)
+		// Check if attr.Value is valid JSON, if not, treat it as a string value
+		var rawValue json.RawMessage
+		if json.Valid([]byte(attr.Value)) {
+			rawValue = json.RawMessage(attr.Value)
+		} else {
+			// If not valid JSON, treat it as a string and add quotes
+			quotedValue := fmt.Sprintf(`"%s"`, attr.Value)
+			rawValue = json.RawMessage(quotedValue)
+		}
+		attrMap[attr.Key] = rawValue
 	}
 
 	attrBytes, err := json.Marshal(attrMap)

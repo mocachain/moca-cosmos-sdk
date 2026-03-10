@@ -6,6 +6,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	addresscodec "cosmossdk.io/core/address"
 	storetypes "cosmossdk.io/core/store"
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
@@ -23,13 +24,15 @@ var _ types.DelegationSet = Keeper{}
 
 // Keeper of the x/staking store
 type Keeper struct {
-	storeService storetypes.KVStoreService
-	cdc          codec.BinaryCodec
-	authKeeper   types.AccountKeeper
-	authzKeeper  types.AuthzKeeper
-	bankKeeper   types.BankKeeper
-	hooks        types.StakingHooks
-	authority    string
+	storeService          storetypes.KVStoreService
+	cdc                   codec.BinaryCodec
+	authKeeper            types.AccountKeeper
+	authzKeeper           types.AuthzKeeper
+	bankKeeper            types.BankKeeper
+	hooks                 types.StakingHooks
+	authority             string
+	validatorAddressCodec addresscodec.Codec
+	consensusAddressCodec addresscodec.Codec
 }
 
 // NewKeeper creates a new staking Keeper instance
@@ -40,6 +43,8 @@ func NewKeeper(
 	azk types.AuthzKeeper,
 	bk types.BankKeeper,
 	authority string,
+	validatorAddressCodec addresscodec.Codec,
+	consensusAddressCodec addresscodec.Codec,
 ) *Keeper {
 	// ensure bonded and not bonded module accounts are set
 	if addr := ak.GetModuleAddress(types.BondedPoolName); addr == nil {
@@ -56,13 +61,15 @@ func NewKeeper(
 	}
 
 	return &Keeper{
-		storeService: storeService,
-		cdc:          cdc,
-		authKeeper:   ak,
-		authzKeeper:  azk,
-		bankKeeper:   bk,
-		hooks:        nil,
-		authority:    authority,
+		storeService:          storeService,
+		cdc:                   cdc,
+		authKeeper:            ak,
+		authzKeeper:           azk,
+		bankKeeper:            bk,
+		hooks:                 nil,
+		authority:             authority,
+		validatorAddressCodec: validatorAddressCodec,
+		consensusAddressCodec: consensusAddressCodec,
 	}
 }
 
@@ -90,6 +97,16 @@ func (k *Keeper) SetHooks(sh types.StakingHooks) {
 	}
 
 	k.hooks = sh
+}
+
+// ValidatorAddressCodec returns the validator address codec.
+func (k Keeper) ValidatorAddressCodec() addresscodec.Codec {
+	return k.validatorAddressCodec
+}
+
+// ConsensusAddressCodec returns the consensus address codec.
+func (k Keeper) ConsensusAddressCodec() addresscodec.Codec {
+	return k.consensusAddressCodec
 }
 
 // GetLastTotalPower loads the last total validator power.

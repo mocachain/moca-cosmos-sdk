@@ -4,9 +4,9 @@ import (
 	context "context"
 
 	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 )
 
@@ -107,11 +107,24 @@ func (a StakeAuthorization) Accept(ctx context.Context, msg sdk.Msg) (authz.Acce
 		return authz.AcceptResponse{}, sdkerrors.ErrInvalidRequest.Wrap("unknown msg type")
 	}
 
+	// Normalize validator address to ensure consistent format for comparison
+	valAddr, err := sdk.AccAddressFromHexUnsafe(validatorAddress)
+	if err != nil {
+		return authz.AcceptResponse{}, sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address in message: %s", err)
+	}
+	normalizedValidatorAddress := valAddr.String()
+
 	isValidatorExists := false
 	allowedList := a.GetAllowList().GetAddress()
 	for _, validator := range allowedList {
+		// Normalize validator address from authorization to ensure consistent format
+		authValAddr, err := sdk.AccAddressFromHexUnsafe(validator)
+		if err != nil {
+			continue
+		}
+		normalizedAuthValidator := authValAddr.String()
 		// sdkCtx.GasMeter().ConsumeGas(gasCostPerIteration, "stake authorization")
-		if validator == validatorAddress {
+		if normalizedAuthValidator == normalizedValidatorAddress {
 			isValidatorExists = true
 			break
 		}
@@ -119,14 +132,20 @@ func (a StakeAuthorization) Accept(ctx context.Context, msg sdk.Msg) (authz.Acce
 
 	denyList := a.GetDenyList().GetAddress()
 	for _, validator := range denyList {
+		// Normalize validator address from authorization to ensure consistent format
+		authValAddr, err := sdk.AccAddressFromHexUnsafe(validator)
+		if err != nil {
+			continue
+		}
+		normalizedAuthValidator := authValAddr.String()
 		// sdkCtx.GasMeter().ConsumeGas(gasCostPerIteration, "stake authorization")
-		if validator == validatorAddress {
-			return authz.AcceptResponse{}, sdkerrors.ErrUnauthorized.Wrapf("cannot delegate/undelegate to %s validator", validator)
+		if normalizedAuthValidator == normalizedValidatorAddress {
+			return authz.AcceptResponse{}, sdkerrors.ErrUnauthorized.Wrapf("cannot delegate/undelegate to %s validator", normalizedAuthValidator)
 		}
 	}
 
 	if len(allowedList) > 0 && !isValidatorExists {
-		return authz.AcceptResponse{}, sdkerrors.ErrUnauthorized.Wrapf("cannot delegate/undelegate to %s validator", validatorAddress)
+		return authz.AcceptResponse{}, sdkerrors.ErrUnauthorized.Wrapf("cannot delegate/undelegate to %s validator", normalizedValidatorAddress)
 	}
 
 	if a.MaxTokens == nil {

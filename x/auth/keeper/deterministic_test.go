@@ -16,6 +16,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
@@ -69,11 +70,13 @@ func (suite *DeterministicTestSuite) SetupTest() {
 		randomPerm:               {"random"},
 	}
 
+	accountAddressCodec := address.NewBech32Codec(sdk.Bech32MainPrefix)
 	suite.accountKeeper = keeper.NewAccountKeeper(
 		suite.encCfg.Codec,
 		storeService,
 		types.ProtoBaseAccount,
 		maccPerms,
+		accountAddressCodec,
 		types.NewModuleAddress("gov").String(),
 	)
 

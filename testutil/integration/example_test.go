@@ -11,6 +11,7 @@ import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 
+	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil/integration"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -39,11 +40,13 @@ func Example() {
 	cms := integration.CreateMultiStore(keys, logger)
 	newCtx := sdk.NewContext(cms, cmtproto.Header{}, true, logger)
 
+	accountAddressCodec := address.NewBech32Codec(sdk.Bech32MainPrefix)
 	accountKeeper := authkeeper.NewAccountKeeper(
 		encodingCfg.Codec,
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		authtypes.ProtoBaseAccount,
 		map[string][]string{minttypes.ModuleName: {authtypes.Minter}},
+		accountAddressCodec,
 		authority,
 	)
 
@@ -126,11 +129,13 @@ func Example_oneModule() {
 	cms := integration.CreateMultiStore(keys, logger)
 	newCtx := sdk.NewContext(cms, cmtproto.Header{}, true, logger)
 
+	accountAddressCodec := address.NewBech32Codec(sdk.Bech32MainPrefix)
 	accountKeeper := authkeeper.NewAccountKeeper(
 		encodingCfg.Codec,
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		authtypes.ProtoBaseAccount,
 		map[string][]string{minttypes.ModuleName: {authtypes.Minter}},
+		accountAddressCodec,
 		authority,
 	)
 

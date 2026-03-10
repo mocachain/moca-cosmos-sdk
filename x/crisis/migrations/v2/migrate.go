@@ -5,7 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/crisis/exported"
 )
 
@@ -28,7 +28,7 @@ func MigrateStore(ctx sdk.Context, storeService storetypes.KVStoreService, legac
 	legacySubspace.Get(ctx, ConstantFee, &currConstantFee)
 
 	if !currConstantFee.IsValid() {
-		return errors.ErrInvalidCoins.Wrap("constant fee")
+		return sdkerrors.ErrInvalidCoins.Wrap("constant fee")
 	}
 
 	bz, err := cdc.Marshal(&currConstantFee)

@@ -9,7 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	querytypes "github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/version"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
@@ -139,7 +139,7 @@ $ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
 				if len(txs.Txs) > 1 {
 					// This case means there's a bug somewhere else in the code as this
 					// should not happen.
-					return errors.ErrLogic.Wrapf("found %d txs matching given signatures", len(txs.Txs))
+					return sdkerrors.ErrLogic.Wrapf("found %d txs matching given signatures", len(txs.Txs))
 				}
 
 				return clientCtx.PrintProto(txs.Txs[0])
