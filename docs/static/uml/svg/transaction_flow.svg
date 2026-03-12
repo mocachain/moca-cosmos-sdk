@@ -37,7 +37,6 @@ msgServer -> msgServer : maybe wrap results in more structure
 msgServer - -> handler : result, error code
 baseApp <- - handler : results, error code
 @enduml
-
 PlantUML version 1.2021.5beta3(Unknown compile time)
 (GPL source distribution)
 Java Runtime: Java(TM) SE Runtime Environment

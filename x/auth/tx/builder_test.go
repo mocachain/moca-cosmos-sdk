@@ -14,7 +14,6 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
@@ -184,7 +183,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ := errorsmod.ABCIInfo(err, false)
-	require.Equal(t, sdkerrors.ErrInsufficientFee.ABCICode(), code)
+	require.Equal(t, errorsmod.ErrInsufficientFee.ABCICode(), code)
 
 	// require to fail validation when no signatures exist
 	err = txBuilder.SetSignatures()
@@ -193,7 +192,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ = errorsmod.ABCIInfo(err, false)
-	require.Equal(t, sdkerrors.ErrNoSignatures.ABCICode(), code)
+	require.Equal(t, errorsmod.ErrNoSignatures.ABCICode(), code)
 
 	// require to fail with nil values for tx, authinfo
 	err = txBuilder.SetMsgs(msgs...)
@@ -208,7 +207,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ = errorsmod.ABCIInfo(err, false)
-	require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), code)
+	require.Equal(t, errorsmod.ErrUnauthorized.ABCICode(), code)
 
 	require.Error(t, err)
 	txBuilder.SetFeeAmount(feeAmount)

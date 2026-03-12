@@ -1,13 +1,13 @@
 module cosmossdk.io/store
 
-go 1.21
+go 1.23.2
 
 require (
 	cosmossdk.io/errors v1.0.0
-	cosmossdk.io/log v1.4.1
+	cosmossdk.io/log v1.6.1
 	cosmossdk.io/math v1.3.0
 	github.com/cometbft/cometbft v0.38.12
-	github.com/cosmos/cosmos-db v1.0.2
+	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/cosmos/iavl v1.2.0
 	github.com/cosmos/ics23/go v0.11.0
@@ -17,8 +17,8 @@ require (
 	github.com/hashicorp/go-metrics v0.5.1
 	github.com/hashicorp/go-plugin v1.5.2
 	github.com/hashicorp/golang-lru v1.0.2
-	github.com/spf13/cast v1.6.0 // indirect
-	github.com/stretchr/testify v1.9.0
+	github.com/spf13/cast v1.8.0 // indirect
+	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/btree v1.7.0
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0
 	google.golang.org/grpc v1.63.2
@@ -30,31 +30,35 @@ require (
 	github.com/DataDog/zstd v1.5.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
+	github.com/bytedance/sonic v1.14.0 // indirect
+	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
-	github.com/cockroachdb/pebble v1.1.1 // indirect
+	github.com/cockroachdb/pebble v1.1.5 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
-	github.com/emicklei/dot v1.6.1 // indirect
+	github.com/emicklei/dot v1.10.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/btree v1.1.2 // indirect
+	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/jhump/protoreflect v1.15.3 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/linxGnu/grocksdb v1.8.14 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -68,12 +72,14 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	github.com/rs/zerolog v1.33.0 // indirect
+	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
+	golang.org/x/arch v0.17.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -84,8 +90,6 @@ replace (
 	cosmossdk.io/client/v2 => ../client/v2
 	cosmossdk.io/core => ../core
 	cosmossdk.io/errors => ../errors
-	// cosmossdk.io/log => ../log
-	// cosmossdk.io/math => ../math
 	cosmossdk.io/simapp => ../simapp
 	cosmossdk.io/tools/confix => ../tools/confix
 	cosmossdk.io/x/circuit => ../x/circuit
@@ -94,14 +98,14 @@ replace (
 	cosmossdk.io/x/nft => ../x/nft
 	cosmossdk.io/x/tx => ../x/tx
 	cosmossdk.io/x/upgrade => ../x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/Mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.0.0-alpha.1
-	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.0.0-alpha.1
+	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
+	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4
+	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.0
 	github.com/cosmos/cosmos-sdk => ../../.
-	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v1.0.0-alpha.1
+	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7

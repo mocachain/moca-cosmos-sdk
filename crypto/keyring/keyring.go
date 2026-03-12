@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	errorsmod "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/cosmos/cosmos-sdk/client/input"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -25,7 +26,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/ledger"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
@@ -645,11 +645,6 @@ func SignWithLedger(k *Record, msg []byte, signMode signing.SignMode) (sig []byt
 		}
 	case signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON:
 		sig, err = priv.SignLedgerAminoJSON(msg)
-		if err != nil {
-			return nil, nil, err
-		}
-	case signing.SignMode_SIGN_MODE_EIP_712:
-		sig, err = priv.Sign(msg)
 		if err != nil {
 			return nil, nil, err
 		}

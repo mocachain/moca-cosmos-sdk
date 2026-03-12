@@ -12,7 +12,6 @@ import (
 
 	// "github.com/cosmos/cosmos-sdk/crypto/keys/eth/ethsecp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	// sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
@@ -90,7 +89,7 @@ func VerifySignature(
 
 			// // check signature length
 			// if len(sig) != ethcrypto.SignatureLength {
-			// 	return errorsmod.Wrap(sdkerrors.ErrorInvalidSigner, "signature length doesn't match typical [R||S||V] signature 65 bytes")
+			// 	return errorsmod.Wrap(errorsmod.ErrorInvalidSigner, "signature length doesn't match typical [R||S||V] signature 65 bytes")
 			// }
 
 			// // remove the recovery offset if needed (ie. Metamask eip712 signature)
@@ -113,7 +112,7 @@ func VerifySignature(
 			// 	Key: ethcrypto.CompressPubkey(ecPubKey),
 			// }
 			// if !pubKey.Equals(pk) {
-			// 	return errorsmod.Wrapf(sdkerrors.ErrorInvalidSigner, "feePayer's pubkey %s is different from signature's pubkey %s", pubKey, pk)
+			// 	return errorsmod.Wrapf(errorsmod.ErrorInvalidSigner, "feePayer's pubkey %s is different from signature's pubkey %s", pubKey, pk)
 			// }
 			// return nil
 		}

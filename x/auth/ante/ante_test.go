@@ -13,14 +13,13 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
-
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -618,7 +617,7 @@ func TestAnteHandlerFees(t *testing.T) {
 			"signer has no funds",
 			func(suite *AnteTestSuite) TestCaseArgs {
 				accs := suite.CreateTestAccounts(1)
-				suite.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), accs[0].acc.GetAddress(), gomock.Any(), feeAmount).Return(sdkerrors.ErrInsufficientFunds)
+				suite.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), accs[0].acc.GetAddress(), gomock.Any(), feeAmount).Return(errorsmod.ErrInsufficientFunds)
 
 				return TestCaseArgs{
 					msgs: []sdk.Msg{testdata.NewTestMsg(accs[0].acc.GetAddress())},
@@ -626,7 +625,7 @@ func TestAnteHandlerFees(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInsufficientFunds,
+			errorsmod.ErrInsufficientFunds,
 		},
 		{
 			"signer has enough funds, should pass",
@@ -673,7 +672,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrOutOfGas,
+			errorsmod.ErrOutOfGas,
 		},
 		{
 			"tx with memo doesn't have enough gas",
@@ -689,7 +688,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrOutOfGas,
+			errorsmod.ErrOutOfGas,
 		},
 		{
 			"memo too large",
@@ -705,7 +704,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrMemoTooLarge,
+			errorsmod.ErrMemoTooLarge,
 		},
 		{
 			"tx with memo has enough gas",
@@ -963,7 +962,7 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInvalidPubKey,
+			errorsmod.ErrInvalidPubKey,
 		},
 		{
 			"test wrong signer if public key exist",
@@ -984,7 +983,7 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInvalidPubKey,
+			errorsmod.ErrInvalidPubKey,
 		},
 		{
 			"test wrong signer if public doesn't exist",
@@ -1004,7 +1003,7 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInvalidPubKey,
+			errorsmod.ErrInvalidPubKey,
 		},
 	}
 
@@ -1076,7 +1075,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInvalidPubKey,
+			errorsmod.ErrInvalidPubKey,
 		},
 		{
 			"make sure public key is not set, when tx has no pubkey or signature",
@@ -1293,7 +1292,7 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrTooManySignatures,
+			errorsmod.ErrTooManySignatures,
 		},
 	}
 
@@ -1330,7 +1329,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 								meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
 								return nil
 							default:
-								return errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "unrecognized public key type: %T", pubkey)
+								return errorsmod.Wrapf(errorsmod.ErrInvalidPubKey, "unrecognized public key type: %T", pubkey)
 							}
 						},
 					},
@@ -1350,7 +1349,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 			},
 			false,
 			false,
-			sdkerrors.ErrInvalidPubKey,
+			errorsmod.ErrInvalidPubKey,
 		},
 	}
 
@@ -1433,7 +1432,7 @@ func TestAnteHandlerReCheck(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	suite.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(sdkerrors.ErrInsufficientFee)
+	suite.bankKeeper.EXPECT().SendCoinsFromAccountToModule(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errorsmod.ErrInsufficientFee)
 	// require that local mempool fee check is still run on recheck since validator may change minFee between check and recheck
 	// create new minimum gas price so antehandler fails on recheck
 	suite.ctx = suite.ctx.WithMinGasPrices([]sdk.DecCoin{{

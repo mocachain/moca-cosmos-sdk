@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 
 	modulev1 "cosmossdk.io/api/cosmos/upgrade/module/v1"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
@@ -50,6 +51,7 @@ var (
 
 // AppModuleBasic implements the sdk.AppModuleBasic interface
 type AppModuleBasic struct {
+	ac address.Codec
 }
 
 // Name returns the ModuleName
@@ -71,7 +73,7 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *g
 
 // GetTxCmd returns the CLI transaction commands for this module
 func (ab AppModuleBasic) GetTxCmd() *cobra.Command {
-	return cli.GetTxCmd()
+	return cli.GetTxCmd(ab.ac)
 }
 
 // RegisterInterfaces registers interfaces and implementations of the upgrade module.
@@ -96,9 +98,9 @@ type AppModule struct {
 }
 
 // NewAppModule creates a new AppModule object
-func NewAppModule(keeper *keeper.Keeper) AppModule {
+func NewAppModule(keeper *keeper.Keeper, ac address.Codec) AppModule {
 	return AppModule{
-		AppModuleBasic: AppModuleBasic{},
+		AppModuleBasic: AppModuleBasic{ac: ac},
 		keeper:         keeper,
 	}
 }
@@ -177,6 +179,7 @@ type ModuleInputs struct {
 	Config       *modulev1.Module
 	StoreService store.KVStoreService
 	Cdc          codec.Codec
+	AddressCodec address.Codec
 
 	AppOpts servertypes.AppOptions `optional:"true"`
 	Viper   *viper.Viper           `optional:"true"`
@@ -221,7 +224,7 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	baseappOpt := func(app *baseapp.BaseApp) {
 		k.SetVersionSetter(app)
 	}
-	m := NewAppModule(k)
+	m := NewAppModule(k, in.AddressCodec)
 
 	return ModuleOutputs{UpgradeKeeper: k, Module: m, BaseAppOption: baseappOpt}
 }

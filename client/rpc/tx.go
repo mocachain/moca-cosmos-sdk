@@ -17,7 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/version"
 )
 
@@ -187,7 +187,7 @@ $ %[1]s tx [flags] | %[1]s q wait-tx
 					return clientCtx.PrintProto(newResponseFormatBroadcastTxCommit(res))
 				}
 			case <-ctx.Done():
-				return errors.ErrLogic.Wrapf("timed out waiting for transaction %X to be included in a block", hash)
+				return sdkerrors.ErrLogic.Wrapf("timed out waiting for transaction %X to be included in a block", hash)
 			}
 			return nil
 		},

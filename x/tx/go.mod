@@ -1,6 +1,6 @@
 module cosmossdk.io/x/tx
 
-go 1.21
+go 1.23.2
 
 require (
 	cosmossdk.io/api v0.7.4
@@ -41,8 +41,6 @@ replace (
 	cosmossdk.io/client/v2 => ../../client/v2
 	cosmossdk.io/core => ../../core
 	cosmossdk.io/errors => ../../errors
-	// cosmossdk.io/log => ../../log
-	// cosmossdk.io/math => ../../math
 	cosmossdk.io/simapp => ../../simapp
 	cosmossdk.io/store => ../../store
 	cosmossdk.io/tools/confix => ../../tools/confix
@@ -51,11 +49,11 @@ replace (
 	cosmossdk.io/x/feegrant => ../../x/feegrant
 	cosmossdk.io/x/nft => ../../x/nft
 	cosmossdk.io/x/upgrade => ../../x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/mocachain/polygon-edge v1.3.3-moca.1
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/Mocachain/polygon-edge v1.3.3-moca.1
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.0.0-alpha.1
-	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.0.0-alpha.1
+	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4
+	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.0
 	github.com/cosmos/cosmos-sdk => ../../.
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

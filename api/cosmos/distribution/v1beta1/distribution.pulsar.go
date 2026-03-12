@@ -2,18 +2,19 @@
 package distributionv1beta1
 
 import (
+	fmt "fmt"
+	io "io"
+	reflect "reflect"
+	sync "sync"
+
 	_ "cosmossdk.io/api/amino"
 	v1beta1 "cosmossdk.io/api/cosmos/base/v1beta1"
-	fmt "fmt"
 	_ "github.com/cosmos/cosmos-proto"
 	runtime "github.com/cosmos/cosmos-proto/runtime"
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoiface "google.golang.org/protobuf/runtime/protoiface"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	io "io"
-	reflect "reflect"
-	sync "sync"
 )
 
 var (
@@ -7034,7 +7035,7 @@ func (x *CommunityPoolSpendProposal) GetAmount() []*v1beta1.Coin {
 // staking token, and the creation height (to check later on if any slashes have
 // occurred). NOTE: Even though validators are slashed to whole staking tokens,
 // the delegators within the validator may be left with less than a full token,
-// thus sdk.Dec is used.
+// thus math.LegacyDec is used.
 type DelegatorStartingInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

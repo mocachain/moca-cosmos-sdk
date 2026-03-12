@@ -99,7 +99,6 @@ end
 
 msgServer -> msgServer : emit event : EventTypeUnbond(delAddr, valAddr, tokenAmount, completion time)
 @enduml
-
 PlantUML version 1.2021.5beta3(Unknown compile time)
 (GPL source distribution)
 Java Runtime: Java(TM) SE Runtime Environment

@@ -1,6 +1,6 @@
 module cosmossdk.io/orm
 
-go 1.20
+go 1.23.2
 
 require (
 	cosmossdk.io/api v0.7.5
@@ -67,4 +67,11 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+)
+
+replace (
+	cosmossdk.io/api => ../api
+	cosmossdk.io/core => ../core
+	cosmossdk.io/depinject => ../depinject
+	cosmossdk.io/errors => ../errors
 )

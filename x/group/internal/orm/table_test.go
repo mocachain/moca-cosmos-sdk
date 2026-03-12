@@ -14,7 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/group/errors"
 )
 
@@ -82,7 +81,7 @@ func TestCreate(t *testing.T) {
 				Moniker: "cat moniker",
 				Lives:   10,
 			},
-			expErr: sdkerrors.ErrInvalidType,
+			expErr: errorsmod.ErrInvalidType,
 		},
 		"model validation fails": {
 			rowID: EncodeSequence(1),
@@ -115,7 +114,7 @@ func TestCreate(t *testing.T) {
 			var loaded testdata.TableModel
 			err = myTable.GetOne(store, spec.rowID, &loaded)
 			if spec.expErr != nil {
-				require.True(t, sdkerrors.ErrNotFound.Is(err))
+				require.True(t, errorsmod.ErrNotFound.Is(err))
 				return
 			}
 			require.NoError(t, err)
@@ -140,7 +139,7 @@ func TestUpdate(t *testing.T) {
 				Moniker: "cat moniker",
 				Lives:   10,
 			},
-			expErr: sdkerrors.ErrInvalidType,
+			expErr: errorsmod.ErrInvalidType,
 		},
 		"model validation fails": {
 			src: &testdata.TableModel{
@@ -196,7 +195,7 @@ func TestDelete(t *testing.T) {
 		},
 		"not found": {
 			rowID:  []byte("not-found"),
-			expErr: sdkerrors.ErrNotFound,
+			expErr: errorsmod.ErrNotFound,
 		},
 	}
 	for msg, spec := range specs {
@@ -225,13 +224,13 @@ func TestDelete(t *testing.T) {
 
 			// then
 			var loaded testdata.TableModel
-			if spec.expErr == sdkerrors.ErrNotFound {
+			if spec.expErr == errorsmod.ErrNotFound {
 				require.NoError(t, myTable.GetOne(store, EncodeSequence(1), &loaded))
 				assert.Equal(t, initValue, loaded)
 			} else {
 				err := myTable.GetOne(store, EncodeSequence(1), &loaded)
 				require.Error(t, err)
-				require.Equal(t, err, sdkerrors.ErrNotFound)
+				require.Equal(t, err, errorsmod.ErrNotFound)
 			}
 		})
 	}
