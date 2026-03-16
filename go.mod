@@ -226,8 +226,8 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
-	github.com/cometbft/cometbft => ../moca-cometbft
-	github.com/cometbft/cometbft-db => ../moca-cometbft-db
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v0.0.0-20260316053933-22256c4c85b3
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// Legacy cosmos-sdk package compatibility for v0.50
@@ -237,7 +237,7 @@ replace (
 	// Redirect store imports to cosmossdk.io/store
 	// Note: store/prefix is still part of github.com/cosmos/cosmos-sdk and not affected by this replace
 	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
-	github.com/cosmos/iavl => ../moca-iavl
+	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v0.0.0-20260312035901-82a95b279bb3
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2

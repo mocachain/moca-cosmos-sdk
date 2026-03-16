@@ -254,18 +254,18 @@ replace (
 	cosmossdk.io/x/nft => ../x/nft
 	cosmossdk.io/x/tx => ../x/tx
 	cosmossdk.io/x/upgrade => ../x/upgrade
-	github.com/0xPolygon/polygon-edge v1.3.3 => ../../polygon-edge
+	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/0xPolygon/polygon-edge v1.3.3
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
-	github.com/cometbft/cometbft => ../../moca-cometbft
-	github.com/cometbft/cometbft-db => ../../moca-cometbft-db
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v0.0.0-20260316053933-22256c4c85b3
 
 	// Simapp always use the latest version of the cosmos-sdk
 	github.com/cosmos/cosmos-sdk => ../.
-	github.com/cosmos/iavl => ../../moca-iavl
+	github.com/cosmos/iavl => github.com/mocachain/moca-iavl v0.0.0-20260312035901-82a95b279bb3
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
