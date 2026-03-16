@@ -224,10 +224,10 @@ replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
+	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.2
 
-	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4
-	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.0
+	github.com/cometbft/cometbft => ../moca-cometbft
+	github.com/cometbft/cometbft-db => ../moca-cometbft-db
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// Legacy cosmos-sdk package compatibility for v0.50
@@ -237,7 +237,7 @@ replace (
 	// Redirect store imports to cosmossdk.io/store
 	// Note: store/prefix is still part of github.com/cosmos/cosmos-sdk and not affected by this replace
 	github.com/cosmos/cosmos-sdk/store => cosmossdk.io/store v1.1.2
-	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb
+	github.com/cosmos/iavl => ../moca-iavl
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
