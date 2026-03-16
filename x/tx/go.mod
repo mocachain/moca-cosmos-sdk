@@ -52,7 +52,7 @@ replace (
 	github.com/0xPolygon/polygon-edge v1.3.3 => github.com/0xPolygon/polygon-edge v1.3.3
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316094925-4cca3c51139a
 	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v0.0.0-20260316053933-22256c4c85b3
 	github.com/cosmos/cosmos-sdk => ../../.
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1

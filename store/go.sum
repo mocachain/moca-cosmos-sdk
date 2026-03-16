@@ -179,8 +179,8 @@ github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/mitchellh/go-testing-interface v1.14.1 h1:jrgshOhYAUVNMAJiKbEu7EqAwgJJ2JqpQmpLJOu07cU=
 github.com/mitchellh/go-testing-interface v1.14.1/go.mod h1:gfgS7OtZj6MA4U1UrDRp04twqAjfvlZyCfX3sDjEym8=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4 h1:zxIdXkn/dAVPvuckhHkUXT3F/4XAxBI5vDCL85C/u4E=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4/go.mod h1:RXKZzgk3b0mBvoWaANTHLtXdKNQ/HfAlbSB5RMkawS4=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316094925-4cca3c51139a h1:kc8tPNSBLuX5qjHodVfmpq5ZzUssvGpK5tu6nWpbcf0=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316094925-4cca3c51139a/go.mod h1:nUpFvTJdg7VbVTeU701mcyl1eb9CuSjpmcwOxXSsBz4=
 github.com/mocachain/moca-iavl v0.0.0-20260312035901-82a95b279bb3 h1:J2ONeOAFvPNvS7xk7hr9985mJk+yWcpJpEJky5Doess=
 github.com/mocachain/moca-iavl v0.0.0-20260312035901-82a95b279bb3/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=

@@ -967,8 +967,8 @@ github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx
 github.com/moby/sys/mountinfo v0.5.0/go.mod h1:3bMD3Rg+zkqx8MRYPi7Pyb0Ie97QEBmdxbhnCLlSvSU=
 github.com/moby/term v0.0.0-20201216013528-df9cb8a40635/go.mod h1:FBS0z0QWA44HXygs7VXDUOGoN/1TV3RuWkLO04am3wc=
 github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6/go.mod h1:E2VnQOmVuvZB6UYnnDB0qG5Nq/1tD9acaOpo6xmt0Kw=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4 h1:zxIdXkn/dAVPvuckhHkUXT3F/4XAxBI5vDCL85C/u4E=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316054119-f85713e241f4/go.mod h1:RXKZzgk3b0mBvoWaANTHLtXdKNQ/HfAlbSB5RMkawS4=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316094925-4cca3c51139a h1:kc8tPNSBLuX5qjHodVfmpq5ZzUssvGpK5tu6nWpbcf0=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260316094925-4cca3c51139a/go.mod h1:nUpFvTJdg7VbVTeU701mcyl1eb9CuSjpmcwOxXSsBz4=
 github.com/mocachain/moca-cometbft-db v0.0.0-20260316053933-22256c4c85b3 h1:4XpaGvw9WHtDQO/jlPek2/Kud/7o2L/wweHLOwMGGx4=
 github.com/mocachain/moca-cometbft-db v0.0.0-20260316053933-22256c4c85b3/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/mocachain/moca-iavl v0.0.0-20260312035901-82a95b279bb3 h1:J2ONeOAFvPNvS7xk7hr9985mJk+yWcpJpEJky5Doess=
