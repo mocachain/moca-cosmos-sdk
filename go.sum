@@ -103,12 +103,6 @@ github.com/Masterminds/sprig v2.22.0+incompatible/go.mod h1:y6hNFY5UBTIWBxnzTeuN
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4 h1:ccifbaGiwxO8gpJVwn4zPbvsV0SNwwRCl2FnnvR0jxA=
-github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4/go.mod h1:RXKZzgk3b0mBvoWaANTHLtXdKNQ/HfAlbSB5RMkawS4=
-github.com/Mocachain/moca-cometbft-db v1.1.0 h1:7oXSaeSo3NYnpaDx03me+9LqU5ZFN1t/Y0od8kLMRwI=
-github.com/Mocachain/moca-cometbft-db v1.1.0/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
-github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb h1:DAWkI06xS6GE6eSvYbN3Qlke9qV1hjBVSkMyv1Wp+pU=
-github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEVMRuU21PR1EtLVZJmdB18Gu3Rw=
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8D7ML55dXQrVaamCz2vxCfdQBasLZfHKk=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
@@ -973,6 +967,12 @@ github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx
 github.com/moby/sys/mountinfo v0.5.0/go.mod h1:3bMD3Rg+zkqx8MRYPi7Pyb0Ie97QEBmdxbhnCLlSvSU=
 github.com/moby/term v0.0.0-20201216013528-df9cb8a40635/go.mod h1:FBS0z0QWA44HXygs7VXDUOGoN/1TV3RuWkLO04am3wc=
 github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6/go.mod h1:E2VnQOmVuvZB6UYnnDB0qG5Nq/1tD9acaOpo6xmt0Kw=
+github.com/mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4 h1:OEf0XWh2Kgdc5dGNbhEPoWkp3wymKVcP2XbWmNgUxUw=
+github.com/mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4/go.mod h1:RXKZzgk3b0mBvoWaANTHLtXdKNQ/HfAlbSB5RMkawS4=
+github.com/mocachain/moca-cometbft-db v1.1.0 h1:RxeYHsZX1tzC1ZsvWE7yDdYcYP4/mmFtvdVGXbPwtrY=
+github.com/mocachain/moca-cometbft-db v1.1.0/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
+github.com/mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb h1:RSCXgFmhmQZ88V9MNsNgVWEJcRq3sAR31CnLmShq66E=
+github.com/mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
