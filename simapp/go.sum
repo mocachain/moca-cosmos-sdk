@@ -814,8 +814,8 @@ github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjU
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319090650-6c202b1a2ec8 h1:9qAZnUqfSshuqdAsXZqcX2CRdt4o6ZlA4Ce42HRQvBM=
 github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319090650-6c202b1a2ec8/go.mod h1:K2CikF6RigL+TVti00VmQbn94M+c5dGwNEROLIv7tZU=
-github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4 h1:Q/nKzuF7WvDoPJUznhNXWK5/ZQVuXuSuSw8C1s7OXVI=
-github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
+github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3 h1:Ggx4IAYWhQJlYychgmHvO9QqgITlzjsqeqVH7jhVh1E=
+github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/mocachain/moca-iavl v1.2.0-rc0.0.20260318093905-7d754d41e8e9 h1:p6kktdDRLMDsQe16y6J5Wm8y0zgg4WgJNAGCZ071Ec4=
 github.com/mocachain/moca-iavl v1.2.0-rc0.0.20260318093905-7d754d41e8e9/go.mod h1:llfcEJML+85FDrd1XlU6YRa7tFnyPYK/T04iOSXe+1I=
 github.com/mocachain/polygon-edge v1.3.3-moca.1 h1:YtHnpIxMOUkCFp6Z+BHt8wCb+35+HpCVMZ/dFUylzBs=

@@ -261,7 +261,7 @@ replace (
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
 	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319090650-6c202b1a2ec8
-	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.0-rc1-22256c4
+	github.com/cometbft/cometbft-db => github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3
 
 	// Simapp always use the latest version of the cosmos-sdk
 	github.com/cosmos/cosmos-sdk => ../.
