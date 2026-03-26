@@ -812,8 +812,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjUEN1uBnDo34A=
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319090650-6c202b1a2ec8 h1:9qAZnUqfSshuqdAsXZqcX2CRdt4o6ZlA4Ce42HRQvBM=
-github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260319090650-6c202b1a2ec8/go.mod h1:K2CikF6RigL+TVti00VmQbn94M+c5dGwNEROLIv7tZU=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260320015437-83994359d443 h1:k/fhgYhpfp3+S6nii4Bxe/eimiWd7BWE+2RfisXrUbQ=
+github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260320015437-83994359d443/go.mod h1:K2CikF6RigL+TVti00VmQbn94M+c5dGwNEROLIv7tZU=
 github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3 h1:Ggx4IAYWhQJlYychgmHvO9QqgITlzjsqeqVH7jhVh1E=
 github.com/mocachain/moca-cometbft-db v1.1.1-0.20260316053933-22256c4c85b3/go.mod h1:GDPJAC/iFHNjmZZPN8V8C1yr/eyityhi2W1hz2MGKSc=
 github.com/mocachain/moca-iavl v1.2.0-rc0.0.20260318093905-7d754d41e8e9 h1:p6kktdDRLMDsQe16y6J5Wm8y0zgg4WgJNAGCZ071Ec4=
