@@ -83,7 +83,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 	}
 
 	return &Store{
-		tree:    &mutableTreeWrapper{MutableTree: tree},
+		tree:    tree,
 		logger:  logger,
 		metrics: metrics,
 	}, nil
@@ -97,7 +97,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKe
 // passed into iavl.MutableTree
 func UnsafeNewStore(tree *iavl.MutableTree) *Store {
 	return &Store{
-		tree:    &mutableTreeWrapper{tree},
+		tree:    tree,
 		metrics: metrics.NewNoOpMetrics(),
 	}
 }
@@ -133,36 +133,22 @@ func (st *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	// Hash() returns ([]byte, error) in moca-iavl
-	treeHash, err := st.tree.Hash()
-	if err != nil {
-		panic(err)
-	}
-
 	return types.CommitID{
 		Version: version,
-		Hash:    treeHash,
+		Hash:    st.tree.Hash(),
 	}
 }
 
 // WorkingHash returns the hash of the current working tree.
 func (st *Store) WorkingHash() []byte {
-	hash, err := st.tree.WorkingHash()
-	if err != nil {
-		panic(err)
-	}
-	return hash
+	return st.tree.WorkingHash()
 }
 
 // LastCommitID implements Committer.
 func (st *Store) LastCommitID() types.CommitID {
-	hash, err := st.tree.Hash()
-	if err != nil {
-		panic(err)
-	}
 	return types.CommitID{
 		Version: st.tree.Version(),
-		Hash:    hash,
+		Hash:    st.tree.Hash(),
 	}
 }
 
@@ -272,8 +258,7 @@ func (st *Store) DeleteVersionsTo(version int64) error {
 // LoadVersionForOverwriting attempts to load a tree at a previously committed
 // version. Any versions greater than targetVersion will be deleted.
 func (st *Store) LoadVersionForOverwriting(targetVersion int64) error {
-	_, err := st.tree.LoadVersionForOverwriting(targetVersion)
-	return err
+	return st.tree.LoadVersionForOverwriting(targetVersion)
 }
 
 // Implements types.KVStore.
@@ -315,11 +300,11 @@ func (st *Store) Export(version int64) (*iavl.Exporter, error) {
 
 // Import imports an IAVL tree at the given version, returning an iavl.Importer for importing.
 func (st *Store) Import(version int64) (*iavl.Importer, error) {
-	mtw, ok := st.tree.(*mutableTreeWrapper)
+	mt, ok := st.tree.(*iavl.MutableTree)
 	if !ok {
 		return nil, errors.New("iavl import failed: unable to find mutable tree")
 	}
-	return mtw.MutableTree.Import(version)
+	return mt.Import(version)
 }
 
 // Handle gatest the latest height, if height is 0
@@ -423,7 +408,7 @@ func (st *Store) Query(req *types.RequestQuery) (res *types.ResponseQuery, err e
 }
 
 // TraverseStateChanges traverses the state changes between two versions and calls the given function.
-func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet interface{}) error) error {
+func (st *Store) TraverseStateChanges(startVersion, endVersion int64, fn func(version int64, changeSet *iavl.ChangeSet) error) error {
 	return st.tree.TraverseStateChanges(startVersion, endVersion, fn)
 }
 
