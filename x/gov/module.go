@@ -170,7 +170,6 @@ type ModuleInputs struct {
 	AccountKeeper      govtypes.AccountKeeper
 	BankKeeper         govtypes.BankKeeper
 	StakingKeeper      govtypes.StakingKeeper
-	CrossChainKeeper   govtypes.CrossChainKeeper
 	DistributionKeeper govtypes.DistributionKeeper
 
 	// LegacySubspace is used solely for migration of x/params managed parameters
@@ -203,7 +202,6 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 		in.AccountKeeper,
 		in.BankKeeper,
 		in.StakingKeeper,
-		in.CrossChainKeeper,
 		in.DistributionKeeper,
 		in.MsgServiceRouter,
 		defaultConfig,

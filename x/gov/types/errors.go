@@ -37,4 +37,5 @@ var (
 	ErrInvalidValue            = errors.Register(ModuleName, 31, "decode hex value failed")
 
 	ErrChainNotSupported = errors.Register(ModuleName, 32, "crosschain: chain is not supported")
+	ErrCrossChainDisabled = errors.Register(ModuleName, 33, "crosschain params sync is disabled")
 )

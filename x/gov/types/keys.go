@@ -13,6 +13,10 @@ const (
 
 	// RouterKey is the message route for gov
 	RouterKey = ModuleName
+
+	// KeyUpgrade identifies the contract-upgrade flavor of cross-chain params changes.
+	// The message type is kept for compatibility, even though sync is now disabled.
+	KeyUpgrade = "upgrade"
 )
 
 var (

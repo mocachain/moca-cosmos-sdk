@@ -306,19 +306,19 @@ func TestMigrateProposalMessages(t *testing.T) {
 
 func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 	testCases := []struct {
-		name      string
-		request   *v1.MsgUpdateCrossChainParams
-		expectErr bool
+		name        string
+		request     *v1.MsgUpdateCrossChainParams
+		expectedErr error
 	}{
 		{
 			name: "set invalid authority",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: "0x76d244CE05c3De4BbC6fDd7F56379B145709ade9",
 			},
-			expectErr: true,
+			expectedErr: types.ErrInvalidSigner,
 		},
 		{
-			name: "parameter change should restrict values and targets only be size 1",
+			name: "reject invalid non-upgrade batch params change",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: suite.govKeeper.GetAuthority(),
 				Params: v1.CrossChainParamsChange{
@@ -327,10 +327,10 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 					Targets: []string{"0x76d244CE05c3De4BbC6fDd7F56379B145709ade9", "0x76d244CE05c3De4BbC6fDd7F56379B145709ade9"},
 				},
 			},
-			expectErr: true,
+			expectedErr: types.ErrExceedParamsChangeLimit,
 		},
 		{
-			name: "'values' and 'targets' should all be hex address for contract upgrade",
+			name: "reject invalid upgrade addresses",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: suite.govKeeper.GetAuthority(),
 				Params: v1.CrossChainParamsChange{
@@ -339,10 +339,10 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 					Targets: []string{"not_an_hex_address"},
 				},
 			},
-			expectErr: true,
+			expectedErr: types.ErrAddressNotValid,
 		},
 		{
-			name: "'values' and 'targets' size not match",
+			name: "reject mismatched upgrade values and targets",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: suite.govKeeper.GetAuthority(),
 				Params: v1.CrossChainParamsChange{
@@ -351,10 +351,10 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 					Targets: []string{"0xeAE67217D95E786a9309A363437066428b97c046"},
 				},
 			},
-			expectErr: true,
+			expectedErr: types.ErrAddressSizeNotMatch,
 		},
 		{
-			name: "single parameter change should work",
+			name: "reject valid single parameter change because crosschain sync is disabled",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: suite.govKeeper.GetAuthority(),
 				Params: v1.CrossChainParamsChange{
@@ -363,10 +363,10 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 					Targets: []string{"0x76d244CE05c3De4BbC6fDd7F56379B145709ade9"},
 				},
 			},
-			expectErr: false,
+			expectedErr: types.ErrCrossChainDisabled,
 		},
 		{
-			name: "upgrade smart contract",
+			name: "reject valid upgrade change because crosschain sync is disabled",
 			request: &v1.MsgUpdateCrossChainParams{
 				Authority: suite.govKeeper.GetAuthority(),
 				Params: v1.CrossChainParamsChange{
@@ -375,7 +375,7 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 					Targets: []string{"0x76d244CE05c3De4BbC6fDd7F56379B145709ade9"},
 				},
 			},
-			expectErr: false,
+			expectedErr: types.ErrCrossChainDisabled,
 		},
 	}
 
@@ -383,11 +383,8 @@ func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
 		tc := tc
 		suite.Run(tc.name, func() {
 			_, err := suite.msgSrvr.UpdateCrossChainParams(suite.ctx, tc.request)
-			if tc.expectErr {
-				suite.Require().Error(err)
-			} else {
-				suite.Require().NoError(err)
-			}
+			suite.Require().Error(err)
+			suite.Require().True(errors.Is(err, tc.expectedErr), "got: %v, expected: %v", err, tc.expectedErr)
 		})
 	}
 }

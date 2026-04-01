@@ -4,7 +4,6 @@ package testutil
 
 import (
 	context "context"
-	"math/big"
 
 	"cosmossdk.io/math"
 
@@ -34,31 +33,6 @@ type StakingKeeper interface {
 
 	BondDenom(ctx context.Context) (string, error)
 	TokensFromConsensusPower(ctx context.Context, power int64) math.Int
-}
-
-// CrossChainKeeper defines the expected crossChain keeper
-type CrossChainKeeper interface {
-	GetDestBscChainID() sdk.ChainID
-	CreateRawIBCPackageWithFee(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID, packageType sdk.CrossChainPackageType,
-		packageLoad []byte, relayerFee, ackRelayerFee *big.Int,
-	) (uint64, error)
-
-	RegisterChannel(name string, id sdk.ChannelID, app sdk.CrossChainApplication) error
-
-	GetSendSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64
-
-	GetReceiveSequence(ctx context.Context, destChainId sdk.ChainID, channelID sdk.ChannelID) uint64
-
-	IsDestChainSupported(chainID sdk.ChainID) bool
-
-	GetDestOpChainID() sdk.ChainID
-	GetDestPolygonChainID() sdk.ChainID
-	GetDestScrollChainID() sdk.ChainID
-	GetDestLineaChainID() sdk.ChainID
-	GetDestMantleChainID() sdk.ChainID
-	GetDestArbitrumChainID() sdk.ChainID
-	GetDestOptimismChainID() sdk.ChainID
-	GetDestBaseChainID() sdk.ChainID
 }
 
 // DistributionKeeper defines the expected distribution keeper

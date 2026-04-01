@@ -37,7 +37,7 @@ func TestDeposits(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			govKeeper, _, bankKeeper, stakingKeeper, _, distKeeper, _, ctx := setupGovKeeper(t)
+			govKeeper, _, bankKeeper, stakingKeeper, distKeeper, _, ctx := setupGovKeeper(t)
 			trackMockBalances(bankKeeper, distKeeper)
 
 			// With expedited proposals the minimum deposit is higher, so we must
@@ -205,7 +205,7 @@ func TestDepositAmount(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			govKeeper, _, bankKeeper, stakingKeeper, _, distrKeeper, _, ctx := setupGovKeeper(t)
+			govKeeper, _, bankKeeper, stakingKeeper, distrKeeper, _, ctx := setupGovKeeper(t)
 			trackMockBalances(bankKeeper, distrKeeper)
 
 			testAddrs := simtestutil.AddTestAddrsIncremental(bankKeeper, stakingKeeper, ctx, 2, sdkmath.NewInt(1000000000000000))
@@ -321,7 +321,7 @@ func TestValidateInitialDeposit(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			govKeeper, _, _, _, _, _, _, ctx := setupGovKeeper(t)
+			govKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
 
 			params := v1.DefaultParams()
 			if tc.expedited {
@@ -383,7 +383,7 @@ func TestChargeDeposit(t *testing.T) {
 			}
 
 			t.Run(testName(i), func(t *testing.T) {
-				govKeeper, _, bankKeeper, stakingKeeper, _, _, _, ctx := setupGovKeeper(t)
+				govKeeper, _, bankKeeper, stakingKeeper, _, _, ctx := setupGovKeeper(t)
 				params := v1.DefaultParams()
 				params.ProposalCancelRatio = tc.proposalCancelRatio
 				TestAddrs := simtestutil.AddTestAddrsIncremental(bankKeeper, stakingKeeper, ctx, 2, sdkmath.NewInt(10000000000))

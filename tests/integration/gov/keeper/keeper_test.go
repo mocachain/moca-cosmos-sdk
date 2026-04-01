@@ -28,7 +28,6 @@ import (
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	"github.com/cosmos/cosmos-sdk/x/gov/keeper"
-	govtestutil "github.com/cosmos/cosmos-sdk/x/gov/testutil"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -101,8 +100,6 @@ func initFixture(t testing.TB) *fixture {
 	distrKeeper := distrkeeper.NewKeeper(
 		cdc, runtime.NewKVStoreService(keys[distrtypes.StoreKey]), accountKeeper, bankKeeper, stakingKeeper, distrtypes.ModuleName, authority.String(),
 	)
-	crossChainKeeper := govtestutil.NewMockCrossChainKeeper(ctrl)
-
 	// Create MsgServiceRouter, but don't populate it before creating the gov
 	// keeper.
 	router := baseapp.NewMsgServiceRouter()
@@ -114,7 +111,6 @@ func initFixture(t testing.TB) *fixture {
 		accountKeeper,
 		bankKeeper,
 		stakingKeeper,
-		crossChainKeeper,
 		distrKeeper,
 		router,
 		types.DefaultConfig(),

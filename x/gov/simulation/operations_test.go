@@ -29,8 +29,6 @@ import (
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	_ "github.com/cosmos/cosmos-sdk/x/consensus"
-	_ "github.com/cosmos/cosmos-sdk/x/crosschain"
-	crosschainkeeper "github.com/cosmos/cosmos-sdk/x/crosschain/keeper"
 	_ "github.com/cosmos/cosmos-sdk/x/distribution"
 	dk "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	_ "github.com/cosmos/cosmos-sdk/x/gov"
@@ -405,7 +403,6 @@ type suite struct {
 	BankKeeper         bankkeeper.Keeper
 	GovKeeper          *keeper.Keeper
 	StakingKeeper      *stakingkeeper.Keeper
-	CrossChainKeeper   crosschainkeeper.Keeper
 	DistributionKeeper dk.Keeper
 	App                *runtime.App
 }
@@ -424,13 +421,12 @@ func createTestSuite(t *testing.T, isCheckTx bool) (suite, sdk.Context) {
 				configurator.BankModule(),
 				configurator.StakingModule(),
 				configurator.ConsensusModule(),
-				configurator.CrossChainModule(),
 				configurator.DistributionModule(),
 				configurator.GovModule(),
 			),
 			depinject.Supply(log.NewNopLogger()),
 		),
-		&res.TxConfig, &res.AccountKeeper, &res.AuthzKeeper, &res.BankKeeper, &res.GovKeeper, &res.StakingKeeper, &res.CrossChainKeeper, &res.DistributionKeeper)
+		&res.TxConfig, &res.AccountKeeper, &res.AuthzKeeper, &res.BankKeeper, &res.GovKeeper, &res.StakingKeeper, &res.DistributionKeeper)
 	require.NoError(t, err)
 
 	ctx := app.BaseApp.NewContext(isCheckTx).WithChainID(sdktestutil.DefaultChainId)
