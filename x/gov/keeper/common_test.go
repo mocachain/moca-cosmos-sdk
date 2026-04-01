@@ -55,7 +55,6 @@ func setupGovKeeper(t *testing.T) (
 	*govtestutil.MockAccountKeeper,
 	*govtestutil.MockBankKeeper,
 	*govtestutil.MockStakingKeeper,
-	*govtestutil.MockCrossChainKeeper,
 	*govtestutil.MockDistributionKeeper,
 	moduletestutil.TestEncodingConfig,
 	sdk.Context,
@@ -78,7 +77,6 @@ func setupGovKeeper(t *testing.T) (
 	acctKeeper := govtestutil.NewMockAccountKeeper(ctrl)
 	bankKeeper := govtestutil.NewMockBankKeeper(ctrl)
 	stakingKeeper := govtestutil.NewMockStakingKeeper(ctrl)
-	crossChainKeeper := govtestutil.NewMockCrossChainKeeper(ctrl)
 	distributionKeeper := govtestutil.NewMockDistributionKeeper(ctrl)
 
 	acctKeeper.EXPECT().GetModuleAddress(types.ModuleName).Return(govAcct).AnyTimes()
@@ -98,7 +96,7 @@ func setupGovKeeper(t *testing.T) (
 
 	// Gov keeper initializations
 
-	govKeeper := keeper.NewKeeper(encCfg.Codec, storeService, acctKeeper, bankKeeper, stakingKeeper, crossChainKeeper, distributionKeeper, msr, types.DefaultConfig(), govAcct.String())
+	govKeeper := keeper.NewKeeper(encCfg.Codec, storeService, acctKeeper, bankKeeper, stakingKeeper, distributionKeeper, msr, types.DefaultConfig(), govAcct.String())
 	require.NoError(t, govKeeper.ProposalID.Set(ctx, 1))
 	govRouter := v1beta1.NewRouter() // Also register legacy gov handlers to test them too.
 	govRouter.AddRoute(types.RouterKey, v1beta1.ProposalHandler)
@@ -108,16 +106,12 @@ func setupGovKeeper(t *testing.T) (
 	err = govKeeper.Constitution.Set(ctx, "constitution")
 	require.NoError(t, err)
 
-	crossChainKeeper.EXPECT().GetDestBscChainID().Return(sdk.ChainID(714)).AnyTimes()
-	crossChainKeeper.EXPECT().CreateRawIBCPackageWithFee(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(uint64(0), nil).AnyTimes()
-	crossChainKeeper.EXPECT().IsDestChainSupported(gomock.Any()).Return(true).AnyTimes()
-
 	// Register all handlers for the MegServiceRouter.
 	msr.SetInterfaceRegistry(encCfg.InterfaceRegistry)
 	v1.RegisterMsgServer(msr, keeper.NewMsgServerImpl(govKeeper))
 	banktypes.RegisterMsgServer(msr, nil) // Nil is fine here as long as we never execute the proposal's Msgs.
 
-	return govKeeper, acctKeeper, bankKeeper, stakingKeeper, crossChainKeeper, distributionKeeper, encCfg, ctx
+	return govKeeper, acctKeeper, bankKeeper, stakingKeeper, distributionKeeper, encCfg, ctx
 }
 
 // trackMockBalances sets up expected calls on the Mock BankKeeper, and also

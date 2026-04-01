@@ -14,7 +14,7 @@ import (
 )
 
 func TestVotes(t *testing.T) {
-	govKeeper, _, bankKeeper, stakingKeeper, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, _, bankKeeper, stakingKeeper, _, _, ctx := setupGovKeeper(t)
 	addrs := simtestutil.AddTestAddrsIncremental(bankKeeper, stakingKeeper, ctx, 2, sdkmath.NewInt(10000000))
 
 	tp := TestProposal

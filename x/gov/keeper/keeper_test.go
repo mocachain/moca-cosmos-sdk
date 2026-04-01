@@ -32,7 +32,6 @@ type KeeperTestSuite struct {
 	acctKeeper        *govtestutil.MockAccountKeeper
 	bankKeeper        *govtestutil.MockBankKeeper
 	stakingKeeper     *govtestutil.MockStakingKeeper
-	crossChainKeeper  *govtestutil.MockCrossChainKeeper
 	distKeeper        *govtestutil.MockDistributionKeeper
 	queryClient       v1.QueryClient
 	legacyQueryClient v1beta1.QueryClient
@@ -46,7 +45,7 @@ func (suite *KeeperTestSuite) SetupSuite() {
 }
 
 func (suite *KeeperTestSuite) reset() {
-	govKeeper, acctKeeper, bankKeeper, stakingKeeper, crossChainKeeper, distKeeper, encCfg, ctx := setupGovKeeper(suite.T())
+	govKeeper, acctKeeper, bankKeeper, stakingKeeper, distKeeper, encCfg, ctx := setupGovKeeper(suite.T())
 
 	// Populate the gov account with some coins, as the TestProposal we have
 	// is a MsgSend from the gov account.
@@ -68,7 +67,6 @@ func (suite *KeeperTestSuite) reset() {
 	suite.acctKeeper = acctKeeper
 	suite.bankKeeper = bankKeeper
 	suite.stakingKeeper = stakingKeeper
-	suite.crossChainKeeper = crossChainKeeper
 	suite.distKeeper = distKeeper
 	suite.cdc = encCfg.Codec
 	suite.queryClient = queryClient
@@ -80,7 +78,7 @@ func (suite *KeeperTestSuite) reset() {
 }
 
 func TestIncrementProposalNumber(t *testing.T) {
-	govKeeper, _, _, _, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
 
 	addrBz, err := sdk.AccAddressFromHexUnsafe(address1)
 	require.NoError(t, err)
@@ -103,7 +101,7 @@ func TestIncrementProposalNumber(t *testing.T) {
 }
 
 func TestProposalQueues(t *testing.T) {
-	govKeeper, _, _, _, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
 
 	addrBz, err := sdk.AccAddressFromHexUnsafe(address1)
 	require.NoError(t, err)
@@ -128,7 +126,7 @@ func TestProposalQueues(t *testing.T) {
 }
 
 func TestSetHooks(t *testing.T) {
-	govKeeper, _, _, _, _, _, _, _ := setupGovKeeper(t)
+	govKeeper, _, _, _, _, _, _ := setupGovKeeper(t)
 	require.Empty(t, govKeeper.Hooks())
 
 	govHooksReceiver := MockGovHooksReceiver{}
@@ -140,7 +138,7 @@ func TestSetHooks(t *testing.T) {
 }
 
 func TestGetGovGovernanceAndModuleAccountAddress(t *testing.T) {
-	govKeeper, authKeeper, _, _, _, _, _, ctx := setupGovKeeper(t)
+	govKeeper, authKeeper, _, _, _, _, ctx := setupGovKeeper(t)
 	mAcc := authKeeper.GetModuleAccount(ctx, "gov")
 	require.Equal(t, mAcc, govKeeper.GetGovernanceAccount(ctx))
 	mAddr := authKeeper.GetModuleAddress("gov")
