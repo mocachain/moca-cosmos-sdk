@@ -4,10 +4,10 @@
 # FS contains the OS file separator
 ###
 ifeq ($(OS),Windows_NT)
-  GO := $(shell where go.exe 2> NUL)
+  GO ?= $(shell where go.exe 2> NUL)
   FS := "\\"
 else
-  GO := $(shell command -v go 2> /dev/null)
+  GO ?= $(shell command -v go 2> /dev/null)
   FS := "/"
 endif
 
@@ -60,7 +60,7 @@ tools-stamp: runsim
 runsim: $(RUNSIM)
 $(RUNSIM):
 	@echo "Installing runsim..."
-	@go install github.com/cosmos/tools/cmd/runsim@v1.0.0
+	@$(GO) install github.com/cosmos/tools/cmd/runsim@v1.0.0
 
 tools-clean:
 	rm -f $(GOLANGCI_LINT) $(RUNSIM)
