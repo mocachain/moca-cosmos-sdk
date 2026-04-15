@@ -225,10 +225,6 @@ type HasConsensusVersion interface {
 	ConsensusVersion() uint64
 }
 
-// HasABCIEndblock is a released typo of HasABCIEndBlock.
-// Deprecated: use HasABCIEndBlock instead.
-type HasABCIEndblock HasABCIEndBlock
-
 // HasABCIEndBlock is the interface for modules that need to run code at the end of the block.
 type HasABCIEndBlock interface {
 	AppModule
