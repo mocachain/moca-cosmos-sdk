@@ -17,7 +17,7 @@ linters:
   enable:
     - depguard
     - dogsled
-    - exportloopref
+    - copyloopvar
     - goconst
     - gocritic
     - gci

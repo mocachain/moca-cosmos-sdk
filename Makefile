@@ -1,7 +1,16 @@
 #!/usr/bin/make -f
 
 GO_TOOLCHAIN ?= go1.24.11
-GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
+GO_BINARY ?= $(shell command -v go 2>/dev/null || echo go)
+GO_LOCAL_ENV ?= env -u GOROOT GOTOOLCHAIN=$(GO_TOOLCHAIN)
+GO := $(GO_LOCAL_ENV) $(GO_BINARY)
+GO_GOPATH ?= $(shell $(GO) env GOPATH 2>/dev/null)
+GO_BIN ?= $(or $(GOBIN),$(if $(GO_GOPATH),$(GO_GOPATH)/bin,$(HOME)/go/bin))
+LEFTHOOK ?= $(GO_BIN)/lefthook
+LEFTHOOK_VERSION ?= v1.11.3
+GOLANGCI_LINT ?= $(GO_BIN)/golangci-lint
+GOLANGCI_LINT_VERSION ?= v1.64.8
+LINT_TIMEOUT ?= 15m
 
 PACKAGES_NOSIMULATION=$(shell $(GO) list ./... | grep -v '/simulation')
 PACKAGES_SIMTEST=$(shell $(GO) list ./... | grep '/simulation')
@@ -108,7 +117,7 @@ include contrib/devtools/Makefile
 
 # contrib/devtools/Makefile resets GO to the system binary, so restore the
 # repository toolchain for the main build and test targets defined below.
-GO := env GOTOOLCHAIN=$(GO_TOOLCHAIN) go
+GO := $(GO_LOCAL_ENV) $(GO_BINARY)
 
 ###############################################################################
 ###                                  Build                                  ###
@@ -377,23 +386,73 @@ benchmark:
 ###                                Linting                                  ###
 ###############################################################################
 
-golangci_version=v1.51.2
+check-go-env:
+	@echo "--> Using Go binary: $(GO_BINARY)"
+	@$(GO) version
+	@echo "--> Repository toolchain: $(GO_TOOLCHAIN)"
+	@echo "--> Ignoring external GOROOT for repository commands"
 
-lint-install:
-	@echo "--> Installing golangci-lint $(golangci_version)"
-	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_version)
+install-lint:
+	@echo "--> Installing golangci-lint $(GOLANGCI_LINT_VERSION)"
+	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
-lint:
+check-lint:
+	@if [ ! -x "$(GOLANGCI_LINT)" ]; then \
+		echo "golangci-lint not found at $(GOLANGCI_LINT)"; \
+		echo "Run 'make install-lint' first."; \
+		exit 1; \
+	fi
+	@echo "--> Using golangci-lint binary: $(GOLANGCI_LINT)"
+	@$(GOLANGCI_LINT) version
+
+hooks:
+	@if [ ! -x "$(LEFTHOOK)" ]; then \
+		echo "--> Installing lefthook $(LEFTHOOK_VERSION) into $(GO_BIN)"; \
+		$(GO) install github.com/evilmartians/lefthook@$(LEFTHOOK_VERSION); \
+	else \
+		echo "--> Using lefthook binary: $(LEFTHOOK)"; \
+	fi
+	@$(LEFTHOOK) install
+
+lint-install: install-lint
+
+lint: check-go-env check-lint
 	@echo "--> Running linter"
-	$(MAKE) lint-install
-	@./scripts/go-lint-all.bash --timeout=15m
+	@PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT)
 
-lint-fix:
+lint-fix: check-go-env check-lint
 	@echo "--> Running linter"
-	$(MAKE) lint-install
-	@./scripts/go-lint-all.bash --fix
+	@PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --fix --timeout=$(LINT_TIMEOUT)
 
-.PHONY: lint lint-fix
+lint-changed: check-go-env check-lint
+	@changed_go_files="$$( { git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard; } | grep '\.go$$' | grep -v '\.pb\.go$$' || true )"; \
+	if { git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard; } | grep -Eq '(^|/)(go\.mod|go\.sum)$$'; then \
+		echo "--> go.mod/go.sum changed; running full golangci-lint..."; \
+		PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
+	elif [ -z "$$changed_go_files" ]; then \
+		echo "--> No local changed Go files to lint"; \
+	else \
+		echo "--> Running golangci-lint on local changed Go packages..."; \
+		PATH="$(GO_BIN):$$PATH" LINT_DIFF=1 GIT_DIFF="$$changed_go_files" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
+	fi
+
+lint-staged: check-go-env check-lint
+	@staged_go_files="$$(git diff --cached --name-only --diff-filter=ACMR | grep '\.go$$' | grep -v '\.pb\.go$$' || true)"; \
+	if git diff --cached --name-only --diff-filter=ACMR | grep -Eq '(^|/)(go\.mod|go\.sum)$$'; then \
+		echo "--> go.mod/go.sum changed; running full golangci-lint..."; \
+		PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
+	elif [ -z "$$staged_go_files" ]; then \
+		echo "--> No staged Go files to lint"; \
+	else \
+		echo "--> Running golangci-lint on staged Go packages..."; \
+		PATH="$(GO_BIN):$$PATH" LINT_DIFF=1 GIT_DIFF="$$staged_go_files" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
+	fi
+
+pre-commit: lint-changed
+
+pre-commit-staged: lint-staged
+
+.PHONY: check-go-env install-lint check-lint hooks lint-install lint lint-fix lint-changed lint-staged pre-commit pre-commit-staged
 
 ###############################################################################
 ###                                Protobuf                                 ###
