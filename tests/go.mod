@@ -260,7 +260,6 @@ replace (
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
 	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.1.0
-	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.0
 	// We always want to test against the latest version of the SDK.
 	github.com/cosmos/cosmos-sdk => ../.
 
