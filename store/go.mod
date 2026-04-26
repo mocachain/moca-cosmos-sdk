@@ -103,7 +103,6 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/cometbft/cometbft => github.com/Mocachain/moca-cometbft v1.1.1-0.20260310132047-7d6dca6a98c4
-	github.com/cometbft/cometbft-db => github.com/Mocachain/moca-cometbft-db v1.1.0
 	github.com/cosmos/cosmos-sdk => ../../.
 	github.com/cosmos/iavl => github.com/Mocachain/moca-iavl v1.1.1-0.20260310045324-fcbc580b8ebb
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
