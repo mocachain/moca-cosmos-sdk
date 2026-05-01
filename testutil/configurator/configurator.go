@@ -18,7 +18,6 @@ import (
 	groupmodulev1 "cosmossdk.io/api/cosmos/group/module/v1"
 	mintmodulev1 "cosmossdk.io/api/cosmos/mint/module/v1"
 	nftmodulev1 "cosmossdk.io/api/cosmos/nft/module/v1"
-	oraclemodulev1 "cosmossdk.io/api/cosmos/oracle/module/v1"
 	paramsmodulev1 "cosmossdk.io/api/cosmos/params/module/v1"
 	slashingmodulev1 "cosmossdk.io/api/cosmos/slashing/module/v1"
 	stakingmodulev1 "cosmossdk.io/api/cosmos/staking/module/v1"
@@ -65,7 +64,6 @@ func defaultConfig() *Config {
 			"vesting",
 			"circuit",
 			"crosschain",
-			"oracle",
 			"gashub",
 		},
 		EndBlockersOrder: []string{
@@ -90,7 +88,6 @@ func defaultConfig() *Config {
 			"vesting",
 			"circuit",
 			"crosschain",
-			"oracle",
 			"gashub",
 		},
 		InitGenesisOrder: []string{
@@ -116,7 +113,6 @@ func defaultConfig() *Config {
 			"vesting",
 			"circuit",
 			"crosschain",
-			"oracle",
 		},
 		setInitGenesis: true,
 	}
@@ -333,15 +329,6 @@ func CrossChainModule() ModuleOption {
 		config.ModuleConfigs["crosschain"] = &appv1alpha1.ModuleConfig{
 			Name:   "crosschain",
 			Config: appconfig.WrapAny(&crosschainmodulev1.Module{}),
-		}
-	}
-}
-
-func OracleModule() ModuleOption {
-	return func(config *Config) {
-		config.ModuleConfigs["oracle"] = &appv1alpha1.ModuleConfig{
-			Name:   "oracle",
-			Config: appconfig.WrapAny(&oraclemodulev1.Module{}),
 		}
 	}
 }
