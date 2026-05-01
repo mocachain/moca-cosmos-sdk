@@ -62,7 +62,6 @@ func defaultConfig() *Config {
 			"consensus",
 			"vesting",
 			"circuit",
-			"crosschain",
 			"gashub",
 		},
 		EndBlockersOrder: []string{
@@ -86,7 +85,6 @@ func defaultConfig() *Config {
 			"upgrade",
 			"vesting",
 			"circuit",
-			"crosschain",
 			"gashub",
 		},
 		InitGenesisOrder: []string{
@@ -111,7 +109,6 @@ func defaultConfig() *Config {
 			"upgrade",
 			"vesting",
 			"circuit",
-			"crosschain",
 		},
 		setInitGenesis: true,
 	}
@@ -318,15 +315,6 @@ func CircuitModule() ModuleOption {
 		config.ModuleConfigs["circuit"] = &appv1alpha1.ModuleConfig{
 			Name:   "circuit",
 			Config: appconfig.WrapAny(&circuitmodulev1.Module{}),
-		}
-	}
-}
-
-func CrossChainModule() ModuleOption {
-	return func(config *Config) {
-		config.ModuleConfigs["crosschain"] = &appv1alpha1.ModuleConfig{
-			Name:   "crosschain",
-			Config: appconfig.WrapAny(&crosschainmodulev1.Module{}),
 		}
 	}
 }

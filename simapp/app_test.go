@@ -208,7 +208,6 @@ func TestRunMigrations(t *testing.T) {
 					"evidence":     evidence.AppModule{}.ConsensusVersion(),
 					"crisis":       crisis.AppModule{}.ConsensusVersion(),
 					"genutil":      genutil.AppModule{}.ConsensusVersion(),
-					"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 					"gashub":       gashub.AppModule{}.ConsensusVersion(),
 				},
 			)
@@ -259,7 +258,6 @@ func TestInitGenesisOnMigration(t *testing.T) {
 			"evidence":     evidence.AppModule{}.ConsensusVersion(),
 			"crisis":       crisis.AppModule{}.ConsensusVersion(),
 			"genutil":      genutil.AppModule{}.ConsensusVersion(),
-			"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 			"gashub":       gashub.AppModule{}.ConsensusVersion(),
 		},
 	)
