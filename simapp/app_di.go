@@ -37,7 +37,6 @@ import (
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
-	crosschainkeeper "github.com/cosmos/cosmos-sdk/x/crosschain/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	gashubkeeper "github.com/cosmos/cosmos-sdk/x/gashub/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
