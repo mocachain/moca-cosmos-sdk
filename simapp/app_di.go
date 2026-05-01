@@ -43,7 +43,6 @@ import (
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
-	oraclekeeper "github.com/cosmos/cosmos-sdk/x/oracle/keeper"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
@@ -87,7 +86,6 @@ type SimApp struct {
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitKeeper         circuitkeeper.Keeper
 	CrossChainKeeper      crosschainkeeper.Keeper
-	OracleKeeper          oraclekeeper.Keeper
 	GashubKeeper          gashubkeeper.Keeper
 
 	// simulation manager
@@ -191,7 +189,6 @@ func NewSimApp(
 		&app.ConsensusParamsKeeper,
 		&app.CircuitKeeper,
 		&app.CrossChainKeeper,
-		&app.OracleKeeper,
 		&app.GashubKeeper,
 	); err != nil {
 		panic(err)

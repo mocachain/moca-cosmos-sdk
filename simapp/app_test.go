@@ -37,7 +37,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	group "github.com/cosmos/cosmos-sdk/x/group/module"
 	"github.com/cosmos/cosmos-sdk/x/mint"
-	"github.com/cosmos/cosmos-sdk/x/oracle"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
@@ -211,7 +210,6 @@ func TestRunMigrations(t *testing.T) {
 					"crisis":       crisis.AppModule{}.ConsensusVersion(),
 					"genutil":      genutil.AppModule{}.ConsensusVersion(),
 					"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
-					"oracle":       oracle.AppModule{}.ConsensusVersion(),
 					"gashub":       gashub.AppModule{}.ConsensusVersion(),
 				},
 			)
@@ -263,7 +261,6 @@ func TestInitGenesisOnMigration(t *testing.T) {
 			"crisis":       crisis.AppModule{}.ConsensusVersion(),
 			"genutil":      genutil.AppModule{}.ConsensusVersion(),
 			"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
-			"oracle":       oracle.AppModule{}.ConsensusVersion(),
 			"gashub":       gashub.AppModule{}.ConsensusVersion(),
 		},
 	)
