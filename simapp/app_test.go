@@ -30,7 +30,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
-	"github.com/cosmos/cosmos-sdk/x/crosschain"
 	"github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/gashub"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
@@ -209,7 +208,6 @@ func TestRunMigrations(t *testing.T) {
 					"evidence":     evidence.AppModule{}.ConsensusVersion(),
 					"crisis":       crisis.AppModule{}.ConsensusVersion(),
 					"genutil":      genutil.AppModule{}.ConsensusVersion(),
-					"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 					"gashub":       gashub.AppModule{}.ConsensusVersion(),
 				},
 			)
@@ -260,7 +258,6 @@ func TestInitGenesisOnMigration(t *testing.T) {
 			"evidence":     evidence.AppModule{}.ConsensusVersion(),
 			"crisis":       crisis.AppModule{}.ConsensusVersion(),
 			"genutil":      genutil.AppModule{}.ConsensusVersion(),
-			"crosschain":   crosschain.AppModule{}.ConsensusVersion(),
 			"gashub":       gashub.AppModule{}.ConsensusVersion(),
 		},
 	)
@@ -302,4 +299,3 @@ func TestProtoAnnotations(t *testing.T) {
 	err = msgservice.ValidateProtoAnnotations(r)
 	require.NoError(t, err)
 }
-
