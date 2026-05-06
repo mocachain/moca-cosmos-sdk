@@ -11,7 +11,6 @@ import (
 	distrmodulev1 "cosmossdk.io/api/cosmos/distribution/module/v1"
 	evidencemodulev1 "cosmossdk.io/api/cosmos/evidence/module/v1"
 	feegrantmodulev1 "cosmossdk.io/api/cosmos/feegrant/module/v1"
-	gashubmodulev1 "cosmossdk.io/api/cosmos/gashub/module/v1"
 	genutilmodulev1 "cosmossdk.io/api/cosmos/genutil/module/v1"
 	govmodulev1 "cosmossdk.io/api/cosmos/gov/module/v1"
 	groupmodulev1 "cosmossdk.io/api/cosmos/group/module/v1"
@@ -62,7 +61,6 @@ func defaultConfig() *Config {
 			"consensus",
 			"vesting",
 			"circuit",
-			"gashub",
 		},
 		EndBlockersOrder: []string{
 			"crisis",
@@ -85,13 +83,11 @@ func defaultConfig() *Config {
 			"upgrade",
 			"vesting",
 			"circuit",
-			"gashub",
 		},
 		InitGenesisOrder: []string{
 			"auth",
 			"authz",
 			"bank",
-			"gashub",
 			"distribution",
 			"staking",
 			"slashing",
@@ -315,15 +311,6 @@ func CircuitModule() ModuleOption {
 		config.ModuleConfigs["circuit"] = &appv1alpha1.ModuleConfig{
 			Name:   "circuit",
 			Config: appconfig.WrapAny(&circuitmodulev1.Module{}),
-		}
-	}
-}
-
-func GashubModule() ModuleOption {
-	return func(config *Config) {
-		config.ModuleConfigs["gashub"] = &appv1alpha1.ModuleConfig{
-			Name:   "gashub",
-			Config: appconfig.WrapAny(&gashubmodulev1.Module{}),
 		}
 	}
 }
