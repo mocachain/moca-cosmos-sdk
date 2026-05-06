@@ -38,7 +38,6 @@ import (
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
-	gashubkeeper "github.com/cosmos/cosmos-sdk/x/gashub/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
@@ -84,8 +83,6 @@ type SimApp struct {
 	NFTKeeper             nftkeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 	CircuitKeeper         circuitkeeper.Keeper
-	GashubKeeper          gashubkeeper.Keeper
-
 	// simulation manager
 	sm *module.SimulationManager
 }
@@ -186,7 +183,6 @@ func NewSimApp(
 		&app.NFTKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.CircuitKeeper,
-		&app.GashubKeeper,
 	); err != nil {
 		panic(err)
 	}

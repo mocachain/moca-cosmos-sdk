@@ -5,7 +5,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
-	gashubtypes "github.com/cosmos/cosmos-sdk/x/gashub/types"
 )
 
 // AccountKeeper defines the contract needed for AccountKeeper related APIs.
@@ -20,10 +19,4 @@ type AccountKeeper interface {
 // FeegrantKeeper defines the expected feegrant keeper.
 type FeegrantKeeper interface {
 	UseGrantedFees(ctx context.Context, granter, grantee sdk.AccAddress, fee sdk.Coins, msgs []sdk.Msg) error
-}
-
-// GashubKeeper defines the expected gashub keeper.
-type GashubKeeper interface {
-	GetParams(ctx sdk.Context) (params gashubtypes.Params)
-	GetMsgGasParams(ctx sdk.Context, msgTypeUrl string) gashubtypes.MsgGasParams
 }

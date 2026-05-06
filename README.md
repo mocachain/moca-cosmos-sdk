@@ -15,10 +15,9 @@ for any bug bounty. We advise you to be careful and experiment on the network at
 
 1. **auth**. The address format of the MechMocaain blockchain is fully compatible with BSC (and Ethereum). It accepts EIP712 transaction signing and verification. These enable the existing wallet infrastructure to interact with Moca at the beginning naturally.
 2. **crosschain**. Cross-chain communication is the key foundation to allow the community to take advantage of the Moca and BSC (and Ethereum compatible) dual chain structure..
-3. **gashub**. As an application specific chain, Moca defines the gas fee of each transaction type instead of calculating gas according to the CPU and storage consumption.
-4. **gov**. There are many system parameters to control the behavior of the Moca and its smart contract on BSC (and Ethereum compatible), e.g. gas price, cross-chain transfer fees. All these parameters will be determined by Moca Validator Set together through a proposal-vote process based on their staking. Such the process will be carried on cosmos sdk.
-5. **oracle**. The bottom layer of cross-chain mechanism, which focuses on primitive communication package handling and verification.
-6. **upgrade**. Seamless upgrade on Moca enable a client to sync blocks from genesis to the latest state.
+3. **gov**. There are many system parameters to control the behavior of the Moca and its smart contract on BSC (and Ethereum compatible), e.g. gas price, cross-chain transfer fees. All these parameters will be determined by Moca Validator Set together through a proposal-vote process based on their staking. Such the process will be carried on cosmos sdk.
+4. **oracle**. The bottom layer of cross-chain mechanism, which focuses on primitive communication package handling and verification.
+5. **upgrade**. Seamless upgrade on Moca enable a client to sync blocks from genesis to the latest state.
 
 ## Quick Start
 *Note*: Requires [Go 1.18+](https://go.dev/dl/)
