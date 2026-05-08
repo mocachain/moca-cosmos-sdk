@@ -295,6 +295,7 @@ func (suite *DeterministicTestSuite) TestGRPCQueryModuleAccounts() {
 			suite.storeService,
 			types.ProtoBaseAccount,
 			maccPerms,
+			address.NewBech32Codec(sdk.Bech32MainPrefix),
 			types.NewModuleAddress("gov").String(),
 		)
 		suite.setModuleAccounts(suite.ctx, ak, maccs)
@@ -340,6 +341,7 @@ func (suite *DeterministicTestSuite) TestGRPCQueryModuleAccountByName() {
 			suite.storeService,
 			types.ProtoBaseAccount,
 			maccPerms,
+			address.NewBech32Codec(sdk.Bech32MainPrefix),
 			types.NewModuleAddress("gov").String(),
 		)
 		suite.setModuleAccounts(suite.ctx, ak, []string{mName})

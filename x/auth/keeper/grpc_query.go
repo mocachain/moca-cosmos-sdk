@@ -45,12 +45,6 @@ func (s queryServer) Accounts(ctx context.Context, req *types.QueryAccountsReque
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	// offset query is not allowed
-	if err := query.CheckOffsetQueryNotAllowed(sdkCtx, req.Pagination); err != nil {
-		return nil, err
-	}
 	accounts, pageRes, err := query.CollectionPaginate(
 		ctx,
 		s.k.Accounts,
