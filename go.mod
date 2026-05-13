@@ -227,7 +227,7 @@ replace (
 	github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1
 	github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.4
 
-	github.com/cometbft/cometbft => ../cometbft
+	github.com/cometbft/cometbft => github.com/luchenqun/cometbft v0.38.1-0.20260513154729-297f6cdbade1
 	// Redirect client to our local implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// Legacy cosmos-sdk package compatibility for v0.50
