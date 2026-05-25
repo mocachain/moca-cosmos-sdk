@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"sigs.k8s.io/yaml"
 
+	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 // PreprocessTxFn defines a hook by which chains can preprocess transactions before broadcasting
@@ -26,43 +29,46 @@ type PreprocessTxFn func(chainID string, key keyring.KeyType, tx TxBuilder) erro
 // Context implements a typical context created in SDK modules for transaction
 // handling and queries.
 type Context struct {
-	FromAddress       sdk.AccAddress
-	Client            CometRPC
-	EvmClient         *ethclient.Client
-	GRPCClient        *grpc.ClientConn
-	ChainID           string
-	Codec             codec.Codec
-	InterfaceRegistry codectypes.InterfaceRegistry
-	Input             io.Reader
-	Keyring           keyring.Keyring
-	KeyringOptions    []keyring.Option
-	Output            io.Writer
-	OutputFormat      string
-	Height            int64
-	HomeDir           string
-	KeyringDir        string
-	From              string
-	BroadcastMode     string
-	FromName          string
-	SignModeStr       string
-	UseLedger         bool
-	Simulate          bool
-	GenerateOnly      bool
-	Offline           bool
-	SkipConfirm       bool
-	TxConfig          TxConfig
-	AccountRetriever  AccountRetriever
-	NodeURI           string
-	EvmNodeURI        string
-	FeePayer          sdk.AccAddress
-	FeeGranter        sdk.AccAddress
-	Viper             *viper.Viper
-	LedgerHasProtobuf bool
-	PreprocessTxHook  PreprocessTxFn
+	FromAddress           sdk.AccAddress
+	Client                CometRPC
+	EvmClient             *ethclient.Client
+	GRPCClient            *grpc.ClientConn
+	GRPCConnProvider      *GRPCConnProvider
+	ChainID               string
+	Codec                 codec.Codec
+	InterfaceRegistry     codectypes.InterfaceRegistry
+	Input                 io.Reader
+	Keyring               keyring.Keyring
+	KeyringOptions        []keyring.Option
+	KeyringDir            string
+	KeyringDefaultKeyName string
+	Output                io.Writer
+	OutputFormat          string
+	Height                int64
+	HomeDir               string
+	From                  string
+	BroadcastMode         string
+	FromName              string
+	SignModeStr           string
+	UseLedger             bool
+	Simulate              bool
+	GenerateOnly          bool
+	Offline               bool
+	SkipConfirm           bool
+	TxConfig              TxConfig
+	AccountRetriever      AccountRetriever
+	NodeURI               string
+	EvmNodeURI            string
+	FeePayer              sdk.AccAddress
+	FeeGranter            sdk.AccAddress
+	Viper                 *viper.Viper
+	LedgerHasProtobuf     bool
+	PreprocessTxHook      PreprocessTxFn
 
 	// IsAux is true when the signer is an auxiliary signer (e.g. the tipper).
 	IsAux bool
 
+	// PrintEIP712MsgType controls whether EIP-712 message type info is printed.
 	PrintEIP712MsgType bool
 
 	// TODO: Deprecated (remove).
@@ -137,7 +143,7 @@ func (ctx Context) WithNodeURI(nodeURI string) Context {
 	return ctx
 }
 
-// WithEVMNodeURI returns a copy of the context with an updated node URI.
+// WithEvmNodeURI returns a copy of the context with an updated EVM node URI.
 func (ctx Context) WithEvmNodeURI(nodeURI string) Context {
 	ctx.EvmNodeURI = nodeURI
 	return ctx
@@ -156,7 +162,7 @@ func (ctx Context) WithClient(client CometRPC) Context {
 	return ctx
 }
 
-// WithEvmClient returns a copy of the context with an updated RPC client
+// WithEvmClient returns a copy of the context with an updated EVM RPC client
 // instance.
 func (ctx Context) WithEvmClient(client *ethclient.Client) Context {
 	ctx.EvmClient = client
@@ -168,6 +174,22 @@ func (ctx Context) WithEvmClient(client *ethclient.Client) Context {
 func (ctx Context) WithGRPCClient(grpcClient *grpc.ClientConn) Context {
 	ctx.GRPCClient = grpcClient
 	return ctx
+}
+
+// WithGRPCConnProvider returns a copy of the context with an updated GRPCConnProvider.
+func (ctx Context) WithGRPCConnProvider(provider *GRPCConnProvider) Context {
+	ctx.GRPCConnProvider = provider
+	return ctx
+}
+
+// GetGRPCConn returns the appropriate gRPC connection for the given height.
+// If GRPCConnProvider is set, it uses it to determine the connection.
+// Otherwise, it falls back to the default GRPCClient.
+func (ctx Context) GetGRPCConn(height int64) *grpc.ClientConn {
+	if ctx.GRPCConnProvider != nil {
+		return ctx.GRPCConnProvider.GetGRPCConn(height)
+	}
+	return ctx.GRPCClient
 }
 
 // WithUseLedger returns a copy of the context with an updated UseLedger flag.
@@ -193,6 +215,12 @@ func (ctx Context) WithHomeDir(dir string) Context {
 // WithKeyringDir returns a copy of the Context with KeyringDir set.
 func (ctx Context) WithKeyringDir(dir string) Context {
 	ctx.KeyringDir = dir
+	return ctx
+}
+
+// WithKeyringDefaultKeyName returns a copy of the Context with KeyringDefaultKeyName set.
+func (ctx Context) WithKeyringDefaultKeyName(keyName string) Context {
+	ctx.KeyringDefaultKeyName = keyName
 	return ctx
 }
 
@@ -284,7 +312,14 @@ func (ctx Context) WithInterfaceRegistry(interfaceRegistry codectypes.InterfaceR
 // client-side config from the config file.
 func (ctx Context) WithViper(prefix string) Context {
 	v := viper.New()
+
+	if prefix == "" {
+		executableName, _ := os.Executable()
+		prefix = path.Base(executableName)
+	}
+
 	v.SetEnvPrefix(prefix)
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	v.AutomaticEnv()
 	ctx.Viper = v
 	return ctx
@@ -347,8 +382,9 @@ func (ctx Context) PrintProto(toPrint proto.Message) error {
 
 // PrintObjectLegacy is a variant of PrintProto that doesn't require a proto.Message type
 // and uses amino JSON encoding.
+//
 // Deprecated: It will be removed in the near future!
-func (ctx Context) PrintObjectLegacy(toPrint interface{}) error {
+func (ctx Context) PrintObjectLegacy(toPrint any) error {
 	out, err := ctx.LegacyAmino.MarshalJSON(toPrint)
 	if err != nil {
 		return err
@@ -395,7 +431,13 @@ func (ctx Context) printOutput(out []byte) error {
 // GetFromFields returns a from account address, account name and keyring type, given either an address or key name.
 // If clientCtx.Simulate is true the keystore is not accessed and a valid address must be provided
 // If clientCtx.GenerateOnly is true the keystore is only accessed if a key name is provided
+// If from is empty, the default key if specified in the context will be used
 func GetFromFields(clientCtx Context, kr keyring.Keyring, from string) (sdk.AccAddress, string, keyring.KeyType, error) {
+	if from == "" && clientCtx.KeyringDefaultKeyName != "" {
+		from = clientCtx.KeyringDefaultKeyName
+		_ = clientCtx.PrintString(fmt.Sprintf("No key name or address provided; using the default key: %s\n", clientCtx.KeyringDefaultKeyName))
+	}
+
 	if from == "" {
 		return nil, "", 0, nil
 	}

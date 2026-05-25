@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"strconv"
@@ -40,11 +39,11 @@ func NewFileGen(file *ast.File, codegenPkgPath string) (*FileGen, error) {
 			g.idents[decl.Name.Name] = true
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
-				switch spec := spec.(type) {
+				switch specType := spec.(type) {
 				case *ast.TypeSpec:
-					g.idents[spec.Name.Name] = true
+					g.idents[specType.Name.Name] = true
 				case *ast.ValueSpec:
-					for _, name := range spec.Names {
+					for _, name := range specType.Names {
 						g.idents[name.Name] = true
 					}
 				}

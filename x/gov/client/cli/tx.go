@@ -28,6 +28,8 @@ const (
 	flagStatus    = "status"
 	FlagMetadata  = "metadata"
 	FlagSummary   = "summary"
+	FlagExpedited = "expedited"
+
 	// Deprecated: only used for v1beta1 legacy proposals.
 	FlagProposal = "proposal"
 	// Deprecated: only used for v1beta1 legacy proposals.
@@ -184,6 +186,7 @@ func NewCmdCancelProposal() *cobra.Command {
 }
 
 // NewCmdSubmitLegacyProposal implements submitting a proposal transaction command.
+//
 // Deprecated: please use NewCmdSubmitProposal instead.
 func NewCmdSubmitLegacyProposal() *cobra.Command {
 	cmd := &cobra.Command{

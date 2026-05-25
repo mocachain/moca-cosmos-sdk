@@ -16,7 +16,7 @@ import (
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	errors "cosmossdk.io/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -209,7 +209,7 @@ func (s *E2ETestSuite) TestNewSendTxCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, math.NewInt(1))).String()),
 			},
 			false,
-			errors.ErrInsufficientFee.ABCICode(),
+			sdkerrors.ErrInsufficientFee.ABCICode(),
 			&sdk.TxResponse{},
 		},
 		{
@@ -227,14 +227,12 @@ func (s *E2ETestSuite) TestNewSendTxCmd() {
 				"--gas=10",
 			},
 			false,
-			errors.ErrOutOfGas.ABCICode(),
+			sdkerrors.ErrOutOfGas.ABCICode(),
 			&sdk.TxResponse{},
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			clientCtx := val.ClientCtx
@@ -344,7 +342,7 @@ func (s *E2ETestSuite) TestNewMultiSendTxCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, math.NewInt(1))).String()),
 			},
 			false,
-			errors.ErrInsufficientFee.ABCICode(),
+			sdkerrors.ErrInsufficientFee.ABCICode(),
 			&sdk.TxResponse{},
 		},
 		{
@@ -362,14 +360,12 @@ func (s *E2ETestSuite) TestNewMultiSendTxCmd() {
 				"--gas=10",
 			},
 			false,
-			errors.ErrOutOfGas.ABCICode(),
+			sdkerrors.ErrOutOfGas.ABCICode(),
 			&sdk.TxResponse{},
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			clientCtx := val.ClientCtx

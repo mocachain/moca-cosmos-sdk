@@ -12,6 +12,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil/integration"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -49,13 +50,14 @@ type fixture struct {
 	govKeeper     *keeper.Keeper
 }
 
-func initFixture(t testing.TB) *fixture {
+func initFixture(tb testing.TB) *fixture {
+	tb.Helper()
 	keys := storetypes.NewKVStoreKeys(
 		authtypes.StoreKey, banktypes.StoreKey, distrtypes.StoreKey, stakingtypes.StoreKey, types.StoreKey,
 	)
 	cdc := moduletestutil.MakeTestEncodingConfig(auth.AppModuleBasic{}, bank.AppModuleBasic{}, gov.AppModuleBasic{}).Codec
 
-	logger := log.NewTestLogger(t)
+	logger := log.NewTestLogger(tb)
 	cms := integration.CreateMultiStore(keys, logger)
 
 	newCtx := sdk.NewContext(cms, cmtproto.Header{}, true, logger)
@@ -75,6 +77,7 @@ func initFixture(t testing.TB) *fixture {
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		authtypes.ProtoBaseAccount,
 		maccPerms,
+		addresscodec.NewBech32Codec(sdk.Bech32MainPrefix),
 		authority.String(),
 	)
 
@@ -89,17 +92,19 @@ func initFixture(t testing.TB) *fixture {
 		authority.String(),
 		log.NewNopLogger(),
 	)
-	ctrl := gomock.NewController(t)
+
+	ctrl := gomock.NewController(tb)
 	authzKeeper := stakingtestutil.NewMockAuthzKeeper(ctrl)
 
-	stakingKeeper := stakingkeeper.NewKeeper(cdc, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), accountKeeper, authzKeeper, bankKeeper, authority.String())
+	stakingKeeper := stakingkeeper.NewKeeper(cdc, runtime.NewKVStoreService(keys[stakingtypes.StoreKey]), accountKeeper, authzKeeper, bankKeeper, authority.String(), addresscodec.NewBech32Codec(sdk.Bech32PrefixValAddr), addresscodec.NewBech32Codec(sdk.Bech32PrefixConsAddr))
 
 	// set default staking params
-	stakingKeeper.SetParams(newCtx, stakingtypes.DefaultParams())
+	assert.NilError(tb, stakingKeeper.SetParams(newCtx, stakingtypes.DefaultParams()))
 
 	distrKeeper := distrkeeper.NewKeeper(
 		cdc, runtime.NewKVStoreService(keys[distrtypes.StoreKey]), accountKeeper, bankKeeper, stakingKeeper, distrtypes.ModuleName, authority.String(),
 	)
+
 	// Create MsgServiceRouter, but don't populate it before creating the gov
 	// keeper.
 	router := baseapp.NewMsgServiceRouter()
@@ -117,12 +122,12 @@ func initFixture(t testing.TB) *fixture {
 		authority.String(),
 	)
 	err := govKeeper.ProposalID.Set(newCtx, 1)
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 	govRouter := v1beta1.NewRouter()
 	govRouter.AddRoute(types.RouterKey, v1beta1.ProposalHandler)
 	govKeeper.SetLegacyRouter(govRouter)
 	err = govKeeper.Params.Set(newCtx, v1.DefaultParams())
-	assert.NilError(t, err)
+	assert.NilError(tb, err)
 
 	authModule := auth.NewAppModule(cdc, accountKeeper, authsims.RandomGenesisAccounts, nil)
 	bankModule := bank.NewAppModule(cdc, bankKeeper, accountKeeper, nil, nil)

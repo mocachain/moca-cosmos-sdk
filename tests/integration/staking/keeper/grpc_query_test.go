@@ -17,6 +17,8 @@ import (
 )
 
 func createValidatorAccs(t *testing.T, f *fixture) ([]sdk.AccAddress, []types.Validator) {
+	t.Helper()
+
 	addrs, _, validators := createValidators(&testing.T{}, f, []int64{9, 8, 7})
 	header := cmtproto.Header{
 		ChainID: "HelloChain",
@@ -573,7 +575,7 @@ func TestGRPCQueryUnbondingDelegation(t *testing.T) {
 			"delegation not found for validator",
 			func() {
 				req = &types.QueryUnbondingDelegationRequest{
-					DelegatorAddr: addrAcc2.String(), ValidatorAddr: sdk.AccAddress([]byte("invalid")).String(),
+					DelegatorAddr: addrAcc2.String(), ValidatorAddr: sdk.ValAddress([]byte("invalid")).String(),
 				}
 			},
 			false,

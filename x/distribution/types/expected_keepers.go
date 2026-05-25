@@ -1,9 +1,10 @@
 package types
 
 import (
-	context "context"
+	"context"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	protocolpooltypes "github.com/cosmos/cosmos-sdk/x/protocolpool/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -55,3 +56,5 @@ type StakingHooks interface {
 	AfterValidatorCreated(ctx context.Context, valAddr sdk.AccAddress) error // Must be called when a validator is created
 	AfterDelegationModified(ctx context.Context, delAddr, valAddr sdk.AccAddress) error
 }
+
+type ExternalCommunityPoolKeeper protocolpooltypes.ExternalCommunityPoolKeeper

@@ -94,9 +94,10 @@ func GenSignedMockTx(r *rand.Rand, txConfig client.TxConfig, msgs []sdk.Msg, fee
 // returned.
 func SignCheckDeliver(
 	t *testing.T, txCfg client.TxConfig, app *baseapp.BaseApp, header types.Header, msgs []sdk.Msg,
-	chainID string, accNums, accSeqs []uint64, expSimPass, expPass bool, priv []cryptotypes.PrivKey,
-	options ...SignCheckDeliverOption,
+	chainID string, accNums, accSeqs []uint64, expSimPass, expPass bool, priv ...cryptotypes.PrivKey,
 ) (sdk.GasInfo, *sdk.Result, error) {
+	t.Helper()
+
 	tx, err := GenSignedMockTx(
 		rand.New(rand.NewSource(time.Now().UnixNano())),
 		txCfg,
@@ -125,24 +126,11 @@ func SignCheckDeliver(
 
 	bz, err := txCfg.TxEncoder()(tx)
 	require.NoError(t, err)
-	var resBlock *types2.ResponseFinalizeBlock
-	setmock := false
-	for _, option := range options {
-		option()
-		setmock = true
-	}
-	if !setmock {
-		resBlock, err = app.FinalizeBlock(&types2.RequestFinalizeBlock{
-			Height: header.Height,
-			Txs:    [][]byte{bz},
-		})
-	} else {
-		resBlock, err = app.FinalizeBlockMock(&types2.RequestFinalizeBlock{
-			Height: header.Height,
-			Txs:    [][]byte{bz},
-		})
-	}
 
+	resBlock, err := app.FinalizeBlock(&types2.RequestFinalizeBlock{
+		Height: header.Height,
+		Txs:    [][]byte{bz},
+	})
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(resBlock.TxResults))
@@ -154,7 +142,8 @@ func SignCheckDeliver(
 		require.False(t, finalizeSuccess)
 	}
 
-	app.Commit()
+	_, err = app.Commit()
+	require.NoError(t, err)
 
 	gInfo := sdk.GasInfo{GasWanted: uint64(txResult.GasWanted), GasUsed: uint64(txResult.GasUsed)}
 	txRes := sdk.Result{Data: txResult.Data, Log: txResult.Log, Events: txResult.Events}
@@ -165,12 +154,4 @@ func SignCheckDeliver(
 	}
 
 	return gInfo, &txRes, err
-}
-
-type SignCheckDeliverOption func()
-
-func SetMockHeight(app *baseapp.BaseApp, height int64) SignCheckDeliverOption {
-	return func() {
-		app.SetMockBlockHeight(height)
-	}
 }

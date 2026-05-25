@@ -14,6 +14,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
@@ -48,7 +49,7 @@ func (s *CLITestSuite) SetupSuite() {
 		WithClient(clitestutil.MockCometRPC{Client: rpcclientmock.Client{}}).
 		WithAccountRetriever(client.MockAccountRetriever{}).
 		WithOutput(io.Discard).
-		WithChainID(testutil.DefaultChainId)
+		WithChainID("test-chain")
 
 	ctxGen := func() client.Context {
 		bz, _ := s.encCfg.Codec.Marshal(&sdk.TxResponse{})
@@ -60,7 +61,7 @@ func (s *CLITestSuite) SetupSuite() {
 	s.clientCtx = ctxGen()
 
 	s.addrs = make([]sdk.AccAddress, 0)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		k, _, err := s.clientCtx.Keyring.NewMnemonic("NewValidator", keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 		s.Require().NoError(err)
 
@@ -144,7 +145,6 @@ func (s *CLITestSuite) TestPrepareConfigForTxCreateValidator() {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		s.Run(tc.name, func() {
 			fs, _ := cli.CreateValidatorMsgFlagSet(ip)
 			fs.String(flags.FlagName, "", "name of private key with which to sign the gentx")
@@ -159,8 +159,155 @@ func (s *CLITestSuite) TestPrepareConfigForTxCreateValidator() {
 	}
 }
 
+func (s *CLITestSuite) TestNewCreateValidatorCmd() {
+	require := s.Require()
+	cmd := cli.NewCreateValidatorCmd(addresscodec.NewBech32Codec("cosmosvaloper"))
+
+	validJSON := fmt.Sprintf(`
+	{
+  		"pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"oWg2ISpLF405Jcm2vXV+2v4fnjodh6aafuIdeoW+rUw="},
+  		"amount": "%dstake",
+  		"moniker": "NewValidator",
+		"identity": "AFAF00C4",
+		"website": "https://newvalidator.io",
+		"security": "contact@newvalidator.io",
+		"details": "'Hey, I am a new validator. Please delegate!'",
+  		"commission-rate": "0.5",
+  		"commission-max-rate": "1.0",
+  		"commission-max-change-rate": "0.1",
+  		"min-self-delegation": "1"
+	}`, 100)
+	validJSONFile := testutil.WriteToNewTempFile(s.T(), validJSON)
+	defer validJSONFile.Close()
+
+	validJSONWithoutOptionalFields := fmt.Sprintf(`
+	{
+  		"pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"oWg2ISpLF405Jcm2vXV+2v4fnjodh6aafuIdeoW+rUw="},
+  		"amount": "%dstake",
+  		"moniker": "NewValidator",
+  		"commission-rate": "0.5",
+  		"commission-max-rate": "1.0",
+  		"commission-max-change-rate": "0.1",
+  		"min-self-delegation": "1"
+	}`, 100)
+	validJSONWOOptionalFile := testutil.WriteToNewTempFile(s.T(), validJSONWithoutOptionalFields)
+	defer validJSONWOOptionalFile.Close()
+
+	noAmountJSON := `
+	{
+  		"pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"oWg2ISpLF405Jcm2vXV+2v4fnjodh6aafuIdeoW+rUw="},
+  		"moniker": "NewValidator",
+  		"commission-rate": "0.5",
+  		"commission-max-rate": "1.0",
+  		"commission-max-change-rate": "0.1",
+  		"min-self-delegation": "1"
+	}`
+	noAmountJSONFile := testutil.WriteToNewTempFile(s.T(), noAmountJSON)
+	defer noAmountJSONFile.Close()
+
+	noPubKeyJSON := fmt.Sprintf(`
+	{
+  		"amount": "%dstake",
+  		"moniker": "NewValidator",
+  		"commission-rate": "0.5",
+  		"commission-max-rate": "1.0",
+  		"commission-max-change-rate": "0.1",
+  		"min-self-delegation": "1"
+	}`, 100)
+	noPubKeyJSONFile := testutil.WriteToNewTempFile(s.T(), noPubKeyJSON)
+	defer noPubKeyJSONFile.Close()
+
+	noMonikerJSON := fmt.Sprintf(`
+	{
+  		"pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"oWg2ISpLF405Jcm2vXV+2v4fnjodh6aafuIdeoW+rUw="},
+  		"amount": "%dstake",
+  		"commission-rate": "0.5",
+  		"commission-max-rate": "1.0",
+  		"commission-max-change-rate": "0.1",
+  		"min-self-delegation": "1"
+	}`, 100)
+	noMonikerJSONFile := testutil.WriteToNewTempFile(s.T(), noMonikerJSON)
+	defer noMonikerJSONFile.Close()
+
+	testCases := []struct {
+		name         string
+		args         []string
+		expectErrMsg string
+	}{
+		{
+			"invalid transaction (missing amount)",
+			[]string{
+				noAmountJSONFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
+			},
+			"must specify amount of coins to bond",
+		},
+		{
+			"invalid transaction (missing pubkey)",
+			[]string{
+				noPubKeyJSONFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
+			},
+			"must specify the JSON encoded pubkey",
+		},
+		{
+			"invalid transaction (missing moniker)",
+			[]string{
+				noMonikerJSONFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
+			},
+			"must specify the moniker name",
+		},
+		{
+			"valid transaction with all fields",
+			[]string{
+				validJSONFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
+			},
+			"",
+		},
+		{
+			"valid transaction without optional fields",
+			[]string{
+				validJSONWOOptionalFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
+			},
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
+			if tc.expectErrMsg != "" {
+				require.Error(err)
+				require.Contains(err.Error(), tc.expectErrMsg)
+			} else {
+				require.NoError(err, "test: %s\noutput: %s", tc.name, out.String())
+				resp := &sdk.TxResponse{}
+				err = s.clientCtx.Codec.UnmarshalJSON(out.Bytes(), resp)
+				require.NoError(err, out.String(), "test: %s, output\n:", tc.name, out.String())
+			}
+		})
+	}
+}
+
 func (s *CLITestSuite) TestNewEditValidatorCmd() {
-	cmd := cli.NewEditValidatorCmd()
+	cmd := cli.NewEditValidatorCmd(addresscodec.NewBech32Codec("cosmos"))
 
 	moniker := "testing"
 	details := "bio"
@@ -266,8 +413,6 @@ func (s *CLITestSuite) TestNewEditValidatorCmd() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
 			if tc.expectErrMsg != "" {
@@ -283,7 +428,7 @@ func (s *CLITestSuite) TestNewEditValidatorCmd() {
 }
 
 func (s *CLITestSuite) TestNewDelegateCmd() {
-	cmd := cli.NewDelegateCmd()
+	cmd := cli.NewDelegateCmd(addresscodec.NewBech32Codec("cosmosvaloper"), addresscodec.NewBech32Codec("cosmos"))
 
 	testCases := []struct {
 		name         string
@@ -293,7 +438,7 @@ func (s *CLITestSuite) TestNewDelegateCmd() {
 		{
 			"invalid delegate amount",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				"fooCoin",
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
@@ -312,12 +457,12 @@ func (s *CLITestSuite) TestNewDelegateCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
 			},
-			"invalid address",
+			"decoding bech32 failed",
 		},
 		{
 			"valid transaction of delegate",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(),
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
@@ -329,8 +474,6 @@ func (s *CLITestSuite) TestNewDelegateCmd() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
 			if tc.expectErrMsg != "" {
@@ -346,7 +489,7 @@ func (s *CLITestSuite) TestNewDelegateCmd() {
 }
 
 func (s *CLITestSuite) TestNewRedelegateCmd() {
-	cmd := cli.NewRedelegateCmd()
+	cmd := cli.NewRedelegateCmd(addresscodec.NewBech32Codec("cosmosvaloper"), addresscodec.NewBech32Codec("cosmos"))
 
 	testCases := []struct {
 		name         string
@@ -356,8 +499,8 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 		{
 			"invalid amount",
 			[]string{
-				s.addrs[0].String(), // src-validator-addr
-				s.addrs[1].String(), // dst-validator-addr
+				sdk.ValAddress(s.addrs[0]).String(), // src-validator-addr
+				sdk.ValAddress(s.addrs[1]).String(), // dst-validator-addr
 				"fooCoin",
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
@@ -369,8 +512,8 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 		{
 			"wrong src validator",
 			[]string{
-				"invalid",           // wrong src-validator-addr
-				s.addrs[1].String(), // dst-validator-addr
+				"invalid",                           // wrong src-validator-addr
+				sdk.ValAddress(s.addrs[1]).String(), // dst-validator-addr
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(), // amount
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=%d", flags.FlagGas, 300000),
@@ -378,13 +521,13 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
 			},
-			"invalid address",
+			"invalid bech32",
 		},
 		{
 			"wrong dst validator",
 			[]string{
-				s.addrs[0].String(), // src-validator-addr
-				"invalid",           // wrong dst-validator-addr
+				sdk.ValAddress(s.addrs[0]).String(), // src-validator-addr
+				"invalid",                           // wrong dst-validator-addr
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(), // amount
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=%d", flags.FlagGas, 300000),
@@ -392,13 +535,13 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
 			},
-			"invalid address",
+			"invalid bech32",
 		},
 		{
 			"valid transaction of delegate",
 			[]string{
-				s.addrs[0].String(), // src-validator-addr
-				s.addrs[1].String(), // dst-validator-addr
+				sdk.ValAddress(s.addrs[0]).String(),                             // src-validator-addr
+				sdk.ValAddress(s.addrs[1]).String(),                             // dst-validator-addr
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(), // amount
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=%d", flags.FlagGas, 300000),
@@ -411,8 +554,6 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
 			if tc.expectErrMsg != "" {
@@ -428,7 +569,7 @@ func (s *CLITestSuite) TestNewRedelegateCmd() {
 }
 
 func (s *CLITestSuite) TestNewUnbondCmd() {
-	cmd := cli.NewUnbondCmd()
+	cmd := cli.NewUnbondCmd(addresscodec.NewBech32Codec("cosmosvaloper"), addresscodec.NewBech32Codec("cosmos"))
 
 	testCases := []struct {
 		name         string
@@ -438,7 +579,7 @@ func (s *CLITestSuite) TestNewUnbondCmd() {
 		{
 			"invalid unbond amount",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				"foo",
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
@@ -457,12 +598,12 @@ func (s *CLITestSuite) TestNewUnbondCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
 			},
-			"invalid address",
+			"decoding bech32 failed",
 		},
 		{
 			"valid transaction of unbond",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(),
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
@@ -474,8 +615,6 @@ func (s *CLITestSuite) TestNewUnbondCmd() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
 			if tc.expectErrMsg != "" {
@@ -491,7 +630,7 @@ func (s *CLITestSuite) TestNewUnbondCmd() {
 }
 
 func (s *CLITestSuite) TestNewCancelUnbondingDelegationCmd() {
-	cmd := cli.NewCancelUnbondingDelegation()
+	cmd := cli.NewCancelUnbondingDelegation(addresscodec.NewBech32Codec("cosmosvaloper"), addresscodec.NewBech32Codec("cosmos"))
 
 	testCases := []struct {
 		name         string
@@ -509,12 +648,12 @@ func (s *CLITestSuite) TestNewCancelUnbondingDelegationCmd() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(10))).String()),
 			},
-			"invalid address",
+			"decoding bech32 failed",
 		},
 		{
 			"invalid canceling unbond delegation amount",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				"fooCoin",
 				sdkmath.NewInt(10000).String(),
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
@@ -527,7 +666,7 @@ func (s *CLITestSuite) TestNewCancelUnbondingDelegationCmd() {
 		{
 			"without unbond creation height",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(150)).String(),
 				"abc",
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
@@ -540,7 +679,7 @@ func (s *CLITestSuite) TestNewCancelUnbondingDelegationCmd() {
 		{
 			"valid transaction of canceling unbonding delegation",
 			[]string{
-				s.addrs[0].String(),
+				sdk.ValAddress(s.addrs[0]).String(),
 				sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(5)).String(),
 				sdkmath.NewInt(10000).String(),
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, s.addrs[0]),
@@ -553,8 +692,6 @@ func (s *CLITestSuite) TestNewCancelUnbondingDelegationCmd() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		s.Run(tc.name, func() {
 			out, err := clitestutil.ExecTestCLICmd(s.clientCtx, cmd, tc.args)
 			if tc.expectErrMsg != "" {

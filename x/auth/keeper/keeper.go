@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"cosmossdk.io/collections"
 	"cosmossdk.io/collections/indexes"
@@ -88,6 +89,10 @@ type AccountKeeper struct {
 	cdc           codec.BinaryCodec
 	permAddrs     map[string]types.PermissionsForAddress
 
+	// enableUnorderedTxs enables unordered transaction support.
+	// It helps sigverify ante handlers decide whether to process unordered transactions.
+	enableUnorderedTxs bool
+
 	// The prototypical AccountI constructor.
 	proto func() sdk.AccountI
 
@@ -96,10 +101,23 @@ type AccountKeeper struct {
 	authority string
 
 	// State
-	Schema        collections.Schema
-	Params        collections.Item[types.Params]
-	AccountNumber collections.Sequence
-	Accounts      *collections.IndexedMap[sdk.AccAddress, sdk.AccountI, AccountsIndexes]
+	Schema          collections.Schema
+	Params          collections.Item[types.Params]
+	AccountNumber   collections.Sequence
+	Accounts        *collections.IndexedMap[sdk.AccAddress, sdk.AccountI, AccountsIndexes]
+	UnorderedNonces collections.KeySet[collections.Pair[int64, []byte]]
+}
+
+// InitOption is a functional option applied to the AccountKeeper at construction.
+type InitOption func(*AccountKeeper)
+
+// WithUnorderedTransactions enables unordered transaction support.
+// When true, sigverify ante handlers will validate and process unordered transactions.
+// When false, sigverify ante handlers will reject unordered transactions.
+func WithUnorderedTransactions(enable bool) InitOption {
+	return func(ak *AccountKeeper) {
+		ak.enableUnorderedTxs = enable
+	}
 }
 
 var _ AccountKeeperI = &AccountKeeper{}
@@ -107,6 +125,11 @@ var _ AccountKeeperI = &AccountKeeper{}
 // AddressCodec returns the account address codec.
 func (ak AccountKeeper) AddressCodec() address.Codec {
 	return ak.addressCodec
+}
+
+// UnorderedTransactionsEnabled reports whether unordered transactions are enabled.
+func (ak AccountKeeper) UnorderedTransactionsEnabled() bool {
+	return ak.enableUnorderedTxs
 }
 
 // NewAccountKeeper returns a new AccountKeeperI that uses go-amino to
@@ -117,7 +140,7 @@ func (ak AccountKeeper) AddressCodec() address.Codec {
 // may use auth.Keeper to access the accounts permissions map.
 func NewAccountKeeper(
 	cdc codec.BinaryCodec, storeService store.KVStoreService, proto func() sdk.AccountI,
-	maccPerms map[string][]string, ac address.Codec, authority string,
+	maccPerms map[string][]string, ac address.Codec, authority string, opts ...InitOption,
 ) AccountKeeper {
 	permAddrs := make(map[string]types.PermissionsForAddress)
 	for name, perms := range maccPerms {
@@ -127,27 +150,79 @@ func NewAccountKeeper(
 	sb := collections.NewSchemaBuilder(storeService)
 
 	ak := AccountKeeper{
-		addressCodec:  ac,
-		storeService:  storeService,
-		proto:         proto,
-		cdc:           cdc,
-		permAddrs:     permAddrs,
-		authority:     authority,
-		Params:        collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
-		AccountNumber: collections.NewSequence(sb, types.GlobalAccountNumberKey, "account_number"),
-		Accounts:      collections.NewIndexedMap(sb, types.AddressStoreKeyPrefix, "accounts", sdk.AccAddressKey, codec.CollInterfaceValue[sdk.AccountI](cdc), NewAccountIndexes(sb)),
+		addressCodec:    ac,
+		storeService:    storeService,
+		proto:           proto,
+		cdc:             cdc,
+		permAddrs:       permAddrs,
+		authority:       authority,
+		Params:          collections.NewItem(sb, types.ParamsKey, "params", codec.CollValue[types.Params](cdc)),
+		AccountNumber:   collections.NewSequence(sb, types.GlobalAccountNumberKey, "account_number"),
+		Accounts:        collections.NewIndexedMap(sb, types.AddressStoreKeyPrefix, "accounts", sdk.AccAddressKey, codec.CollInterfaceValue[sdk.AccountI](cdc), NewAccountIndexes(sb)),
+		UnorderedNonces: collections.NewKeySet(sb, types.UnorderedNoncesKey, "unordered_nonces", collections.PairKeyCodec(collections.Int64Key, collections.BytesKey)),
 	}
 	schema, err := sb.Build()
 	if err != nil {
 		panic(err)
 	}
 	ak.Schema = schema
+
+	for _, opt := range opts {
+		opt(&ak)
+	}
 	return ak
 }
 
 // GetAuthority returns the x/auth module's authority.
 func (ak AccountKeeper) GetAuthority() string {
 	return ak.authority
+}
+
+// -------------------------------------
+// Unordered Nonce management methods
+// -------------------------------------
+
+// ContainsUnorderedNonce reports whether the sender has used this timeout already.
+func (ak AccountKeeper) ContainsUnorderedNonce(ctx sdk.Context, sender []byte, timeout time.Time) (bool, error) {
+	return ak.UnorderedNonces.Has(ctx, collections.Join(timeout.UnixNano(), sender))
+}
+
+// TryAddUnorderedNonce tries to add a new unordered nonce for the sender.
+// If the sender already has an entry with the provided timeout, an error is returned.
+func (ak AccountKeeper) TryAddUnorderedNonce(ctx sdk.Context, sender []byte, timeout time.Time) error {
+	alreadyHas, err := ak.ContainsUnorderedNonce(ctx, sender, timeout)
+	if err != nil {
+		return fmt.Errorf("failed to check unordered nonce in storage: %w", err)
+	}
+	if alreadyHas {
+		return fmt.Errorf("sender %s has already used timeout %d", sdk.AccAddress(sender).String(), timeout.UnixNano())
+	}
+
+	return ak.UnorderedNonces.Set(ctx, collections.Join(timeout.UnixNano(), sender))
+}
+
+// RemoveExpiredUnorderedNonces removes all unordered nonces that have a timeout
+// value before the current block time.
+func (ak AccountKeeper) RemoveExpiredUnorderedNonces(ctx sdk.Context) error {
+	blkTime := ctx.BlockTime().UnixNano()
+	it, err := ak.UnorderedNonces.Iterate(ctx, collections.NewPrefixUntilPairRange[int64, []byte](blkTime))
+	if err != nil {
+		return err
+	}
+	defer it.Close()
+
+	keys, err := it.Keys()
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+		if err := ak.UnorderedNonces.Remove(ctx, key); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Logger returns a module-specific logger.

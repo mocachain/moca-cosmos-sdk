@@ -2,10 +2,11 @@ package ante_test
 
 import (
 	"testing"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	// TODO We don't need to import these API types if we use gogo's registry
 	// ref: https://github.com/cosmos/cosmos-sdk/issues/14647
@@ -27,6 +28,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	antetestutil "github.com/cosmos/cosmos-sdk/x/auth/ante/testutil"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtestutil "github.com/cosmos/cosmos-sdk/x/auth/testutil"
@@ -54,8 +56,9 @@ type AnteTestSuite struct {
 	encCfg         moduletestutil.TestEncodingConfig
 }
 
-// SetupTest setups a new test, with new app, context, and anteHandler.
-func SetupTestSuite(t *testing.T, isCheckTx bool) *AnteTestSuite {
+func setupSuite(t *testing.T, isCheckTx, enableUnorderedTxs bool) *AnteTestSuite {
+	t.Helper()
+
 	suite := &AnteTestSuite{}
 	ctrl := gomock.NewController(t)
 	suite.bankKeeper = authtestutil.NewMockBankKeeper(ctrl)
@@ -64,7 +67,7 @@ func SetupTestSuite(t *testing.T, isCheckTx bool) *AnteTestSuite {
 
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	testCtx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
-	suite.ctx = testCtx.Ctx.WithIsCheckTx(isCheckTx).WithBlockHeight(1).WithChainID(testutil.DefaultChainId) // app.BaseApp.NewContext(isCheckTx, cmtproto.Header{}).WithBlockHeight(1)
+	suite.ctx = testCtx.Ctx.WithIsCheckTx(isCheckTx).WithBlockHeight(1) // app.BaseApp.NewContext(isCheckTx, cmtproto.Header{}).WithBlockHeight(1)
 	suite.encCfg = moduletestutil.MakeTestEncodingConfig(auth.AppModuleBasic{}, bank.AppModuleBasic{})
 
 	maccPerms := map[string][]string{
@@ -77,7 +80,8 @@ func SetupTestSuite(t *testing.T, isCheckTx bool) *AnteTestSuite {
 	}
 
 	suite.accountKeeper = keeper.NewAccountKeeper(
-		suite.encCfg.Codec, runtime.NewKVStoreService(key), types.ProtoBaseAccount, maccPerms, types.NewModuleAddress("gov").String(),
+		suite.encCfg.Codec, runtime.NewKVStoreService(key), types.ProtoBaseAccount, maccPerms, authcodec.NewBech32Codec("cosmos"),
+		sdk.Bech32MainPrefix, types.NewModuleAddress("gov").String(), keeper.WithUnorderedTransactions(enableUnorderedTxs),
 	)
 	suite.accountKeeper.GetModuleAccount(suite.ctx, types.FeeCollectorName)
 	err := suite.accountKeeper.Params.Set(suite.ctx, types.DefaultParams())
@@ -109,13 +113,28 @@ func SetupTestSuite(t *testing.T, isCheckTx bool) *AnteTestSuite {
 	return suite
 }
 
+// SetupTest setups a new test, with new app, context, and anteHandler.
+func SetupTestSuite(t *testing.T, isCheckTx bool) *AnteTestSuite {
+	t.Helper()
+	return setupSuite(t, isCheckTx, false)
+}
+
+// SetupTest setups a new test, with new app, context, and anteHandler.
+func SetupTestSuiteWithUnordered(t *testing.T, isCheckTx, enableUnorderedTxs bool) *AnteTestSuite {
+	t.Helper()
+	return setupSuite(t, isCheckTx, enableUnorderedTxs)
+}
+
 func (suite *AnteTestSuite) CreateTestAccounts(numAccs int) []TestAccount {
 	var accounts []TestAccount
 
-	for i := 0; i < numAccs; i++ {
-		priv, _, addr := testdata.KeyTestPubAddrEthSecp256k1(nil)
+	for i := range numAccs {
+		priv, _, addr := testdata.KeyTestPubAddr()
 		acc := suite.accountKeeper.NewAccountWithAddress(suite.ctx, addr)
-		acc.SetAccountNumber(uint64(i + 1000))
+		err := acc.SetAccountNumber(uint64(i + 1000))
+		if err != nil {
+			panic(err)
+		}
 		suite.accountKeeper.SetAccount(suite.ctx, acc)
 		accounts = append(accounts, TestAccount{acc, priv})
 	}
@@ -155,6 +174,8 @@ func (t TestCaseArgs) WithAccountsInfo(accs []TestAccount) TestCaseArgs {
 // DeliverMsgs constructs a tx and runs it through the ante handler. This is used to set the context for a test case, for
 // example to test for replay protection.
 func (suite *AnteTestSuite) DeliverMsgs(t *testing.T, privs []cryptotypes.PrivKey, msgs []sdk.Msg, feeAmount sdk.Coins, gasLimit uint64, accNums, accSeqs []uint64, chainID string, simulate bool) (sdk.Context, error) {
+	t.Helper()
+
 	require.NoError(t, suite.txBuilder.SetMsgs(msgs...))
 	suite.txBuilder.SetFeeAmount(feeAmount)
 	suite.txBuilder.SetGasLimit(gasLimit)
@@ -168,6 +189,8 @@ func (suite *AnteTestSuite) DeliverMsgs(t *testing.T, privs []cryptotypes.PrivKe
 }
 
 func (suite *AnteTestSuite) RunTestCase(t *testing.T, tc TestCase, args TestCaseArgs) {
+	t.Helper()
+
 	require.NoError(t, suite.txBuilder.SetMsgs(args.msgs...))
 	suite.txBuilder.SetFeeAmount(args.feeAmount)
 	suite.txBuilder.SetGasLimit(args.gasLimit)
@@ -176,14 +199,10 @@ func (suite *AnteTestSuite) RunTestCase(t *testing.T, tc TestCase, args TestCase
 	// ante handlers, but here we sometimes also test the tx creation
 	// process.
 	tx, txErr := suite.CreateTestTx(suite.ctx, args.privs, args.accNums, args.accSeqs, args.chainID, signing.SignMode_SIGN_MODE_DIRECT)
-	var newCtx sdk.Context
-	var anteErr error
-	if tx != nil {
-		txBytes, err := suite.clientCtx.TxConfig.TxEncoder()(tx)
-		require.NoError(t, err)
-		bytesCtx := suite.ctx.WithTxBytes(txBytes)
-		newCtx, anteErr = suite.anteHandler(bytesCtx, tx, tc.simulate)
-	}
+	txBytes, err := suite.clientCtx.TxConfig.TxEncoder()(tx)
+	require.NoError(t, err)
+	bytesCtx := suite.ctx.WithTxBytes(txBytes)
+	newCtx, anteErr := suite.anteHandler(bytesCtx, tx, tc.simulate)
 
 	if tc.expPass {
 		require.NoError(t, txErr)
@@ -195,11 +214,11 @@ func (suite *AnteTestSuite) RunTestCase(t *testing.T, tc TestCase, args TestCase
 		switch {
 		case txErr != nil:
 			require.Error(t, txErr)
-			require.Contains(t, txErr.Error(), tc.expErr.Error())
+			require.ErrorIs(t, txErr, tc.expErr)
 
 		case anteErr != nil:
 			require.Error(t, anteErr)
-			require.Contains(t, anteErr.Error(), tc.expErr.Error())
+			require.ErrorIs(t, anteErr, tc.expErr)
 
 		default:
 			t.Fatal("expected one of txErr, anteErr to be an error")
@@ -208,11 +227,14 @@ func (suite *AnteTestSuite) RunTestCase(t *testing.T, tc TestCase, args TestCase
 }
 
 // CreateTestTx is a helper function to create a tx given multiple inputs.
-func (suite *AnteTestSuite) CreateTestTx(
+func (suite *AnteTestSuite) createTx(
 	ctx sdk.Context, privs []cryptotypes.PrivKey,
 	accNums, accSeqs []uint64,
-	chainID string, signMode signing.SignMode,
+	chainID string, signMode signing.SignMode, unordered bool, unorderedTimeout time.Time,
 ) (xauthsigning.Tx, error) {
+	suite.txBuilder.SetUnordered(unordered)
+	suite.txBuilder.SetTimeoutTimestamp(unorderedTimeout)
+
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	var sigsV2 []signing.SignatureV2
@@ -220,7 +242,7 @@ func (suite *AnteTestSuite) CreateTestTx(
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
 			Data: &signing.SingleSignatureData{
-				SignMode:  signing.SignMode_SIGN_MODE_EIP_712,
+				SignMode:  signMode,
 				Signature: nil,
 			},
 			Sequence: accSeqs[i],
@@ -244,7 +266,7 @@ func (suite *AnteTestSuite) CreateTestTx(
 			PubKey:        priv.PubKey(),
 		}
 		sigV2, err := tx.SignWithPrivKey(
-			ctx, signing.SignMode_SIGN_MODE_EIP_712, signerData,
+			ctx, signMode, signerData,
 			suite.txBuilder, priv, suite.clientCtx.TxConfig, accSeqs[i])
 		if err != nil {
 			return nil, err
@@ -258,4 +280,22 @@ func (suite *AnteTestSuite) CreateTestTx(
 	}
 
 	return suite.txBuilder.GetTx(), nil
+}
+
+// CreateTestTx is a helper function to create a tx given multiple inputs.
+func (suite *AnteTestSuite) CreateTestTx(
+	ctx sdk.Context, privs []cryptotypes.PrivKey,
+	accNums, accSeqs []uint64,
+	chainID string, signMode signing.SignMode,
+) (xauthsigning.Tx, error) {
+	return suite.createTx(ctx, privs, accNums, accSeqs, chainID, signMode, false, time.Time{})
+}
+
+func (suite *AnteTestSuite) CreateTestUnorderedTx(
+	ctx sdk.Context, privs []cryptotypes.PrivKey,
+	accNums, accSeqs []uint64,
+	chainID string, signMode signing.SignMode,
+	unordered bool, unorderedTimeout time.Time,
+) (xauthsigning.Tx, error) {
+	return suite.createTx(ctx, privs, accNums, accSeqs, chainID, signMode, unordered, unorderedTimeout)
 }

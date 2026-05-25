@@ -22,7 +22,7 @@ func genGrant(r *rand.Rand, accounts []simtypes.Account, genT time.Time) []authz
 		return make([]authz.GrantAuthorization, 0)
 	}
 	authorizations := make([]authz.GrantAuthorization, len(accounts)-1)
-	for i := 0; i < len(accounts)-1; i++ {
+	for i := range len(accounts) - 1 {
 		granter := accounts[i]
 		grantee := accounts[i+1]
 		var expiration *time.Time

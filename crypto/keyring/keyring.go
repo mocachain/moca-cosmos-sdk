@@ -51,8 +51,9 @@ const (
 )
 
 var (
-	_                          Keyring = &keystore{}
-	maxPassphraseEntryAttempts         = 3
+	_                          Keyring       = &keystore{}
+	_                          KeyringWithDB = &keystore{}
+	maxPassphraseEntryAttempts               = 3
 )
 
 // Keyring exposes operations over a backend supported by github.com/99designs/keyring.
@@ -103,6 +104,13 @@ type Keyring interface {
 	Exporter
 
 	Migrator
+}
+
+type KeyringWithDB interface {
+	Keyring
+
+	// Get the db keyring used in the keystore.
+	DB() keyring.Keyring
 }
 
 // Signer is implemented by key stores that want to provide signing capabilities.
@@ -260,6 +268,11 @@ func (ks keystore) ExportPubKeyArmor(uid string) (string, error) {
 	}
 
 	return crypto.ArmorPubKeyBytes(bz, key.Type()), nil
+}
+
+// DB returns the db keyring used in the keystore
+func (ks keystore) DB() keyring.Keyring {
+	return ks.db
 }
 
 func (ks keystore) ExportPubKeyArmorByAddress(address sdk.Address) (string, error) {
@@ -521,7 +534,7 @@ func (ks keystore) KeyByAddress(address sdk.Address) (*Record, error) {
 }
 
 func wrapKeyNotFound(err error, msg string) error {
-	if err == keyring.ErrKeyNotFound {
+	if errors.Is(err, keyring.ErrKeyNotFound) {
 		return errorsmod.Wrap(sdkerrors.ErrKeyNotFound, msg)
 	}
 	return err
@@ -626,7 +639,7 @@ func SignWithLedger(k *Record, msg []byte, signMode signing.SignMode) (sig []byt
 
 	priv, err := ledger.NewPrivKeySecp256k1Unsafe(*path)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	ledgerPubKey := priv.PubKey()
 	pubKey, err := k.GetPubKey()
@@ -952,6 +965,10 @@ func (ks keystore) migrate(key string) (*Record, error) {
 	// 1. get the key.
 	item, err := ks.db.Get(key)
 	if err != nil {
+		if key == fmt.Sprintf(".%s", infoSuffix) {
+			return nil, errors.New("no key name or address provided; have you forgotten the --from flag?")
+		}
+
 		return nil, wrapKeyNotFound(err, key)
 	}
 
