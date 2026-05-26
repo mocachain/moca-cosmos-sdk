@@ -36,7 +36,7 @@ func (m MockContext) KVStore(key storetypes.StoreKey) storetypes.KVStore {
 }
 
 type debuggingGasMeter struct {
-	g storetypes.GasMeter
+	g storetypes.GasMeterRw
 }
 
 func (d debuggingGasMeter) GasConsumed() storetypes.Gas {
@@ -90,7 +90,10 @@ type GasCountingMockContext struct {
 
 func NewGasCountingMockContext() *GasCountingMockContext {
 	return &GasCountingMockContext{
-		GasMeter: &debuggingGasMeter{storetypes.NewInfiniteGasMeter()},
+		// NewInfiniteGasMeter returns the storetypes.GasMeter interface but the
+		// concrete *infiniteGasMeter implements GasMeterRw too, so the assertion
+		// is safe; debuggingGasMeter forwards r/w accounting for tests.
+		GasMeter: &debuggingGasMeter{storetypes.NewInfiniteGasMeter().(storetypes.GasMeterRw)},
 	}
 }
 

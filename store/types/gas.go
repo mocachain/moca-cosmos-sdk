@@ -37,7 +37,11 @@ type ErrorGasOverflow struct {
 	Descriptor string
 }
 
-// GasMeter interface to track gas consumption
+// GasMeter interface to track gas consumption. This shape matches the upstream
+// cosmos-sdk GasMeter so external cosmos-ecosystem packages (e.g. cosmos/evm)
+// can implement it without knowing about moca's store r/w metering extension.
+// Implementations that also track store reads/writes should additionally
+// satisfy GasMeterRw.
 type GasMeter interface {
 	GasConsumed() Gas
 	GasConsumedToLimit() Gas
@@ -48,7 +52,15 @@ type GasMeter interface {
 	IsPastLimit() bool
 	IsOutOfGas() bool
 	String() string
+}
 
+// GasMeterRw extends GasMeter with moca's store read/write metering, used by
+// the storage-provider modules to bill SP traffic separately from EVM gas.
+// Callers that need r/w accounting should type-assert from GasMeter to
+// GasMeterRw and gracefully fall back when the assertion fails (e.g. for gas
+// meters supplied by external modules like cosmos/evm).
+type GasMeterRw interface {
+	GasMeter
 	RwConsumed() Gas                         // get metrics of store r/w
 	ConsumeRw(amount Gas, descriptor string) // consume metrics of store r/w
 }

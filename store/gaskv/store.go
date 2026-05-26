@@ -8,6 +8,16 @@ import (
 
 var _ types.KVStore = &Store{}
 
+// consumeRw applies moca's store r/w metering when the gas meter supports it.
+// Gas meters supplied by external modules (e.g. cosmos/evm's internal EVM
+// gas meters) only implement the base types.GasMeter; r/w accounting is
+// silently skipped for those rather than failing the operation.
+func consumeRw(gasMeter types.GasMeter, amount types.Gas, descriptor string) {
+	if rw, ok := gasMeter.(types.GasMeterRw); ok {
+		rw.ConsumeRw(amount, descriptor)
+	}
+}
+
 // Store applies gas tracking to an underlying KVStore. It implements the
 // KVStore interface.
 type Store struct {
@@ -33,12 +43,12 @@ func (gs *Store) GetStoreType() types.StoreType {
 
 // Implements KVStore.
 func (gs *Store) Get(key []byte) (value []byte) {
-	gs.gasMeter.ConsumeRw(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
 	value = gs.parent.Get(key)
 
 	// TODO overflow-safe math?
-	gs.gasMeter.ConsumeRw(gs.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasReadPerByteDesc)
-	gs.gasMeter.ConsumeRw(gs.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasReadPerByteDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasReadPerByteDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasReadPerByteDesc)
 
 	return value
 }
@@ -47,23 +57,23 @@ func (gs *Store) Get(key []byte) (value []byte) {
 func (gs *Store) Set(key, value []byte) {
 	types.AssertValidKey(key)
 	types.AssertValidValue(value)
-	gs.gasMeter.ConsumeRw(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
 	// TODO overflow-safe math?
-	gs.gasMeter.ConsumeRw(gs.gasConfig.WriteCostPerByte*types.Gas(len(key)), types.GasWritePerByteDesc)
-	gs.gasMeter.ConsumeRw(gs.gasConfig.WriteCostPerByte*types.Gas(len(value)), types.GasWritePerByteDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.WriteCostPerByte*types.Gas(len(key)), types.GasWritePerByteDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.WriteCostPerByte*types.Gas(len(value)), types.GasWritePerByteDesc)
 	gs.parent.Set(key, value)
 }
 
 // Implements KVStore.
 func (gs *Store) Has(key []byte) bool {
-	gs.gasMeter.ConsumeRw(gs.gasConfig.HasCost, types.GasHasDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.HasCost, types.GasHasDesc)
 	return gs.parent.Has(key)
 }
 
 // Implements KVStore.
 func (gs *Store) Delete(key []byte) {
 	// charge gas to prevent certain attack vectors even though space is being freed
-	gs.gasMeter.ConsumeRw(gs.gasConfig.DeleteCost, types.GasDeleteDesc)
+	consumeRw(gs.gasMeter, gs.gasConfig.DeleteCost, types.GasDeleteDesc)
 	gs.parent.Delete(key)
 }
 
@@ -169,8 +179,8 @@ func (gi *gasIterator) consumeSeekGas() {
 		key := gi.Key()
 		value := gi.Value()
 
-		gi.gasMeter.ConsumeRw(gi.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasValuePerByteDesc)
-		gi.gasMeter.ConsumeRw(gi.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasValuePerByteDesc)
+		consumeRw(gi.gasMeter, gi.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasValuePerByteDesc)
+		consumeRw(gi.gasMeter, gi.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasValuePerByteDesc)
 	}
-	gi.gasMeter.ConsumeRw(gi.gasConfig.IterNextCostFlat, types.GasIterNextCostFlatDesc)
+	consumeRw(gi.gasMeter, gi.gasConfig.IterNextCostFlat, types.GasIterNextCostFlatDesc)
 }

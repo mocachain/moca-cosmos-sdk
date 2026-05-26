@@ -60,6 +60,17 @@ const (
 
 var _ servertypes.ABCI = (*BaseApp)(nil)
 
+// rwConsumed reports moca's store r/w consumption from a gas meter that
+// supports the GasMeterRw extension (basicGasMeter, infiniteGasMeter); returns
+// 0 for plain GasMeter implementations supplied by external modules (e.g.
+// cosmos/evm's internal EVM gas meters) so the runTx defer does not panic.
+func rwConsumed(gasMeter storetypes.GasMeter) storetypes.Gas {
+	if rw, ok := gasMeter.(storetypes.GasMeterRw); ok {
+		return rw.RwConsumed()
+	}
+	return 0
+}
+
 // BaseApp reflects the ABCI application implementation.
 type BaseApp struct {
 	// initialized on creation
@@ -895,7 +906,7 @@ func (app *BaseApp) runTx(mode execMode, txBytes []byte, tx sdk.Tx) (gInfo sdk.G
 			ctx.Logger().Error("panic recovered in runTx", "err", err)
 		}
 
-		gInfo = sdk.GasInfo{GasWanted: gasWanted, GasUsed: ctx.GasMeter().GasConsumed(), MinGasPrice: gInfo.MinGasPrice, RwUsed: ctx.GasMeter().RwConsumed()}
+		gInfo = sdk.GasInfo{GasWanted: gasWanted, GasUsed: ctx.GasMeter().GasConsumed(), MinGasPrice: gInfo.MinGasPrice, RwUsed: rwConsumed(ctx.GasMeter())}
 	}()
 
 	blockGasConsumed := false
@@ -1119,7 +1130,7 @@ func (app *BaseApp) runMsgs(ctx sdk.Context, msgs []sdk.Msg, msgsV2 []protov2.Me
 
 	}
 
-	rwUsedBz := sdk.Uint64ToBigEndian(ctx.GasMeter().RwConsumed())
+	rwUsedBz := sdk.Uint64ToBigEndian(rwConsumed(ctx.GasMeter()))
 	data, err := makeABCIData(msgResponses, rwUsedBz)
 	if err != nil {
 		return nil, errorsmod.Wrap(err, "failed to marshal tx data")
