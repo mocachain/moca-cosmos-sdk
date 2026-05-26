@@ -14,6 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/group/errors"
 )
 
@@ -33,7 +34,7 @@ func TestTypeSafeRowGetter(t *testing.T) {
 	specs := map[string]struct {
 		srcRowID     RowID
 		srcModelType reflect.Type
-		expObj       interface{}
+		expObj       any
 		expErr       *errorsmod.Error
 	}{
 		"happy path": {
@@ -41,15 +42,15 @@ func TestTypeSafeRowGetter(t *testing.T) {
 			srcModelType: reflect.TypeOf(testdata.TableModel{}),
 			expObj:       md,
 		},
-		"unknown rowID should return errorsmod.ErrNotFound": {
+		"unknown rowID should return sdkerrors.ErrNotFound": {
 			srcRowID:     EncodeSequence(2),
 			srcModelType: reflect.TypeOf(testdata.TableModel{}),
-			expErr:       errorsmod.ErrNotFound,
+			expErr:       sdkerrors.ErrNotFound,
 		},
-		"wrong type should cause errorsmod.ErrInvalidType": {
+		"wrong type should cause sdkerrors.ErrInvalidType": {
 			srcRowID:     EncodeSequence(1),
 			srcModelType: reflect.TypeOf(testdata.Cat{}),
-			expErr:       errorsmod.ErrInvalidType,
+			expErr:       sdkerrors.ErrInvalidType,
 		},
 		"empty rowID not allowed": {
 			srcRowID:     []byte{},

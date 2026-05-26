@@ -106,7 +106,8 @@ func TestSlashingMsgs(t *testing.T) {
 	ctxCheck = baseApp.NewContext(true)
 	require.True(t, sdk.Coins{genCoin.Sub(bondCoin)}.Equal(bankKeeper.GetAllBalances(ctxCheck, addr1)))
 
-	app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: app.LastBlockHeight() + 1})
+	_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: app.LastBlockHeight() + 1})
+	require.NoError(t, err)
 
 	ctxCheck = baseApp.NewContext(true)
 	validator, err := stakingKeeper.GetValidator(ctxCheck, addr1)
@@ -117,7 +118,7 @@ func TestSlashingMsgs(t *testing.T) {
 	require.True(math.IntEq(t, bondTokens, validator.BondedTokens()))
 	unjailMsg := &types.MsgUnjail{ValidatorAddr: addr1.String()}
 
-	ctxCheck = app.BaseApp.NewContext(true)
+	ctxCheck = app.NewContext(true)
 	_, err = slashingKeeper.GetValidatorSigningInfo(ctxCheck, sdk.ConsAddress(valAddr))
 	require.NoError(t, err)
 
@@ -125,5 +126,5 @@ func TestSlashingMsgs(t *testing.T) {
 	header = cmtproto.Header{ChainID: sdktestutil.DefaultChainId, Height: app.LastBlockHeight() + 1}
 	_, _, err = sims.SignCheckDeliver(t, txConfig, app.BaseApp, header, []sdk.Msg{unjailMsg}, sdktestutil.DefaultChainId, []uint64{0}, []uint64{1}, false, false, []cryptotypes.PrivKey{priv1}, sims.SetMockHeight(app.BaseApp, 0))
 	require.Error(t, err)
-	require.True(t, errors.Is(types.ErrValidatorNotJailed, err))
+	require.True(t, errors.Is(err, types.ErrValidatorNotJailed))
 }

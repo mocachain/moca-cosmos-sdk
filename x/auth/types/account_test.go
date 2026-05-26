@@ -84,12 +84,20 @@ func TestGenesisAccountValidate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.expErr, tt.acc.Validate() != nil)
 		})
 	}
+}
+
+func TestModuleAccountString(t *testing.T) {
+	name := "test"
+	moduleAcc := types.NewEmptyModuleAccount(name, types.Minter, types.Burner, types.Staking)
+	want := `base_account:<address:"cosmos1n7rdpqvgf37ktx30a2sv2kkszk3m7ncmg5drhe" > name:"test" permissions:"minter" permissions:"burner" permissions:"staking" `
+	require.Equal(t, want, moduleAcc.String())
+	require.NoError(t, moduleAcc.SetSequence(10))
+	want = `base_account:<address:"cosmos1n7rdpqvgf37ktx30a2sv2kkszk3m7ncmg5drhe" sequence:10 > name:"test" permissions:"minter" permissions:"burner" permissions:"staking" `
+	require.Equal(t, want, moduleAcc.String())
 }
 
 func TestHasPermissions(t *testing.T) {
@@ -140,7 +148,6 @@ func TestValidate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.acc.Validate()
 			require.Equal(t, tt.expErr, err)
@@ -178,10 +185,10 @@ func TestGenesisAccountsContains(t *testing.T) {
 	require.True(t, genAccounts.Contains(acc.GetAddress()))
 }
 
-func TestNewModuleAddressOrHexAddress(t *testing.T) {
-	input := "0x4110D9a5a4fc8C0c95024cff4c7C002B924AC520"
-	require.Equal(t, input, types.NewModuleAddressOrHexAddress(input).String())
-	require.Equal(t, "0x93354845030274cD4bf1686Abd60AB28EC52e1a7", types.NewModuleAddressOrHexAddress("distribution").String())
+func TestNewModuleAddressOrBech32Address(t *testing.T) {
+	input := "cosmos1cwwv22j5ca08ggdv9c2uky355k908694z577tv"
+	require.Equal(t, input, types.NewModuleAddressOrBech32Address(input).String())
+	require.Equal(t, "cosmos1jv65s3grqf6v6jl3dp4t6c9t9rk99cd88lyufl", types.NewModuleAddressOrBech32Address("distribution").String())
 }
 
 func TestModuleAccountValidateNilBaseAccount(t *testing.T) {

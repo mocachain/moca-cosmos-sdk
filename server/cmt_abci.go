@@ -71,7 +71,3 @@ func (w cometABCIWrapper) LoadSnapshotChunk(_ context.Context, req *abci.Request
 func (w cometABCIWrapper) ApplySnapshotChunk(_ context.Context, req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
 	return w.app.ApplySnapshotChunk(req)
 }
-
-func (w cometABCIWrapper) EthQuery(_ context.Context, req *abci.RequestEthQuery) (*abci.ResponseEthQuery, error) {
-	return w.app.EthQuery(req)
-}

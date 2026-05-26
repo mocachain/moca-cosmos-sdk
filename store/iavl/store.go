@@ -38,7 +38,9 @@ type Store struct {
 	tree    Tree
 	logger  log.Logger
 	metrics metrics.StoreMetrics
-	diff    map[string]struct{}
+	// diff, when non-nil, records every key written/deleted on this store.
+	// Used by moca's bank<->payment store reconciliation.
+	diff map[string]struct{}
 }
 
 // LoadStore returns an IAVL Store as a CommitKVStore. Internally, it will load the
@@ -53,11 +55,16 @@ func LoadStore(db dbm.DB, logger log.Logger, key types.StoreKey, id types.Commit
 // provided DB. An error is returned if the version fails to load, or if called with a positive
 // version on an empty tree.
 func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, key types.StoreKey, id types.CommitID, initialVersion uint64, cacheSize int, disableFastNode bool, metrics metrics.StoreMetrics) (types.CommitKVStore, error) {
-	var options []iavl.Option
-	if initialVersion > 0 {
-		options = append(options, iavl.InitialVersionOption(initialVersion))
+	return LoadStoreWithOpts(db, logger, key, id, initialVersion, cacheSize, disableFastNode, metrics, iavl.AsyncPruningOption(true))
+}
+
+func LoadStoreWithOpts(db dbm.DB, logger log.Logger, key types.StoreKey, id types.CommitID, initialVersion uint64, cacheSize int, disableFastNode bool, metrics metrics.StoreMetrics, opts ...iavl.Option) (types.CommitKVStore, error) {
+	// store/v1 and app/v1 flows never require an initial version of 0
+	if initialVersion == 0 {
+		initialVersion = 1
 	}
-	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, options...)
+	opts = append(opts, iavl.InitialVersionOption(initialVersion))
+	tree := iavl.NewMutableTree(wrapper.NewDBWrapper(db), cacheSize, disableFastNode, logger, opts...)
 
 	isUpgradeable, err := tree.IsUpgradeable()
 	if err != nil {
@@ -128,14 +135,14 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 func (st *Store) Commit() types.CommitID {
 	defer st.metrics.MeasureSince("store", "iavl", "commit")
 
-	_, version, err := st.tree.SaveVersion()
+	hash, version, err := st.tree.SaveVersion()
 	if err != nil {
 		panic(err)
 	}
 
 	return types.CommitID{
 		Version: version,
-		Hash:    st.tree.Hash(),
+		Hash:    hash,
 	}
 }
 
@@ -158,7 +165,7 @@ func (st *Store) SetPruning(_ pruningtypes.PruningOptions) {
 	panic("cannot set pruning options on an initialized IAVL store")
 }
 
-// GetPruning panics as pruning options should be provided at initialization
+// SetPruning panics as pruning options should be provided at initialization
 // since IAVl accepts pruning options directly.
 func (st *Store) GetPruning() pruningtypes.PruningOptions {
 	panic("cannot get pruning options on an initialized IAVL store")
@@ -189,14 +196,17 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 	return cachekv.NewStore(tracekv.NewStore(st, w, tc))
 }
 
+// EnableDiff starts recording the set of keys written/deleted on this store.
 func (st *Store) EnableDiff() {
 	st.diff = map[string]struct{}{}
 }
 
+// GetDiff returns the set of keys written/deleted since the last EnableDiff/ResetDiff.
 func (st *Store) GetDiff() map[string]struct{} {
 	return st.diff
 }
 
+// ResetDiff clears the recorded diff set (recording stays enabled).
 func (st *Store) ResetDiff() {
 	st.diff = map[string]struct{}{}
 }
@@ -295,16 +305,16 @@ func (st *Store) Export(version int64) (*iavl.Exporter, error) {
 	if !ok || tree == nil {
 		return nil, fmt.Errorf("iavl export failed: unable to fetch tree for version %v", version)
 	}
-	return tree.ImmutableTree.Export()
+	return tree.Export()
 }
 
 // Import imports an IAVL tree at the given version, returning an iavl.Importer for importing.
 func (st *Store) Import(version int64) (*iavl.Importer, error) {
-	mt, ok := st.tree.(*iavl.MutableTree)
+	tree, ok := st.tree.(*iavl.MutableTree)
 	if !ok {
 		return nil, errors.New("iavl import failed: unable to find mutable tree")
 	}
-	return mt.Import(version)
+	return tree.Import(version)
 }
 
 // Handle gatest the latest height, if height is 0

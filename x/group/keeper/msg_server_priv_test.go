@@ -12,8 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	coreaddress "cosmossdk.io/core/address"
 	storetypes "cosmossdk.io/store/types"
 
+	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
@@ -31,7 +33,11 @@ func TestDoTallyAndUpdate(t *testing.T) {
 
 	storeKey := storetypes.NewKVStoreKey(group.StoreKey)
 	testCtx := testutil.DefaultContextWithDB(t, storeKey, storetypes.NewTransientStoreKey("transient_test"))
-	myAccountKeeper := &mockAccountKeeper{}
+	myAccountKeeper := &mockAccountKeeper{
+		AddressCodecFn: func() coreaddress.Codec {
+			return address.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+		},
+	}
 	groupKeeper := NewKeeper(storeKey, encCfg.Codec, nil, myAccountKeeper, group.DefaultConfig())
 	noEventsFn := func(proposalID uint64) sdk.Events { return sdk.Events{} }
 	type memberVote struct {
@@ -170,7 +176,16 @@ func TestDoTallyAndUpdate(t *testing.T) {
 var _ group.AccountKeeper = &mockAccountKeeper{}
 
 // mockAccountKeeper is a mock implementation of the AccountKeeper interface for testing purposes.
-type mockAccountKeeper struct{}
+type mockAccountKeeper struct {
+	AddressCodecFn func() coreaddress.Codec
+}
+
+func (m mockAccountKeeper) AddressCodec() coreaddress.Codec {
+	if m.AddressCodecFn == nil {
+		panic("not expected to be called")
+	}
+	return m.AddressCodecFn()
+}
 
 func (m mockAccountKeeper) NewAccount(ctx context.Context, i sdk.AccountI) sdk.AccountI {
 	panic("not expected to be called")

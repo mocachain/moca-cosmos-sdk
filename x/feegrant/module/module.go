@@ -21,6 +21,7 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/testutil/simsx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
@@ -198,9 +199,19 @@ func (am AppModule) RegisterStoreDecoder(sdr simtypes.StoreDecoderRegistry) {
 }
 
 // WeightedOperations returns all the feegrant module operations with their respective weights.
+// migrate to WeightedOperationsX. This method is ignored when WeightedOperationsX exists and will be removed in the future
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	return simulation.WeightedOperations(
 		am.registry, simState.AppParams, simState.Cdc, simState.TxConfig,
 		am.accountKeeper, am.bankKeeper, am.keeper,
 	)
+}
+
+// WeightedOperationsX registers weighted feegrant module operations for simulation.
+func (am AppModule) WeightedOperationsX(weights simsx.WeightSource, reg simsx.Registry) {
+	reg.Add(weights.Get("msg_grant_fee_allowance", 100), simulation.MsgGrantAllowanceFactory(am.keeper))
+	// use old misspelled OpWeightMsgRevokeAllowance key for legacy reasons but default to the new key
+	// so that we can replace it at some point
+	w := weights.Get("msg_grant_revoke_allowance", weights.Get("msg_revoke_allowance", 100))
+	reg.Add(w, simulation.MsgRevokeAllowanceFactory(am.keeper))
 }

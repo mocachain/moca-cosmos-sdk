@@ -6,7 +6,6 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/gogoproto/proto"
 
 	"cosmossdk.io/core/comet"
 	"cosmossdk.io/core/header"
@@ -101,10 +100,9 @@ func (c Context) IsEnableUnsafeQuery() bool {
 	return c.enableUnsafeQuery
 }
 
-// clone the header before returning
+// BlockHeader returns the header by value.
 func (c Context) BlockHeader() cmtproto.Header {
-	msg := proto.Clone(&c.header).(*cmtproto.Header)
-	return *msg
+	return c.header
 }
 
 // HeaderHash returns a copy of the header hash obtained during abci.RequestBeginBlock
@@ -343,12 +341,12 @@ func (c Context) IsZero() bool {
 	return c.ms == nil
 }
 
-func (c Context) WithValue(key, value interface{}) Context {
+func (c Context) WithValue(key, value any) Context {
 	c.baseCtx = context.WithValue(c.baseCtx, key, value)
 	return c
 }
 
-func (c Context) Value(key interface{}) interface{} {
+func (c Context) Value(key any) any {
 	if key == SdkContextKey {
 		return c
 	}

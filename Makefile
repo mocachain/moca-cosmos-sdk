@@ -1,21 +1,18 @@
 #!/usr/bin/make -f
 
-GO_TOOLCHAIN ?= go1.24.11
-GO_BINARY ?= $(shell command -v go 2>/dev/null || echo go)
-GO_LOCAL_ENV ?= env -u GOROOT GOTOOLCHAIN=$(GO_TOOLCHAIN)
-GO := $(GO_LOCAL_ENV) $(GO_BINARY)
-GO_GOPATH ?= $(shell $(GO) env GOPATH 2>/dev/null)
-GO_BIN ?= $(or $(GOBIN),$(if $(GO_GOPATH),$(GO_GOPATH)/bin,$(HOME)/go/bin))
-LEFTHOOK ?= $(GO_BIN)/lefthook
-LEFTHOOK_VERSION ?= v1.11.3
-GOLANGCI_LINT ?= $(GO_BIN)/golangci-lint
-GOLANGCI_LINT_VERSION ?= v1.64.8
-LINT_TIMEOUT ?= 15m
+PACKAGES_NOSIMULATION=$(shell go list ./... | grep -v '/simulation')
+PACKAGES_SIMTEST=$(shell go list ./... | grep '/simulation')
 
-PACKAGES_NOSIMULATION=$(shell $(GO) list ./... | grep -v '/simulation')
-PACKAGES_SIMTEST=$(shell $(GO) list ./... | grep '/simulation')
-export VERSION := $(shell echo $(shell git describe --tags --always --match "v*") | sed 's/^v//')
-export CMTVERSION := $(shell $(GO) list -m github.com/cometbft/cometbft | sed 's:.* ::')
+# Ensure all tags are fetched
+VERSION_RAW := $(shell git fetch --tags --force >/dev/null 2>&1; git describe --tags --always --match "v*")
+VERSION := $(shell echo $(VERSION_RAW) | sed -E 's/^v?([0-9]+\.[0-9]+\.[0-9]+.*)/\1/')
+
+# Fallback if the version is just a commit hash (not semver-like)
+ifeq ($(findstring -,$(VERSION)),)  # No "-" means it's just a hash
+    VERSION := 0.0.0-$(VERSION_RAW)
+endif
+export VERSION
+export CMTVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
 export COMMIT := $(shell git log -1 --format='%H')
 LEDGER_ENABLED ?= true
 BINDIR ?= $(GOPATH)/bin
@@ -65,7 +62,6 @@ comma := ,
 build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
 
 # process linker flags
-
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=sim \
 		-X github.com/cosmos/cosmos-sdk/version.AppName=simd \
 		-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
@@ -112,13 +108,6 @@ endif
 
 all: tools build lint test vulncheck
 
-# The below include contains the tools and runsim targets.
-include contrib/devtools/Makefile
-
-# contrib/devtools/Makefile resets GO to the system binary, so restore the
-# repository toolchain for the main build and test targets defined below.
-GO := $(GO_LOCAL_ENV) $(GO_BINARY)
-
 ###############################################################################
 ###                                  Build                                  ###
 ###############################################################################
@@ -133,8 +122,14 @@ build-linux-amd64:
 build-linux-arm64:
 	GOOS=linux GOARCH=arm64 LEDGER_ENABLED=false $(MAKE) build
 
+build-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 LEDGER_ENABLED=false $(MAKE) build
+
+build-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 LEDGER_ENABLED=false $(MAKE) build
+
 $(BUILD_TARGETS): go.sum $(BUILDDIR)/
-	cd ${CURRENT_DIR}/simapp && $(GO) $@ -mod=readonly $(BUILD_FLAGS) $(BUILD_ARGS) ./...
+	cd ${CURRENT_DIR}/simapp && go $@ -mod=readonly $(BUILD_FLAGS) $(BUILD_ARGS) ./...
 
 $(BUILDDIR)/:
 	mkdir -p $(BUILDDIR)/
@@ -148,17 +143,18 @@ confix:
 hubl:
 	$(MAKE) -C tools/hubl hubl
 
-.PHONY: build build-linux-amd64 build-linux-arm64 cosmovisor confix
+.PHONY: build build-linux-amd64 build-linux-arm64 build-darwin-amd64 build-darwin-arm64 cosmovisor confix
 
 
+#? mocks: Generate mock file
 mocks: $(MOCKS_DIR)
-	@$(GO) install github.com/golang/mock/mockgen@v1.6.0
+	@go install go.uber.org/mock/mockgen@v0.5.0
 	sh ./scripts/mockgen.sh
 .PHONY: mocks
 
 
 vulncheck: $(BUILDDIR)/
-	GOBIN=$(BUILDDIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
 	$(BUILDDIR)/govulncheck ./...
 
 $(MOCKS_DIR):
@@ -180,7 +176,8 @@ clean:
 
 go.sum: go.mod
 	echo "Ensure dependencies have not been modified ..." >&2
-	$(GO) mod verify
+	go mod verify
+	go mod tidy
 
 ###############################################################################
 ###                              Documentation                              ###
@@ -188,7 +185,7 @@ go.sum: go.mod
 
 godocs:
 	@echo "--> Wait a few seconds and visit http://localhost:6060/pkg/github.com/cosmos/cosmos-sdk/types"
-	$(GO) install golang.org/x/tools/cmd/godoc@latest
+	go install golang.org/x/tools/cmd/godoc@latest
 	godoc -http=:6060
 
 build-docs:
@@ -242,16 +239,17 @@ $(CHECK_TEST_TARGETS): EXTRA_ARGS=-run=none
 $(CHECK_TEST_TARGETS): run-tests
 
 ARGS += -tags "$(test_tags)"
-SUB_MODULES = $(shell find . -type f -name 'go.mod' -print0 | xargs -0 -n1 dirname | sort)
+SUB_MODULES = $(shell find . -type f -name 'go.mod' -print0 | xargs -0 -n1 dirname | sort | grep -v './tests/systemtests')
 CURRENT_DIR = $(shell pwd)
 run-tests:
+	@(cd store/streaming/abci/examples/file && go build .)
 ifneq (,$(shell which tparse 2>/dev/null))
 	@echo "Starting unit tests"; \
 	finalec=0; \
 	for module in $(SUB_MODULES); do \
 		cd ${CURRENT_DIR}/$$module; \
 		echo "Running unit tests for $$(grep '^module' go.mod)"; \
-		$(GO) test -mod=readonly -json $(ARGS) $(TEST_PACKAGES) ./... | tparse; \
+		go test -mod=readonly -json $(ARGS) $(TEST_PACKAGES) ./... | tparse; \
 		ec=$$?; \
 		if [ "$$ec" -ne '0' ]; then finalec=$$ec; fi; \
 	done; \
@@ -262,7 +260,7 @@ else
 	for module in $(SUB_MODULES); do \
 		cd ${CURRENT_DIR}/$$module; \
 		echo "Running unit tests for $$(grep '^module' go.mod)"; \
-		$(GO) test -mod=readonly $(ARGS) $(TEST_PACKAGES) ./... ; \
+		go test -mod=readonly $(ARGS) $(TEST_PACKAGES) ./... ; \
 		ec=$$?; \
 		if [ "$$ec" -ne '0' ]; then finalec=$$ec; fi; \
 	done; \
@@ -273,8 +271,8 @@ endif
 
 test-sim-nondeterminism:
 	@echo "Running non-determinism test..."
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -run TestAppStateDeterminism -Enabled=true \
-		-NumBlocks=100 -BlockSize=200 -Commit=true -Period=0 -v -timeout 24h
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout=30m -tags='sims' -run TestAppStateDeterminism \
+		-NumBlocks=100 -BlockSize=200 -Period=0
 
 # Requires an exported plugin. See store/streaming/README.md for documentation.
 #
@@ -287,41 +285,40 @@ test-sim-nondeterminism:
 #   make test-sim-nondeterminism-streaming
 test-sim-nondeterminism-streaming:
 	@echo "Running non-determinism-streaming test..."
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -run TestAppStateDeterminism -Enabled=true \
-		-NumBlocks=100 -BlockSize=200 -Commit=true -Period=0 -v -timeout 24h -EnableStreaming=true
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout=30m -tags='sims' -run TestAppStateDeterminism \
+		-NumBlocks=100 -BlockSize=200 -Period=0 -EnableStreaming=true
 
 test-sim-custom-genesis-fast:
 	@echo "Running custom genesis simulation..."
 	@echo "By default, ${HOME}/.simapp/config/genesis.json will be used."
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -run TestFullAppSimulation -Genesis=${HOME}/.simapp/config/genesis.json \
-		-Enabled=true -NumBlocks=100 -BlockSize=200 -Commit=true -Seed=99 -Period=5 -SigverifyTx=false -v -timeout 24h
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout=30m -tags='sims' -run TestFullAppSimulation -Genesis=${HOME}/.simapp/config/genesis.json \
+		-NumBlocks=100 -BlockSize=200 -Seed=99 -Period=5 -SigverifyTx=false
 
-test-sim-import-export: runsim
+test-sim-import-export:
 	@echo "Running application import/export simulation. This may take several minutes..."
-	@cd ${CURRENT_DIR}/simapp && $(BINDIR)/runsim -Jobs=4 -SimAppPkg=. -ExitOnFail 50 5 TestAppImportExport
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout 20m -tags='sims' -run TestAppImportExport \
+		-NumBlocks=50 -Period=5
 
-test-sim-after-import: runsim
+test-sim-after-import:
 	@echo "Running application simulation-after-import. This may take several minutes..."
-	@cd ${CURRENT_DIR}/simapp && $(BINDIR)/runsim -Jobs=4 -SimAppPkg=. -ExitOnFail 50 5 TestAppSimulationAfterImport
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout 30m -tags='sims' -run TestAppSimulationAfterImport \
+		-NumBlocks=50 -Period=5
 
-test-sim-custom-genesis-multi-seed: runsim
+test-sim-custom-genesis-multi-seed:
 	@echo "Running multi-seed custom genesis simulation..."
 	@echo "By default, ${HOME}/.simapp/config/genesis.json will be used."
-	@cd ${CURRENT_DIR}/simapp && $(BINDIR)/runsim -Genesis=${HOME}/.simapp/config/genesis.json -SigverifyTx=false -SimAppPkg=. -ExitOnFail 400 5 TestFullAppSimulation
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout 30m -tags='sims' -run TestFullAppSimulation -Genesis=${HOME}/.simapp/config/genesis.json \
+		-NumBlocks=400 -Period=5
 
-test-sim-multi-seed-long: runsim
+test-sim-multi-seed-long:
 	@echo "Running long multi-seed application simulation. This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(BINDIR)/runsim -Jobs=4 -SimAppPkg=. -ExitOnFail 500 50 TestFullAppSimulation
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout=1h -tags='sims' -run TestFullAppSimulation \
+		-NumBlocks=500 -Period=50
 
-test-sim-multi-seed-short: runsim
+test-sim-multi-seed-short:
 	@echo "Running short multi-seed application simulation. This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(BINDIR)/runsim -Jobs=4 -SimAppPkg=. -ExitOnFail 50 10 TestFullAppSimulation
-
-test-sim-benchmark-invariants:
-	@echo "Running simulation invariant benchmarks..."
-	cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -benchmem -bench=BenchmarkInvariants -run=^$ \
-	-Enabled=true -NumBlocks=1000 -BlockSize=200 \
-	-Period=1 -Commit=true -Seed=57 -v -timeout 24h
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -timeout 30m -tags='sims' -run TestFullAppSimulation \
+		-NumBlocks=50 -Period=10
 
 .PHONY: \
 test-sim-nondeterminism \
@@ -331,17 +328,23 @@ test-sim-import-export \
 test-sim-after-import \
 test-sim-custom-genesis-multi-seed \
 test-sim-multi-seed-short \
-test-sim-multi-seed-long \
-test-sim-benchmark-invariants
+test-sim-multi-seed-long
 
 SIM_NUM_BLOCKS ?= 500
 SIM_BLOCK_SIZE ?= 200
 SIM_COMMIT ?= true
 
+#? test-sim-fuzz: Run fuzz test for simapp
+test-sim-fuzz:
+	@echo "Running application fuzz for numBlocks=2, blockSize=20. This may take awhile!"
+#ld flags are a quick fix to make it work on current osx
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -json -tags='sims' -ldflags="-extldflags=-Wl,-ld_classic" -timeout=60m -fuzztime=60m -run=^$$ -fuzz=FuzzFullAppSimulation -GenesisTime=1714720615 -NumBlocks=2 -BlockSize=20
+
+#? test-sim-benchmark: Run benchmark test for simapp
 test-sim-benchmark:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$  \
-		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -tags='sims' -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$  \
+		-NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -Seed=57 -timeout 30m
 
 # Requires an exported plugin. See store/streaming/README.md for documentation.
 #
@@ -354,13 +357,13 @@ test-sim-benchmark:
 #   make test-sim-benchmark-streaming
 test-sim-benchmark-streaming:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$  \
-		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -EnableStreaming=true
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$  \
+		-NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -EnableStreaming=true
 
 test-sim-profile:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -benchmem -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$ \
-		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -cpuprofile cpu.out -memprofile mem.out
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -benchmem -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$ \
+		-NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -cpuprofile cpu.out -memprofile mem.out
 
 # Requires an exported plugin. See store/streaming/README.md for documentation.
 #
@@ -373,92 +376,42 @@ test-sim-profile:
 #   make test-sim-profile-streaming
 test-sim-profile-streaming:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@cd ${CURRENT_DIR}/simapp && $(GO) test -mod=readonly -benchmem -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$ \
-		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -cpuprofile cpu.out -memprofile mem.out -EnableStreaming=true
+	@cd ${CURRENT_DIR}/simapp && go test -failfast -mod=readonly -benchmem -run=^$$ $(.) -bench ^BenchmarkFullAppSimulation$$ \
+		-NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -cpuprofile cpu.out -memprofile mem.out -EnableStreaming=true
 
-.PHONY: test-sim-profile test-sim-benchmark
+.PHONY: test-sim-profile test-sim-benchmark test-sim-fuzz
 
 benchmark:
-	@$(GO) test -mod=readonly -bench=. $(PACKAGES_NOSIMULATION)
+	@go test -mod=readonly -bench=. $(PACKAGES_NOSIMULATION)
 .PHONY: benchmark
 
 ###############################################################################
 ###                                Linting                                  ###
 ###############################################################################
 
-check-go-env:
-	@echo "--> Using Go binary: $(GO_BINARY)"
-	@$(GO) version
-	@echo "--> Repository toolchain: $(GO_TOOLCHAIN)"
-	@echo "--> Ignoring external GOROOT for repository commands"
+golangci_version=v2.6.1
 
-install-lint:
-	@echo "--> Installing golangci-lint $(GOLANGCI_LINT_VERSION)"
-	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+lint-install:
+	@echo "--> Installing golangci-lint $(golangci_version)"
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(golangci_version)
 
-check-lint:
-	@if [ ! -x "$(GOLANGCI_LINT)" ]; then \
-		echo "golangci-lint not found at $(GOLANGCI_LINT)"; \
-		echo "Run 'make install-lint' first."; \
-		exit 1; \
-	fi
-	@echo "--> Using golangci-lint binary: $(GOLANGCI_LINT)"
-	@$(GOLANGCI_LINT) version
+lint:
+	@echo "--> Running linter on all files"
+	$(MAKE) lint-install
+	@./scripts/go-lint-all.bash --timeout=15m
 
-hooks:
-	@if [ ! -x "$(LEFTHOOK)" ]; then \
-		echo "--> Installing lefthook $(LEFTHOOK_VERSION) into $(GO_BIN)"; \
-		$(GO) install github.com/evilmartians/lefthook@$(LEFTHOOK_VERSION); \
-	else \
-		echo "--> Using lefthook binary: $(LEFTHOOK)"; \
-	fi
-	@$(LEFTHOOK) install
-
-lint-install: install-lint
-
-lint: check-go-env check-lint
+lint-fix:
 	@echo "--> Running linter"
-	@PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT)
+	$(MAKE) lint-install
+	@./scripts/go-lint-all.bash --fix
 
-lint-fix: check-go-env check-lint
-	@echo "--> Running linter"
-	@PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --fix --timeout=$(LINT_TIMEOUT)
-
-lint-changed: check-go-env check-lint
-	@changed_go_files="$$( { git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard; } | grep '\.go$$' | grep -v '\.pb\.go$$' || true )"; \
-	if { git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard; } | grep -Eq '(^|/)(go\.mod|go\.sum)$$'; then \
-		echo "--> go.mod/go.sum changed; running full golangci-lint..."; \
-		PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
-	elif [ -z "$$changed_go_files" ]; then \
-		echo "--> No local changed Go files to lint"; \
-	else \
-		echo "--> Running golangci-lint on local changed Go packages..."; \
-		PATH="$(GO_BIN):$$PATH" LINT_DIFF=1 GIT_DIFF="$$changed_go_files" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
-	fi
-
-lint-staged: check-go-env check-lint
-	@staged_go_files="$$(git diff --cached --name-only --diff-filter=ACMR | grep '\.go$$' | grep -v '\.pb\.go$$' || true)"; \
-	if git diff --cached --name-only --diff-filter=ACMR | grep -Eq '(^|/)(go\.mod|go\.sum)$$'; then \
-		echo "--> go.mod/go.sum changed; running full golangci-lint..."; \
-		PATH="$(GO_BIN):$$PATH" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
-	elif [ -z "$$staged_go_files" ]; then \
-		echo "--> No staged Go files to lint"; \
-	else \
-		echo "--> Running golangci-lint on staged Go packages..."; \
-		PATH="$(GO_BIN):$$PATH" LINT_DIFF=1 GIT_DIFF="$$staged_go_files" ./scripts/go-lint-all.bash --timeout=$(LINT_TIMEOUT); \
-	fi
-
-pre-commit: lint-changed
-
-pre-commit-staged: lint-staged
-
-.PHONY: check-go-env install-lint check-lint hooks lint-install lint lint-fix lint-changed lint-staged pre-commit pre-commit-staged
+.PHONY: lint lint-fix
 
 ###############################################################################
 ###                                Protobuf                                 ###
 ###############################################################################
 
-protoVer=0.14.0
+protoVer=0.16.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
 protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
 
@@ -531,7 +484,7 @@ localnet-build-dlv:
 
 localnet-build-nodes:
 	$(DOCKER) run --rm -v $(CURDIR)/.testnets:/data cosmossdk/simd \
-			  testnet init-files --v 4 -o /data --starting-ip-address 192.168.10.2 --keyring-backend=test
+			  testnet init-files --validator-count 4 -o /data --starting-ip-address 192.168.10.2 --keyring-backend=test
 	docker compose up -d
 
 localnet-stop:
@@ -546,3 +499,44 @@ localnet-start: localnet-stop localnet-build-env localnet-build-nodes
 localnet-debug: localnet-stop localnet-build-dlv localnet-build-nodes
 
 .PHONY: localnet-start localnet-stop localnet-debug localnet-build-env localnet-build-dlv localnet-build-nodes
+
+test-system: build-v50 build
+	mkdir -p ./tests/systemtests/binaries/
+	cp $(BUILDDIR)/simd ./tests/systemtests/binaries/
+	mkdir -p ./tests/systemtests/binaries/v0.50
+	mv $(BUILDDIR)/simdv50 ./tests/systemtests/binaries/v0.50/simd
+	$(MAKE) -C tests/systemtests test
+.PHONY: test-system
+
+# build-v50 checks out the v0.50.x branch, builds the binary, and renames it to simdv50.
+build-v50:
+	@echo "Starting v50 build process..."
+	git_status=$$(git status --porcelain) && \
+	has_changes=false && \
+	if [ -n "$$git_status" ]; then \
+		echo "Stashing uncommitted changes..." && \
+		git stash push -m "Temporary stash for v50 build" && \
+		has_changes=true; \
+	else \
+		echo "No changes to stash"; \
+	fi && \
+	echo "Saving current reference..." && \
+	CURRENT_REF=$$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse HEAD) && \
+	echo "Checking out release branch..." && \
+	git checkout release/v0.50.x && \
+	echo "Building v50 binary..." && \
+	make build && \
+	mv build/simd build/simdv50 && \
+	echo "Returning to original branch..." && \
+	if [ "$$CURRENT_REF" = "HEAD" ]; then \
+		git checkout $$(git rev-parse HEAD); \
+	else \
+		git checkout $$CURRENT_REF; \
+	fi && \
+	if [ "$$has_changes" = "true" ]; then \
+		echo "Reapplying stashed changes..." && \
+		git stash pop || echo "Warning: Could not pop stash, your changes may be in the stash list"; \
+	else \
+		echo "No changes to reapply"; \
+	fi
+.PHONY: build-v50

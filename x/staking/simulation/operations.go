@@ -23,6 +23,7 @@ import (
 )
 
 // Simulation operation weights constants
+// will be removed in the future
 const (
 	DefaultWeightMsgCreateValidator           int = 100
 	DefaultWeightMsgEditValidator             int = 5
@@ -39,6 +40,7 @@ const (
 )
 
 // WeightedOperations returns all the operations from the module with their respective weights
+// migrate to the msg factories instead, this method will be removed in the future
 func WeightedOperations(
 	appParams simtypes.AppParams,
 	cdc codec.JSONCodec,
@@ -100,6 +102,7 @@ func WeightedOperations(
 }
 
 // SimulateMsgCreateValidator generates a MsgCreateValidator with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgCreateValidator(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -197,6 +200,7 @@ func SimulateMsgCreateValidator(
 }
 
 // SimulateMsgEditValidator generates a MsgEditValidator with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgEditValidator(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -272,6 +276,7 @@ func SimulateMsgEditValidator(
 }
 
 // SimulateMsgDelegate generates a MsgDelegate with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgDelegate(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -350,6 +355,7 @@ func SimulateMsgDelegate(
 }
 
 // SimulateMsgUndelegate generates a MsgUndelegate with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgUndelegate(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -465,6 +471,7 @@ func SimulateMsgUndelegate(
 }
 
 // SimulateMsgCancelUnbondingDelegate generates a MsgCancelUnbondingDelegate with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgCancelUnbondingDelegate(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -565,6 +572,7 @@ func SimulateMsgCancelUnbondingDelegate(
 }
 
 // SimulateMsgBeginRedelegate generates a MsgBeginRedelegate with random values
+// migrate to the msg factories instead, this method will be removed in the future
 func SimulateMsgBeginRedelegate(
 	txGen client.TxConfig,
 	ak types.AccountKeeper,
@@ -652,6 +660,9 @@ func SimulateMsgBeginRedelegate(
 
 		if redAmt.IsZero() {
 			return simtypes.NoOpMsg(types.ModuleName, msgType, "amount is zero"), nil, nil
+		}
+		if totalBond.Sub(redAmt).IsZero() {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, "can not redelegate all"), nil, nil
 		}
 
 		// check if the shares truncate to zero

@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,13 +16,16 @@ import (
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv2alpha1 "cosmossdk.io/api/cosmos/base/reflection/v2alpha1"
 	"cosmossdk.io/client/v2/autocli/flag"
-	"cosmossdk.io/client/v2/internal/testpb"
+	"cosmossdk.io/client/v2/internal/testpbgogo"
+	testpb "cosmossdk.io/client/v2/internal/testpbpulsar"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -47,7 +51,7 @@ func initFixture(t *testing.T) *fixture {
 		}
 	}()
 
-	clientConn, err := grpc.Dial(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	clientConn, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
 
 	encodingConfig := moduletestutil.MakeTestEncodingConfig(bank.AppModuleBasic{})
@@ -56,6 +60,7 @@ func initFixture(t *testing.T) *fixture {
 
 	interfaceRegistry := encodingConfig.Codec.InterfaceRegistry()
 	banktypes.RegisterInterfaces(interfaceRegistry)
+	msgservice.RegisterMsgServiceDesc(interfaceRegistry, &testpbgogo.MsgGogoOnly_serviceDesc)
 
 	clientCtx := client.Context{}.
 		WithKeyring(kr).
@@ -68,10 +73,18 @@ func initFixture(t *testing.T) *fixture {
 		WithChainID("autocli-test")
 
 	conn := &testClientConn{ClientConn: clientConn}
+
+	// using merged registry to get pulsar + gogo files
+	mergedFiles, err := proto.MergedRegistry()
+	assert.NilError(t, err)
+
 	b := &Builder{
 		Builder: flag.Builder{
-			TypeResolver: protoregistry.GlobalTypes,
-			FileResolver: protoregistry.GlobalFiles,
+			TypeResolver:          protoregistry.GlobalTypes,
+			FileResolver:          mergedFiles,
+			AddressCodec:          addresscodec.NewBech32Codec("cosmos"),
+			ValidatorAddressCodec: addresscodec.NewBech32Codec("cosmosvaloper"),
+			ConsensusAddressCodec: addresscodec.NewBech32Codec("cosmosvalcons"),
 		},
 		GetClientConn: func(*cobra.Command) (grpc.ClientConnInterface, error) {
 			return conn, nil

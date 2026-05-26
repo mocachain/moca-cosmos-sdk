@@ -1,14 +1,10 @@
 package keeper_test
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/bls"
-	"github.com/cometbft/cometbft/crypto/tmhash"
-	"github.com/cometbft/cometbft/votepool"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/core/header"
@@ -42,7 +38,7 @@ func TestSlashRedelegation(t *testing.T) {
 	require.NoError(t, err)
 
 	// get sdk context, staking msg server and bond denom
-	ctx := app.BaseApp.NewContext(false)
+	ctx := app.NewContext(false)
 	stakingMsgServer := stakingkeeper.NewMsgServerImpl(stakingKeeper)
 	bondDenom, err := stakingKeeper.BondDenom(ctx)
 	require.NoError(t, err)
@@ -59,8 +55,8 @@ func TestSlashRedelegation(t *testing.T) {
 
 	// fund acc 1 and acc 2
 	testCoins := sdk.NewCoins(sdk.NewCoin(bondDenom, stakingKeeper.TokensFromConsensusPower(ctx, 10)))
-	banktestutil.FundAccount(ctx, bankKeeper, testAcc1, testCoins)
-	banktestutil.FundAccount(ctx, bankKeeper, testAcc2, testCoins)
+	require.NoError(t, banktestutil.FundAccount(ctx, bankKeeper, testAcc1, testCoins))
+	require.NoError(t, banktestutil.FundAccount(ctx, bankKeeper, testAcc2, testCoins))
 
 	balance1Before := bankKeeper.GetBalance(ctx, testAcc1, bondDenom)
 	balance2Before := bankKeeper.GetBalance(ctx, testAcc2, bondDenom)
@@ -70,30 +66,18 @@ func TestSlashRedelegation(t *testing.T) {
 	require.Equal(t, balance2Before.Amount.String(), testCoins[0].Amount.String())
 
 	// creating evil val
-	evilValAddr := sdk.AccAddress(evilValPubKey.Address())
-	banktestutil.FundAccount(ctx, bankKeeper, sdk.AccAddress(evilValAddr), testCoins)
-	blsSecretKey, _ := bls.GenerateBlsKey()
-	blsPk := hex.EncodeToString(blsSecretKey.PublicKey().Marshal())
-	blsProofBuf, _ := blsSecretKey.Sign(tmhash.Sum(blsSecretKey.PublicKey().Marshal()), votepool.DST)
-	blsProofBts, _ := blsProofBuf.Marshal()
-	blsProof := hex.EncodeToString(blsProofBts)
+	evilValAddr := sdk.ValAddress(evilValPubKey.Address())
+	require.NoError(t, banktestutil.FundAccount(ctx, bankKeeper, sdk.AccAddress(evilValAddr), testCoins))
 	createValMsg1, _ := stakingtypes.NewMsgCreateValidator(
-		evilValAddr.String(), evilValPubKey, testCoins[0], stakingtypes.Description{Details: "test"}, stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDec(0)), math.OneInt(),
-		evilValAddr, evilValAddr, evilValAddr, evilValAddr, blsPk, blsProof)
+		evilValAddr.String(), evilValPubKey, testCoins[0], stakingtypes.Description{Details: "test"}, stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDec(0)), math.OneInt())
 	_, err = stakingMsgServer.CreateValidator(ctx, createValMsg1)
 	require.NoError(t, err)
 
 	// creating good val
-	goodValAddr := sdk.AccAddress(goodValPubKey.Address())
-	banktestutil.FundAccount(ctx, bankKeeper, sdk.AccAddress(goodValAddr), testCoins)
-	blsSecretKey2, _ := bls.GenerateBlsKey()
-	blsPk2 := hex.EncodeToString(blsSecretKey2.PublicKey().Marshal())
-	blsProofBuf2, _ := blsSecretKey2.Sign(tmhash.Sum(blsSecretKey2.PublicKey().Marshal()), votepool.DST)
-	blsProofBts2, _ := blsProofBuf2.Marshal()
-	blsProof2 := hex.EncodeToString(blsProofBts2)
+	goodValAddr := sdk.ValAddress(goodValPubKey.Address())
+	require.NoError(t, banktestutil.FundAccount(ctx, bankKeeper, sdk.AccAddress(goodValAddr), testCoins))
 	createValMsg2, _ := stakingtypes.NewMsgCreateValidator(
-		goodValAddr.String(), goodValPubKey, testCoins[0], stakingtypes.Description{Details: "test"}, stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDec(0)), math.OneInt(),
-		goodValAddr, goodValAddr, goodValAddr, goodValAddr, blsPk2, blsProof2)
+		goodValAddr.String(), goodValPubKey, testCoins[0], stakingtypes.Description{Details: "test"}, stakingtypes.NewCommissionRates(math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDecWithPrec(5, 1), math.LegacyNewDec(0)), math.OneInt())
 	_, err = stakingMsgServer.CreateValidator(ctx, createValMsg2)
 	require.NoError(t, err)
 
@@ -154,16 +138,6 @@ func TestSlashRedelegation(t *testing.T) {
 
 	err = slashKeeper.Slash(ctx, evilValConsAddr, math.LegacyMustNewDecFromStr("0.9"), evilPower, 3)
 	require.NoError(t, err)
-
-	// assert invariant to make sure we conduct slashing correctly
-	_, stop := stakingkeeper.AllInvariants(stakingKeeper)(ctx)
-	require.False(t, stop)
-
-	_, stop = bankkeeper.AllInvariants(bankKeeper)(ctx)
-	require.False(t, stop)
-
-	_, stop = distributionkeeper.AllInvariants(distrKeeper)(ctx)
-	require.False(t, stop)
 
 	// one eternity later
 	ctx, err = simtestutil.NextBlock(app, ctx, time.Duration(1000000000000000000))

@@ -2,7 +2,6 @@ package baseapp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -20,7 +19,7 @@ import (
 	"cosmossdk.io/store/rootmulti"
 	snapshottypes "cosmossdk.io/store/snapshots/types"
 	storetypes "cosmossdk.io/store/types"
-	cmtrpctypes "github.com/cometbft/cometbft/rpc/jsonrpc/types"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -35,22 +34,6 @@ const (
 	QueryPathStore  = "store"
 
 	QueryPathBroadcastTx = "/cosmos.tx.v1beta1.Service/BroadcastTx"
-)
-
-// Supported EVM json-rpc requests
-const (
-	EthBlockNumber         = "eth_blockNumber"
-	EthGetBlockByNumber    = "eth_getBlockByNumber"
-	EthGetBalance          = "eth_getBalance"
-	EthChainID             = "eth_chainId"
-	NetVersion             = "net_version"
-	EthNetworkID           = "eth_networkId"
-	EthGasPrice            = "eth_gasPrice"
-	EthGetCode             = "eth_getCode"
-	EthEstimateGas         = "eth_estimateGas"
-	EthCall                = "eth_call"
-	EthGetTransactionCount = "eth_getTransactionCount"
-	EthSendRawTransaction  = "eth_sendRawTransaction"
 )
 
 func (app *BaseApp) InitChain(req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {
@@ -217,25 +200,6 @@ func (app *BaseApp) Query(_ context.Context, req *abci.RequestQuery) (resp *abci
 	return resp, nil
 }
 
-func (app *BaseApp) EthQuery(req *abci.RequestEthQuery) (res *abci.ResponseEthQuery, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			res = sdkerrors.EthQueryResult(errorsmod.Wrapf(sdkerrors.ErrPanic, "%v", r), app.trace)
-		}
-	}()
-
-	var rpcReq cmtrpctypes.RPCRequest
-	if err := json.Unmarshal(req.Request, &rpcReq); err != nil {
-		return sdkerrors.EthQueryResult(errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to unmarshal rpc request: %v", err), app.trace), err
-	}
-
-	if ethHandler := app.ethQueryRouter.Route(rpcReq.Method); ethHandler != nil {
-		return app.handleEthQuery(ethHandler, &rpcReq), nil
-	}
-
-	return res, nil
-}
-
 // ListSnapshots implements the ABCI interface. It delegates to app.snapshotManager if set.
 func (app *BaseApp) ListSnapshots(req *abci.RequestListSnapshots) (*abci.ResponseListSnapshots, error) {
 	resp := &abci.ResponseListSnapshots{Snapshots: []*abci.Snapshot{}}
@@ -319,6 +283,10 @@ func (app *BaseApp) OfferSnapshot(req *abci.RequestOfferSnapshot) (*abci.Respons
 		return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}, nil
 
 	default:
+		// CometBFT errors are defined here: https://github.com/cometbft/cometbft/blob/main/statesync/syncer.go
+		// It may happen that in case of a CometBFT error, such as a timeout (which occurs after two minutes),
+		// the process is aborted. This is done intentionally because deleting the database programmatically
+		// can lead to more complicated situations.
 		app.logger.Error(
 			"failed to restore snapshot",
 			"height", req.Snapshot.Height,
@@ -372,29 +340,38 @@ func (app *BaseApp) ApplySnapshotChunk(req *abci.RequestApplySnapshotChunk) (*ab
 func (app *BaseApp) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 	var mode execMode
 
-	switch {
-	case req.Type == abci.CheckTxType_New:
+	switch req.Type {
+	case abci.CheckTxType_New:
 		mode = execModeCheck
 
-	case req.Type == abci.CheckTxType_Recheck:
+	case abci.CheckTxType_Recheck:
 		mode = execModeReCheck
 
 	default:
 		return nil, fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
 	}
 
-	gInfo, result, anteEvents, err := app.runTx(mode, req.Tx)
-	if err != nil {
-		return sdkerrors.ResponseCheckTxWithEvents(err, gInfo.GasWanted, gInfo.GasUsed, anteEvents, app.trace), nil
+	if app.checkTxHandler == nil {
+		gInfo, result, anteEvents, err := app.runTx(mode, req.Tx, nil)
+		if err != nil {
+			return sdkerrors.ResponseCheckTxWithEvents(err, gInfo.GasWanted, gInfo.GasUsed, anteEvents, app.trace), nil
+		}
+
+		return &abci.ResponseCheckTx{
+			GasWanted: int64(gInfo.GasWanted), // TODO: Should type accept unsigned ints?
+			GasUsed:   int64(gInfo.GasUsed),   // TODO: Should type accept unsigned ints?
+			Log:       result.Log,
+			Data:      result.Data,
+			Events:    sdk.MarkEventsToIndex(result.Events, app.indexEvents),
+		}, nil
 	}
 
-	return &abci.ResponseCheckTx{
-		GasWanted: int64(gInfo.GasWanted), // TODO: Should type accept unsigned ints?
-		GasUsed:   int64(gInfo.GasUsed),   // TODO: Should type accept unsigned ints?
-		Log:       result.Log,
-		Data:      result.Data,
-		Events:    sdk.MarkEventsToIndex(result.Events, app.indexEvents),
-	}, nil
+	// Create wrapper to avoid users overriding the execution mode
+	runTx := func(txBytes []byte, tx sdk.Tx) (gInfo sdk.GasInfo, result *sdk.Result, anteEvents []abci.Event, err error) {
+		return app.runTx(mode, txBytes, tx)
+	}
+
+	return app.checkTxHandler(runTx, req)
 }
 
 // PrepareProposal implements the PrepareProposal ABCI method and returns a
@@ -891,9 +868,7 @@ func (app *BaseApp) internalFinalizeBlock(ctx context.Context, req *abci.Request
 // where they adhere to the sdk.Tx interface.
 func (app *BaseApp) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.ResponseFinalizeBlock, err error) {
 	defer func() {
-		// Add nil check for defensive programming
 		if res == nil {
-			app.logger.Error("FinalizeBlock returned nil response", "height", req.Height, "err", err)
 			return
 		}
 		// call the streaming service hooks with the FinalizeBlock messages
@@ -926,199 +901,6 @@ func (app *BaseApp) FinalizeBlock(req *abci.RequestFinalizeBlock) (res *abci.Res
 
 	// if no OE is running, just run the block (this is either a block replay or a OE that got aborted)
 	res, err = app.internalFinalizeBlock(context.Background(), req)
-	if res != nil {
-		res.AppHash = app.workingHash()
-	}
-
-	return res, err
-}
-
-func (app *BaseApp) internalFinalizeBlockMock(ctx context.Context, req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-	var events []abci.Event
-
-	if err := app.checkHalt(req.Height, req.Time); err != nil {
-		return nil, err
-	}
-
-	// if err := app.validateFinalizeBlockHeight(req); err != nil {
-	// 	return nil, err
-	// }
-
-	if app.cms.TracingEnabled() {
-		app.cms.SetTracingContext(storetypes.TraceContext(
-			map[string]any{"blockHeight": req.Height},
-		))
-	}
-
-	header := cmtproto.Header{
-		ChainID:            app.chainID,
-		Height:             req.Height,
-		Time:               req.Time,
-		ProposerAddress:    req.ProposerAddress,
-		NextValidatorsHash: req.NextValidatorsHash,
-		AppHash:            app.LastCommitID().Hash,
-	}
-
-	// finalizeBlockState should be set on InitChain or ProcessProposal. If it is
-	// nil, it means we are replaying this block and we need to set the state here
-	// given that during block replay ProcessProposal is not executed by CometBFT.
-	if app.finalizeBlockState == nil {
-		app.setState(execModeFinalize, header)
-	}
-
-	// Context is now updated with Header information.
-	app.finalizeBlockState.SetContext(app.finalizeBlockState.Context().
-		WithBlockHeader(header).
-		WithHeaderHash(req.Hash).
-		WithHeaderInfo(coreheader.Info{
-			ChainID: app.chainID,
-			Height:  req.Height,
-			Time:    req.Time,
-			Hash:    req.Hash,
-			AppHash: app.LastCommitID().Hash,
-		}).
-		WithConsensusParams(app.GetConsensusParams(app.finalizeBlockState.Context())).
-		WithVoteInfos(req.DecidedLastCommit.Votes).
-		WithExecMode(sdk.ExecModeFinalize).
-		WithCometInfo(cometInfo{
-			Misbehavior:     req.Misbehavior,
-			ValidatorsHash:  req.NextValidatorsHash,
-			ProposerAddress: req.ProposerAddress,
-			LastCommit:      req.DecidedLastCommit,
-		}))
-
-	// GasMeter must be set after we get a context with updated consensus params.
-	gasMeter := app.getBlockGasMeter(app.finalizeBlockState.Context())
-	app.finalizeBlockState.SetContext(app.finalizeBlockState.Context().WithBlockGasMeter(gasMeter))
-
-	if app.checkState != nil {
-		app.checkState.SetContext(app.checkState.Context().
-			WithBlockGasMeter(gasMeter).
-			WithHeaderHash(req.Hash))
-	}
-
-	preblockEvents, err := app.preBlock(req)
-	if err != nil {
-		return nil, err
-	}
-
-	events = append(events, preblockEvents...)
-
-	beginBlock, err := app.beginBlock(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// First check for an abort signal after beginBlock, as it's the first place
-	// we spend any significant amount of time.
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-		// continue
-	}
-
-	events = append(events, beginBlock.Events...)
-
-	// Reset the gas meter so that the AnteHandlers aren't required to
-	gasMeter = app.getBlockGasMeter(app.finalizeBlockState.Context())
-	app.finalizeBlockState.SetContext(app.finalizeBlockState.Context().WithBlockGasMeter(gasMeter))
-
-	// Iterate over all raw transactions in the proposal and attempt to execute
-	// them, gathering the execution results.
-	//
-	// NOTE: Not all raw transactions may adhere to the sdk.Tx interface, e.g.
-	// vote extensions, so skip those.
-	txResults := make([]*abci.ExecTxResult, 0, len(req.Txs))
-	for _, rawTx := range req.Txs {
-		var response *abci.ExecTxResult
-
-		if _, err := app.txDecoder(rawTx); err == nil {
-			response = app.deliverTx(rawTx)
-		} else {
-			// In the case where a transaction included in a block proposal is malformed,
-			// we still want to return a default response to comet. This is because comet
-			// expects a response for each transaction included in a block proposal.
-			response = sdkerrors.ResponseExecTxResultWithEvents(
-				sdkerrors.ErrTxDecode,
-				0,
-				0,
-				nil,
-				false,
-			)
-		}
-
-		// check after every tx if we should abort
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			// continue
-		}
-
-		txResults = append(txResults, response)
-	}
-
-	if app.finalizeBlockState.ms.TracingEnabled() {
-		app.finalizeBlockState.ms = app.finalizeBlockState.ms.SetTracingContext(nil).(storetypes.CacheMultiStore)
-	}
-
-	endBlock, err := app.endBlock(app.finalizeBlockState.Context())
-	if err != nil {
-		return nil, err
-	}
-
-	// check after endBlock if we should abort, to avoid propagating the result
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-		// continue
-	}
-
-	events = append(events, endBlock.Events...)
-	cp := app.GetConsensusParams(app.finalizeBlockState.Context())
-
-	return &abci.ResponseFinalizeBlock{
-		Events:                events,
-		TxResults:             txResults,
-		ValidatorUpdates:      endBlock.ValidatorUpdates,
-		ConsensusParamUpdates: &cp,
-	}, nil
-}
-
-func (app *BaseApp) FinalizeBlockMock(req *abci.RequestFinalizeBlock) (res *abci.ResponseFinalizeBlock, err error) {
-	defer func() {
-		// call the streaming service hooks with the FinalizeBlock messages
-		for _, streamingListener := range app.streamingManager.ABCIListeners {
-			if err := streamingListener.ListenFinalizeBlock(app.finalizeBlockState.Context(), *req, *res); err != nil {
-				app.logger.Error("ListenFinalizeBlock listening hook failed", "height", req.Height, "err", err)
-			}
-		}
-	}()
-
-	if app.optimisticExec.Initialized() {
-		// check if the hash we got is the same as the one we are executing
-		aborted := app.optimisticExec.AbortIfNeeded(req.Hash)
-		// Wait for the OE to finish, regardless of whether it was aborted or not
-		res, err = app.optimisticExec.WaitResult()
-
-		// only return if we are not aborting
-		if !aborted {
-			if res != nil {
-				res.AppHash = app.workingHash()
-			}
-
-			return res, err
-		}
-
-		// if it was aborted, we need to reset the state
-		app.finalizeBlockState = nil
-		app.optimisticExec.Reset()
-	}
-
-	// if no OE is running, just run the block (this is either a block replay or a OE that got aborted)
-	res, err = app.internalFinalizeBlockMock(context.Background(), req)
 	if res != nil {
 		res.AppHash = app.workingHash()
 	}
@@ -1217,11 +999,6 @@ func (app *BaseApp) workingHash() []byte {
 	app.logger.Debug("hash of all writes", "workingHash", fmt.Sprintf("%X", commitHash))
 
 	return commitHash
-}
-
-// SetMockBlockHeight is only used for testing.
-func (app *BaseApp) SetMockBlockHeight(height int64) {
-	app.finalizeBlockState.ctx = app.finalizeBlockState.ctx.WithBlockHeight(height)
 }
 
 func handleQueryApp(app *BaseApp, path []string, req *abci.RequestQuery) *abci.ResponseQuery {
@@ -1363,7 +1140,6 @@ func (app *BaseApp) FilterPeerByID(info string) *abci.ResponseQuery {
 func (app *BaseApp) getContextForProposal(ctx sdk.Context, height int64) sdk.Context {
 	if height == app.initialHeight {
 		ctx, _ = app.finalizeBlockState.Context().CacheContext()
-		ctx = ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
 
 		// clear all context data set during InitChain to avoid inconsistent behavior
 		ctx = ctx.WithBlockHeader(cmtproto.Header{}).WithHeaderInfo(coreheader.Info{})
@@ -1387,41 +1163,6 @@ func (app *BaseApp) handleQueryGRPC(handler GRPCQueryHandler, req *abci.RequestQ
 	}
 
 	return resp
-}
-
-func (app *BaseApp) handleEthQuery(handler EthQueryHandler, req *cmtrpctypes.RPCRequest) *abci.ResponseEthQuery {
-	// use custom query multistore if provided
-	qms := app.qms
-	if qms == nil {
-		qms = app.cms.(storetypes.MultiStore)
-	}
-
-	height := qms.LatestVersion()
-	if height == 0 {
-		err := errorsmod.Wrapf(sdkerrors.ErrInvalidHeight, "%s is not ready; please wait for first block", app.Name())
-		return sdkerrors.EthQueryResult(err, app.trace)
-	}
-
-	cacheMS, err := qms.CacheMultiStoreWithVersion(height)
-	if err != nil {
-		err := errorsmod.Wrapf(
-			sdkerrors.ErrInvalidRequest,
-			"failed to load state at height %d; %s", height, err,
-		)
-		return sdkerrors.EthQueryResult(err, app.trace)
-	}
-
-	// branch the commit-multistore for safety
-	ctx := sdk.NewContext(cacheMS, app.checkState.ctx.BlockHeader(), true, app.logger).
-		WithBlockHeight(height)
-
-	res, err := handler(ctx, req)
-	if err != nil {
-		res = sdkerrors.EthQueryResult(gRPCErrorToSDKError(err), app.trace)
-		return res
-	}
-
-	return res
 }
 
 func gRPCErrorToSDKError(err error) error {
@@ -1456,14 +1197,20 @@ func checkNegativeHeight(height int64) error {
 	return nil
 }
 
-// createQueryContext creates a new sdk.Context for a query, taking as args
+// CreateQueryContext creates a new sdk.Context for a query, taking as args
 // the block height and whether the query needs a proof or not.
 func (app *BaseApp) CreateQueryContext(height int64, prove bool) (sdk.Context, error) {
+	return app.CreateQueryContextWithCheckHeader(height, prove, true)
+}
+
+// CreateQueryContextWithCheckHeader creates a new sdk.Context for a query, taking as args
+// the block height, whether the query needs a proof or not, and whether to check the header or not.
+func (app *BaseApp) CreateQueryContextWithCheckHeader(height int64, prove, checkHeader bool) (sdk.Context, error) {
 	if err := checkNegativeHeight(height); err != nil {
 		return sdk.Context{}, err
 	}
 
-	// use custom query multistore if provided
+	// use custom query multi-store if provided
 	qms := app.qms
 	if qms == nil {
 		qms = app.cms.(storetypes.MultiStore)
@@ -1476,18 +1223,13 @@ func (app *BaseApp) CreateQueryContext(height int64, prove bool) (sdk.Context, e
 
 	if height > lastBlockHeight {
 		return sdk.Context{},
-			errorsmod.Wrapf(
+			errorsmod.Wrap(
 				sdkerrors.ErrInvalidHeight,
-				"cannot query with height in the future(%d, latest height %d); please provide a valid height", height, lastBlockHeight,
+				"cannot query with height in the future; please provide a valid height",
 			)
 	}
 
-	// when a client did not provide a query height, manually inject the latest
-	if height == 0 {
-		height = lastBlockHeight
-	}
-
-	if height <= 1 && prove {
+	if height == 1 && prove {
 		return sdk.Context{},
 			errorsmod.Wrap(
 				sdkerrors.ErrInvalidRequest,
@@ -1495,34 +1237,63 @@ func (app *BaseApp) CreateQueryContext(height int64, prove bool) (sdk.Context, e
 			)
 	}
 
+	var header *cmtproto.Header
+	isLatest := height == 0
+	for _, state := range []*state{
+		app.checkState,
+		app.finalizeBlockState,
+	} {
+		if state != nil {
+			// branch the commit multi-store for safety
+			h := state.Context().BlockHeader()
+			if isLatest {
+				lastBlockHeight = qms.LatestVersion()
+			}
+			if !checkHeader || !isLatest || isLatest && h.Height == lastBlockHeight {
+				header = &h
+				break
+			}
+		}
+	}
+
+	if header == nil {
+		return sdk.Context{},
+			errorsmod.Wrapf(
+				sdkerrors.ErrInvalidHeight,
+				"context did not contain latest block height in either check state or finalize block state (%d)", lastBlockHeight,
+			)
+	}
+
+	// when a client did not provide a query height, manually inject the latest
+	if isLatest {
+		height = lastBlockHeight
+	}
+
 	cacheMS, err := qms.CacheMultiStoreWithVersion(height)
 	if err != nil {
 		return sdk.Context{},
 			errorsmod.Wrapf(
-				sdkerrors.ErrInvalidRequest,
+				sdkerrors.ErrNotFound,
 				"failed to load state at height %d; %s (latest height: %d)", height, err, lastBlockHeight,
 			)
 	}
 
 	// branch the commit multi-store for safety
-	header := app.checkState.Context().BlockHeader()
-	ctx := sdk.NewContext(cacheMS, header, true, app.logger).
+	ctx := sdk.NewContext(cacheMS, *header, true, app.logger).
 		WithMinGasPrices(app.minGasPrices).
 		WithGasMeter(storetypes.NewGasMeter(app.queryGasLimit)).
-		WithBlockHeader(header).
-		WithBlockHeight(height).
-		WithEnableUnsafeQuery(app.enableUnsafeQuery)
+		WithBlockHeader(*header).
+		WithBlockHeight(height)
 
-	if height != lastBlockHeight {
+	if !isLatest {
 		rms, ok := app.cms.(*rootmulti.Store)
 		if ok {
 			cInfo, err := rms.GetCommitInfo(height)
 			if cInfo != nil && err == nil {
-				ctx = ctx.WithBlockTime(cInfo.Timestamp)
+				ctx = ctx.WithBlockHeight(height).WithBlockTime(cInfo.Timestamp)
 			}
 		}
 	}
-
 	return ctx, nil
 }
 
@@ -1548,8 +1319,11 @@ func (app *BaseApp) CreateQueryContext(height int64, prove bool) (sdk.Context, e
 // be a need to vary retention for other nodes, e.g. sentry nodes which do not
 // need historical blocks.
 func (app *BaseApp) GetBlockRetentionHeight(commitHeight int64) int64 {
-	// pruning is disabled if minRetainBlocks is zero
-	if app.minRetainBlocks == 0 {
+	// If minRetainBlocks is zero, pruning is disabled and we return 0
+	// If commitHeight is less than or equal to minRetainBlocks, return 0 since there are not enough
+	// blocks to trigger pruning yet. This ensures we keep all blocks until we have at least minRetainBlocks.
+	retentionBlockWindow := commitHeight - int64(app.minRetainBlocks)
+	if app.minRetainBlocks == 0 || retentionBlockWindow <= 0 {
 		return 0
 	}
 
@@ -1591,8 +1365,7 @@ func (app *BaseApp) GetBlockRetentionHeight(commitHeight int64) int64 {
 		}
 	}
 
-	v := commitHeight - int64(app.minRetainBlocks)
-	retentionHeight = minNonZero(retentionHeight, v)
+	retentionHeight = minNonZero(retentionHeight, retentionBlockWindow)
 
 	if retentionHeight <= 0 {
 		// prune nothing in the case of a non-positive height

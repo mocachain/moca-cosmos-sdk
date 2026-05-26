@@ -1,14 +1,12 @@
 package gov_test
 
 import (
-	"encoding/hex"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/polygon-edge/bls"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/crypto/tmhash"
-	"github.com/cometbft/cometbft/votepool"
+	"github.com/cosmos/gogoproto/proto"
+	anypb "github.com/cosmos/gogoproto/types/any"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/collections"
@@ -28,7 +26,7 @@ import (
 
 func TestUnregisteredProposal_InactiveProposalFails(t *testing.T) {
 	suite := createTestSuite(t)
-	ctx := suite.App.BaseApp.NewContext(false)
+	ctx := suite.App.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens)
 
 	// manually set proposal in store
@@ -51,12 +49,12 @@ func TestUnregisteredProposal_InactiveProposalFails(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = suite.GovKeeper.Proposals.Get(ctx, proposal.Id)
-	require.Error(t, err, collections.ErrNotFound)
+	require.ErrorIs(t, err, collections.ErrNotFound)
 }
 
 func TestUnregisteredProposal_ActiveProposalFails(t *testing.T) {
 	suite := createTestSuite(t)
-	ctx := suite.App.BaseApp.NewContext(false)
+	ctx := suite.App.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens)
 
 	// manually set proposal in store
@@ -85,16 +83,86 @@ func TestUnregisteredProposal_ActiveProposalFails(t *testing.T) {
 	require.Equal(t, v1.StatusFailed, p.Status)
 }
 
+func TestUndecodableProposal_ActiveProposalFails(t *testing.T) {
+	s := createTestSuite(t)
+	ctx := s.App.NewContext(false)
+
+	const proposalID uint64 = 9901
+	endTime := ctx.BlockTime()
+
+	// Write a proposal with an unregistered Any type URL directly into the KV
+	// store, simulating a proposal that was valid under a previous binary but
+	// becomes undecodable after a binary upgrade removes the message type.
+	storeKey := s.App.UnsafeFindStoreKey(types.StoreKey)
+	require.NotNil(t, storeKey)
+	bz, err := proto.Marshal(&v1.Proposal{
+		Id:       proposalID,
+		Messages: []*anypb.Any{{TypeUrl: "/cosmos.removed.v1.MsgRemoved", Value: []byte{0x08, 0x01}}},
+	})
+	require.NoError(t, err)
+	key, err := collections.EncodeKeyWithPrefix(s.GovKeeper.Proposals.GetPrefix(), collections.Uint64Key, proposalID)
+	require.NoError(t, err)
+	ctx.KVStore(storeKey).Set(key, bz)
+
+	_, err = s.GovKeeper.Proposals.Get(ctx, proposalID)
+	require.ErrorIs(t, err, collections.ErrEncoding)
+
+	require.NoError(t, s.GovKeeper.ActiveProposalsQueue.Set(ctx, collections.Join(endTime, proposalID), proposalID))
+
+	require.NotPanics(t, func() {
+		err := gov.EndBlocker(ctx, s.GovKeeper)
+		require.NoError(t, err)
+	})
+
+	has, err := s.GovKeeper.ActiveProposalsQueue.Has(ctx, collections.Join(endTime, proposalID))
+	require.NoError(t, err)
+	require.False(t, has, "active queue entry should be removed")
+}
+
+func TestUndecodableProposal_InactiveProposalFails(t *testing.T) {
+	s := createTestSuite(t)
+	ctx := s.App.NewContext(false)
+
+	const proposalID uint64 = 9902
+	endTime := ctx.BlockTime()
+
+	storeKey := s.App.UnsafeFindStoreKey(types.StoreKey)
+	require.NotNil(t, storeKey)
+	bz, err := proto.Marshal(&v1.Proposal{
+		Id:       proposalID,
+		Messages: []*anypb.Any{{TypeUrl: "/cosmos.removed.v1.MsgRemoved", Value: []byte{0x08, 0x01}}},
+	})
+	require.NoError(t, err)
+	key, err := collections.EncodeKeyWithPrefix(s.GovKeeper.Proposals.GetPrefix(), collections.Uint64Key, proposalID)
+	require.NoError(t, err)
+	ctx.KVStore(storeKey).Set(key, bz)
+
+	_, err = s.GovKeeper.Proposals.Get(ctx, proposalID)
+	require.ErrorIs(t, err, collections.ErrEncoding)
+
+	require.NoError(t, s.GovKeeper.InactiveProposalsQueue.Set(ctx, collections.Join(endTime, proposalID), proposalID))
+
+	require.NoError(t, gov.EndBlocker(ctx, s.GovKeeper))
+
+	has, err := s.GovKeeper.InactiveProposalsQueue.Has(ctx, collections.Join(endTime, proposalID))
+	require.NoError(t, err)
+	require.False(t, has, "inactive queue entry should be removed")
+
+	// Second pass: nothing left to process.
+	require.NoError(t, gov.EndBlocker(ctx, s.GovKeeper))
+}
+
 func TestTickExpiredDepositPeriod(t *testing.T) {
 	suite := createTestSuite(t)
 	app := suite.App
-	ctx := app.BaseApp.NewContext(false)
+	ctx := app.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens)
 
-	app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: app.LastBlockHeight() + 1,
 		Hash:   app.LastCommitID().Hash,
 	})
+	require.NoError(t, err)
 
 	govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 
@@ -139,13 +207,14 @@ func TestTickExpiredDepositPeriod(t *testing.T) {
 func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 	suite := createTestSuite(t)
 	app := suite.App
-	ctx := app.BaseApp.NewContext(false)
+	ctx := app.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens)
 
-	app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: app.LastBlockHeight() + 1,
 		Hash:   app.LastCommitID().Hash,
 	})
+	require.NoError(t, err)
 
 	govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 
@@ -210,13 +279,14 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 func TestTickPassedDepositPeriod(t *testing.T) {
 	suite := createTestSuite(t)
 	app := suite.App
-	ctx := app.BaseApp.NewContext(false)
+	ctx := app.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens)
 
-	app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: app.LastBlockHeight() + 1,
 		Hash:   app.LastCommitID().Hash,
 	})
+	require.NoError(t, err)
 
 	govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 
@@ -272,16 +342,17 @@ func TestTickPassedVotingPeriod(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			suite := createTestSuite(t)
 			app := suite.App
-			ctx := app.BaseApp.NewContext(false)
+			ctx := app.NewContext(false)
 			depositMultiplier := getDepositMultiplier(tc.expedited)
 			addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens.Mul(math.NewInt(depositMultiplier)))
 
 			SortAddresses(addrs)
 
-			app.FinalizeBlock(&abci.RequestFinalizeBlock{
+			_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 				Height: app.LastBlockHeight() + 1,
 				Hash:   app.LastCommitID().Hash,
 			})
+			require.NoError(t, err)
 
 			govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 
@@ -363,7 +434,7 @@ func TestProposalPassedEndblocker(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			suite := createTestSuite(t)
 			app := suite.App
-			ctx := app.BaseApp.NewContext(false)
+			ctx := app.NewContext(false)
 			depositMultiplier := getDepositMultiplier(tc.expedited)
 			addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 10, valTokens.Mul(math.NewInt(depositMultiplier)))
 
@@ -372,16 +443,18 @@ func TestProposalPassedEndblocker(t *testing.T) {
 			govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 			stakingMsgSvr := stakingkeeper.NewMsgServerImpl(suite.StakingKeeper)
 
-			app.FinalizeBlock(&abci.RequestFinalizeBlock{
+			_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 				Height: app.LastBlockHeight() + 1,
 				Hash:   app.LastCommitID().Hash,
 			})
+			require.NoError(t, err)
 
-			valAddr := addrs[0]
+			valAddr := sdk.ValAddress(addrs[0])
 			proposer := addrs[0]
 
-			createValidators(t, stakingMsgSvr, ctx, []sdk.AccAddress{valAddr}, []int64{10})
-			suite.StakingKeeper.EndBlocker(ctx)
+			createValidators(t, stakingMsgSvr, ctx, []sdk.ValAddress{valAddr}, []int64{10})
+			_, err = suite.StakingKeeper.EndBlocker(ctx)
+			require.NoError(t, err)
 
 			macc := suite.GovKeeper.GetGovernanceAccount(ctx)
 			require.NotNil(t, macc)
@@ -412,7 +485,7 @@ func TestProposalPassedEndblocker(t *testing.T) {
 			newHeader.Time = ctx.BlockHeader().Time.Add(*params.MaxDepositPeriod).Add(*params.VotingPeriod)
 			ctx = ctx.WithBlockHeader(newHeader)
 
-			gov.EndBlocker(ctx, suite.GovKeeper)
+			require.NoError(t, gov.EndBlocker(ctx, suite.GovKeeper))
 
 			macc = suite.GovKeeper.GetGovernanceAccount(ctx)
 			require.NotNil(t, macc)
@@ -424,23 +497,25 @@ func TestProposalPassedEndblocker(t *testing.T) {
 func TestEndBlockerProposalHandlerFailed(t *testing.T) {
 	suite := createTestSuite(t)
 	app := suite.App
-	ctx := app.BaseApp.NewContext(false)
+	ctx := app.NewContext(false)
 	addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 1, valTokens)
 
 	SortAddresses(addrs)
 
 	stakingMsgSvr := stakingkeeper.NewMsgServerImpl(suite.StakingKeeper)
 
-	app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: app.LastBlockHeight() + 1,
 		Hash:   app.LastCommitID().Hash,
 	})
+	require.NoError(t, err)
 
-	valAddr := addrs[0]
+	valAddr := sdk.ValAddress(addrs[0])
 	proposer := addrs[0]
 
-	createValidators(t, stakingMsgSvr, ctx, []sdk.AccAddress{valAddr}, []int64{10})
-	suite.StakingKeeper.EndBlocker(ctx)
+	createValidators(t, stakingMsgSvr, ctx, []sdk.ValAddress{valAddr}, []int64{10})
+	_, err = suite.StakingKeeper.EndBlocker(ctx)
+	require.NoError(t, err)
 
 	msg := banktypes.NewMsgSend(authtypes.NewModuleAddress(types.ModuleName), addrs[0], sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100000))))
 	proposal, err := suite.GovKeeper.SubmitProposal(ctx, []sdk.Msg{msg}, "", "title", "summary", proposer, false)
@@ -463,7 +538,7 @@ func TestEndBlockerProposalHandlerFailed(t *testing.T) {
 	ctx = ctx.WithBlockHeader(newHeader)
 
 	// validate that the proposal fails/has been rejected
-	gov.EndBlocker(ctx, suite.GovKeeper)
+	require.NoError(t, gov.EndBlocker(ctx, suite.GovKeeper))
 
 	// check proposal events
 	events := ctx.EventManager().Events()
@@ -504,7 +579,7 @@ func TestExpeditedProposal_PassAndConversionToRegular(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			suite := createTestSuite(t)
 			app := suite.App
-			ctx := app.BaseApp.NewContext(false)
+			ctx := app.NewContext(false)
 			depositMultiplier := getDepositMultiplier(true)
 			addrs := simtestutil.AddTestAddrs(suite.BankKeeper, suite.StakingKeeper, ctx, 3, valTokens.Mul(math.NewInt(depositMultiplier)))
 			params, err := suite.GovKeeper.Params.Get(ctx)
@@ -515,17 +590,19 @@ func TestExpeditedProposal_PassAndConversionToRegular(t *testing.T) {
 			govMsgSvr := keeper.NewMsgServerImpl(suite.GovKeeper)
 			stakingMsgSvr := stakingkeeper.NewMsgServerImpl(suite.StakingKeeper)
 
-			app.FinalizeBlock(&abci.RequestFinalizeBlock{
+			_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{
 				Height: app.LastBlockHeight() + 1,
 				Hash:   app.LastCommitID().Hash,
 			})
+			require.NoError(t, err)
 
-			valAddr := sdk.AccAddress(addrs[0])
+			valAddr := sdk.ValAddress(addrs[0])
 			proposer := addrs[0]
 
 			// Create a validator so that able to vote on proposal.
-			createValidators(t, stakingMsgSvr, ctx, []sdk.AccAddress{valAddr}, []int64{10})
-			suite.StakingKeeper.EndBlocker(ctx)
+			createValidators(t, stakingMsgSvr, ctx, []sdk.ValAddress{valAddr}, []int64{10})
+			_, err = suite.StakingKeeper.EndBlocker(ctx)
+			require.NoError(t, err)
 
 			checkInactiveProposalsQueue(t, ctx, suite.GovKeeper)
 			checkActiveProposalsQueue(t, ctx, suite.GovKeeper)
@@ -575,7 +652,7 @@ func TestExpeditedProposal_PassAndConversionToRegular(t *testing.T) {
 			}
 
 			// Here the expedited proposal is converted to regular after expiry.
-			gov.EndBlocker(ctx, suite.GovKeeper)
+			require.NoError(t, gov.EndBlocker(ctx, suite.GovKeeper))
 
 			if tc.expeditedPasses {
 				checkActiveProposalsQueue(t, ctx, suite.GovKeeper)
@@ -630,7 +707,7 @@ func TestExpeditedProposal_PassAndConversionToRegular(t *testing.T) {
 			}
 
 			// Here we validate the converted regular proposal
-			gov.EndBlocker(ctx, suite.GovKeeper)
+			require.NoError(t, gov.EndBlocker(ctx, suite.GovKeeper))
 
 			macc = suite.GovKeeper.GetGovernanceAccount(ctx)
 			require.NotNil(t, macc)
@@ -664,21 +741,17 @@ func TestExpeditedProposal_PassAndConversionToRegular(t *testing.T) {
 	}
 }
 
-func createValidators(t *testing.T, stakingMsgSvr stakingtypes.MsgServer, ctx sdk.Context, addrs []sdk.AccAddress, powerAmt []int64) {
+func createValidators(t *testing.T, stakingMsgSvr stakingtypes.MsgServer, ctx sdk.Context, addrs []sdk.ValAddress, powerAmt []int64) {
+	t.Helper()
+
 	require.True(t, len(addrs) <= len(pubkeys), "Not enough pubkeys specified at top of file.")
 
-	for i := 0; i < len(addrs); i++ {
+	for i := range addrs {
 		valTokens := sdk.TokensFromConsensusPower(powerAmt[i], sdk.DefaultPowerReduction)
-		blsSecretKey, _ := bls.GenerateBlsKey()
-		blsPk := hex.EncodeToString(blsSecretKey.PublicKey().Marshal())
-		blsProofBuf, _ := blsSecretKey.Sign(tmhash.Sum(blsSecretKey.PublicKey().Marshal()), votepool.DST)
-		blsProofBts, _ := blsProofBuf.Marshal()
-		blsProof := hex.EncodeToString(blsProofBts)
 		valCreateMsg, err := stakingtypes.NewMsgCreateValidator(
 			addrs[i].String(), pubkeys[i], sdk.NewCoin(sdk.DefaultBondDenom, valTokens),
 			TestDescription, TestCommissionRates, math.OneInt(),
-			addrs[i], addrs[i],
-			addrs[i], addrs[i], blsPk, blsProof)
+		)
 		require.NoError(t, err)
 		res, err := stakingMsgSvr.CreateValidator(ctx, valCreateMsg)
 		require.NoError(t, err)
@@ -698,6 +771,8 @@ func getDepositMultiplier(expedited bool) int64 {
 }
 
 func checkActiveProposalsQueue(t *testing.T, ctx sdk.Context, k *keeper.Keeper) {
+	t.Helper()
+
 	err := k.ActiveProposalsQueue.Walk(ctx, collections.NewPrefixUntilPairRange[time.Time, uint64](ctx.BlockTime()), func(key collections.Pair[time.Time, uint64], value uint64) (stop bool, err error) {
 		return false, err
 	})
@@ -706,6 +781,8 @@ func checkActiveProposalsQueue(t *testing.T, ctx sdk.Context, k *keeper.Keeper) 
 }
 
 func checkInactiveProposalsQueue(t *testing.T, ctx sdk.Context, k *keeper.Keeper) {
+	t.Helper()
+
 	err := k.InactiveProposalsQueue.Walk(ctx, collections.NewPrefixUntilPairRange[time.Time, uint64](ctx.BlockTime()), func(key collections.Pair[time.Time, uint64], value uint64) (stop bool, err error) {
 		return false, err
 	})

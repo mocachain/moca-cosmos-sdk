@@ -25,7 +25,8 @@ var (
 )
 
 // ErrInvalidChainID returns an error resulting from an invalid chain ID.
-var ErrInvalidChainID = errors.Register(sdkerrors.RootCodespace, 42, "invalid chain ID")
+// Code 43: code 42 was claimed by v0.53's ErrTxTimeout in types/errors.
+var ErrInvalidChainID = errors.Register(sdkerrors.RootCodespace, 43, "invalid chain ID")
 
 // IsValidChainID returns false if the given chain identifier is incorrectly formatted.
 func IsValidChainID(chainID string) bool {

@@ -10,8 +10,8 @@ func (s *KeeperTestSuite) TestAfterValidatorBonded() {
 	ctx, keeper := s.ctx, s.slashingKeeper
 	require := s.Require()
 
-	valAddr := sdk.AccAddress(consAddr.Bytes())
-	keeper.Hooks().AfterValidatorBonded(ctx, consAddr, valAddr)
+	valAddr := sdk.ValAddress(consAddr.Bytes())
+	s.Require().NoError(keeper.Hooks().AfterValidatorBonded(ctx, consAddr, valAddr))
 
 	_, err := keeper.GetValidatorSigningInfo(ctx, consAddr)
 	require.NoError(err)
@@ -22,9 +22,9 @@ func (s *KeeperTestSuite) TestAfterValidatorCreatedOrRemoved() {
 	require := s.Require()
 
 	_, pubKey, addr := testdata.KeyTestPubAddr()
-	valAddr := addr
+	valAddr := sdk.ValAddress(addr)
 
-	validator, err := stakingtypes.NewSimpleValidator(addr.String(), pubKey, stakingtypes.Description{})
+	validator, err := stakingtypes.NewValidator(sdk.ValAddress(addr).String(), pubKey, stakingtypes.Description{})
 	require.NoError(err)
 
 	s.stakingKeeper.EXPECT().Validator(ctx, valAddr).Return(validator, nil)

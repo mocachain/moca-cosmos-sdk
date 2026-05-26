@@ -77,10 +77,10 @@ func MustUnmarshalParams(cdc *codec.LegacyAmino, value []byte) Params {
 func UnmarshalParams(cdc *codec.LegacyAmino, value []byte) (params Params, err error) {
 	err = cdc.Unmarshal(value, &params)
 	if err != nil {
-		return
+		return params, err
 	}
 
-	return
+	return params, err
 }
 
 // validate a set of params
@@ -116,7 +116,7 @@ func (p Params) Validate() error {
 	return nil
 }
 
-func validateUnbondingTime(i interface{}) error {
+func validateUnbondingTime(i any) error {
 	v, ok := i.(time.Duration)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -129,7 +129,7 @@ func validateUnbondingTime(i interface{}) error {
 	return nil
 }
 
-func validateMaxValidators(i interface{}) error {
+func validateMaxValidators(i any) error {
 	v, ok := i.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -142,7 +142,7 @@ func validateMaxValidators(i interface{}) error {
 	return nil
 }
 
-func validateMaxEntries(i interface{}) error {
+func validateMaxEntries(i any) error {
 	v, ok := i.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -155,7 +155,7 @@ func validateMaxEntries(i interface{}) error {
 	return nil
 }
 
-func validateHistoricalEntries(i interface{}) error {
+func validateHistoricalEntries(i any) error {
 	_, ok := i.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -164,7 +164,7 @@ func validateHistoricalEntries(i interface{}) error {
 	return nil
 }
 
-func validateBondDenom(i interface{}) error {
+func validateBondDenom(i any) error {
 	v, ok := i.(string)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -181,7 +181,7 @@ func validateBondDenom(i interface{}) error {
 	return nil
 }
 
-func ValidatePowerReduction(i interface{}) error {
+func ValidatePowerReduction(i any) error {
 	v, ok := i.(math.Int)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
@@ -194,7 +194,7 @@ func ValidatePowerReduction(i interface{}) error {
 	return nil
 }
 
-func validateMinCommissionRate(i interface{}) error {
+func validateMinCommissionRate(i any) error {
 	v, ok := i.(math.LegacyDec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)

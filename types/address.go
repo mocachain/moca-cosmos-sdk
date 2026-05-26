@@ -346,14 +346,13 @@ func (aa AccAddress) String() string {
 
 // Format implements the fmt.Formatter interface.
 func (aa AccAddress) Format(s fmt.State, verb rune) {
-	//nolint: errcheck
 	switch verb {
 	case 's':
-		s.Write([]byte(aa.String()))
+		_, _ = s.Write([]byte(aa.String()))
 	case 'p':
-		s.Write([]byte(fmt.Sprintf("%p", aa)))
+		_, _ = fmt.Fprintf(s, "%p", aa)
 	default:
-		s.Write([]byte(fmt.Sprintf("%X", []byte(aa))))
+		_, _ = fmt.Fprintf(s, "%X", []byte(aa))
 	}
 }
 
@@ -484,14 +483,13 @@ func (va ValAddress) String() string {
 
 // Format implements the fmt.Formatter interface.
 func (va ValAddress) Format(s fmt.State, verb rune) {
-	//nolint: errcheck
 	switch verb {
 	case 's':
-		s.Write([]byte(va.String()))
+		_, _ = s.Write([]byte(va.String()))
 	case 'p':
-		s.Write([]byte(fmt.Sprintf("%p", va)))
+		_, _ = fmt.Fprintf(s, "%p", va)
 	default:
-		s.Write([]byte(fmt.Sprintf("%X", []byte(va))))
+		_, _ = fmt.Fprintf(s, "%X", []byte(va))
 	}
 }
 
@@ -651,14 +649,13 @@ func MustBech32ifyAddressBytes(prefix string, bs []byte) string {
 
 // Format implements the fmt.Formatter interface.
 func (ca ConsAddress) Format(s fmt.State, verb rune) {
-	//nolint: errcheck
 	switch verb {
 	case 's':
-		s.Write([]byte(ca.String()))
+		_, _ = s.Write([]byte(ca.String()))
 	case 'p':
-		s.Write([]byte(fmt.Sprintf("%p", ca)))
+		_, _ = fmt.Fprintf(s, "%p", ca)
 	default:
-		s.Write([]byte(fmt.Sprintf("%X", []byte(ca))))
+		_, _ = fmt.Fprintf(s, "%X", []byte(ca))
 	}
 }
 

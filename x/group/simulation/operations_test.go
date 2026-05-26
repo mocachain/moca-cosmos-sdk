@@ -16,12 +16,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
-	sdktestutil "github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -40,7 +38,6 @@ type SimTestSuite struct {
 	interfaceRegistry codectypes.InterfaceRegistry
 	txConfig          client.TxConfig
 	accountKeeper     authkeeper.AccountKeeper
-	authzKeeper       authzkeeper.Keeper
 	bankKeeper        bankkeeper.Keeper
 	groupKeeper       groupkeeper.Keeper
 }
@@ -55,14 +52,13 @@ func (suite *SimTestSuite) SetupTest() {
 		&suite.interfaceRegistry,
 		&suite.txConfig,
 		&suite.accountKeeper,
-		&suite.authzKeeper,
 		&suite.bankKeeper,
 		&suite.groupKeeper,
 	)
 	suite.Require().NoError(err)
 
 	suite.app = app
-	suite.ctx = app.BaseApp.NewContext(false)
+	suite.ctx = app.NewContext(false)
 }
 
 func (suite *SimTestSuite) TestWeightedOperations() {
@@ -100,7 +96,7 @@ func (suite *SimTestSuite) TestWeightedOperations() {
 	}
 
 	for i, w := range weightedOps {
-		operationMsg, _, err := w.Op()(r, suite.app.BaseApp, suite.ctx, accs, sdktestutil.DefaultChainId)
+		operationMsg, _, err := w.Op()(r, suite.app.BaseApp, suite.ctx, accs, "")
 		suite.Require().NoError(err)
 
 		// the following checks are very much dependent from the ordering of the output given
@@ -134,16 +130,17 @@ func (suite *SimTestSuite) TestSimulateCreateGroup() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, 1)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	acc := accounts[0]
 
 	// execute operation
 	op := simulation.SimulateMsgCreateGroup(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgCreateGroup
@@ -160,16 +157,17 @@ func (suite *SimTestSuite) TestSimulateCreateGroupWithPolicy() {
 	r := rand.New(s)
 	accounts := suite.getTestingAccounts(r, 1)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err := suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	acc := accounts[0]
 
 	// execute operation
 	op := simulation.SimulateMsgCreateGroupWithPolicy(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgCreateGroupWithPolicy
@@ -201,14 +199,15 @@ func (suite *SimTestSuite) TestSimulateCreateGroupPolicy() {
 	)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgCreateGroupPolicy(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgCreateGroupPolicy
@@ -251,14 +250,15 @@ func (suite *SimTestSuite) TestSimulateSubmitProposal() {
 	groupPolicyRes, err := suite.groupKeeper.CreateGroupPolicy(ctx, accountReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgSubmitProposal(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgSubmitProposal
@@ -314,14 +314,15 @@ func (suite *SimTestSuite) TestWithdrawProposal() {
 	_, err = suite.groupKeeper.SubmitProposal(ctx, proposalReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgWithdrawProposal(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgWithdrawProposal
@@ -378,14 +379,15 @@ func (suite *SimTestSuite) TestSimulateVote() {
 	_, err = suite.groupKeeper.SubmitProposal(ctx, proposalReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgVote(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgVote
@@ -450,14 +452,15 @@ func (suite *SimTestSuite) TestSimulateExec() {
 	})
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgExec(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgExec
@@ -489,14 +492,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupAdmin() {
 	)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupAdmin(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupAdmin
@@ -528,14 +532,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupMetadata() {
 	)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupMetadata(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupMetadata
@@ -567,14 +572,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupMembers() {
 	)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupMembers(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupMembers
@@ -617,14 +623,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupPolicyAdmin() {
 	groupPolicyRes, err := suite.groupKeeper.CreateGroupPolicy(ctx, accountReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupPolicyAdmin(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupPolicyAdmin
@@ -667,14 +674,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupPolicyDecisionPolicy() {
 	groupPolicyRes, err := suite.groupKeeper.CreateGroupPolicy(ctx, accountReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupPolicyDecisionPolicy(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupPolicyDecisionPolicy
@@ -717,14 +725,15 @@ func (suite *SimTestSuite) TestSimulateUpdateGroupPolicyMetadata() {
 	groupPolicyRes, err := suite.groupKeeper.CreateGroupPolicy(ctx, accountReq)
 	suite.Require().NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
 	op := simulation.SimulateMsgUpdateGroupPolicyMetadata(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.accountKeeper, suite.bankKeeper, suite.groupKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgUpdateGroupPolicyMetadata
@@ -780,14 +789,15 @@ func (suite *SimTestSuite) TestSimulateLeaveGroup() {
 	_, err = suite.groupKeeper.CreateGroupPolicy(ctx, accountReq)
 	require.NoError(err)
 
-	suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
+	_, err = suite.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: suite.app.LastBlockHeight() + 1,
 		Hash:   suite.app.LastCommitID().Hash,
 	})
+	suite.Require().NoError(err)
 
 	// execute operation
-	op := simulation.SimulateMsgLeaveGroup(codec.NewProtoCodec(suite.interfaceRegistry), suite.txConfig, suite.groupKeeper, suite.accountKeeper, suite.bankKeeper)
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, sdktestutil.DefaultChainId)
+	op := simulation.SimulateMsgLeaveGroup(nil, suite.txConfig, suite.groupKeeper, suite.accountKeeper, suite.bankKeeper)
+	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
 	suite.Require().NoError(err)
 
 	var msg group.MsgLeaveGroup
