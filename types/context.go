@@ -358,19 +358,14 @@ func (c Context) Value(key any) any {
 // Store / Caching
 // ----------------------------------------------------------------------------
 
-// KVStoreWithZeroRead fetches a KVStore from the MultiStore.
-func (c Context) KVStoreWithZeroRead(key storetypes.StoreKey) storetypes.KVStore {
-	return gaskv.NewStore(c.ms.GetKVStore(key), c.gasMeter, storetypes.KVGasConfigAfterNagqu())
-}
-
 // KVStore fetches a KVStore from the MultiStore.
 func (c Context) KVStore(key storetypes.StoreKey) storetypes.KVStore {
-	return gaskv.NewStore(c.ms.GetKVStore(key), c.gasMeter, storetypes.KVGasConfigAfterNagqu())
+	return gaskv.NewStore(c.ms.GetKVStore(key), c.gasMeter, storetypes.KVGasConfig())
 }
 
 // TransientStore fetches a TransientStore from the MultiStore.
 func (c Context) TransientStore(key storetypes.StoreKey) storetypes.KVStore {
-	return c.ms.GetKVStore(key)
+	return gaskv.NewStore(c.ms.GetKVStore(key), c.gasMeter, storetypes.TransientGasConfig())
 }
 
 // CacheContext returns a new Context with the multi-store cached and a new
