@@ -46,6 +46,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (x/staking) Add missing `defer iterator.Close()` in `GetValidators` to prevent an iterator/resource leak. (MOCA-420)
 * (store) Fix iterator leak in `MigrateStores` when `SetSync` fails mid-loop; the per-store copy is now closed via `defer` immediately after acquiring the iterator. (MOCA-816)
 * (x/distribution) [#26406](https://github.com/cosmos/cosmos-sdk/pull/26406) Add fallback paths (delegator/validator owner, then community pool) when withdrawing delegator rewards or validator commission to a blocked address during `Begin/EndBlockers`. User msg initiated paths still return `ErrUnauthorized` when withdrawing to blocked addresses.
+* (store) [#25841](https://github.com/cosmos/cosmos-sdk/pull/25841) Isolate the `traceContext` map across branched stores in `cachemulti`, fixing a concurrent map write race when branched stores are used across goroutines.
+* (x/staking) [#26408](https://github.com/cosmos/cosmos-sdk/pull/26408) Fix `MsgBeginRedelegate` failure when redelegating all shares from an unbonded source validator that is removed after unbonding.
 
 ### Improvements
 
