@@ -7,6 +7,7 @@ import (
 
 	dbm "github.com/cosmos/cosmos-db"
 
+	"cosmossdk.io/core/address"
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
@@ -26,9 +27,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	testdata_pulsar "github.com/cosmos/cosmos-sdk/testutil/testdata/testpb"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authsims "github.com/cosmos/cosmos-sdk/x/auth/simulation"
@@ -136,7 +139,7 @@ func NewSimApp(
 				// By default the auth module uses a Bech32 address codec,
 				// with the prefix defined in the auth module configuration.
 				//
-				// func() address.Codec { return <- custom address codec type -> }
+				func() address.Codec { return authcodec.NewBech32Codec(sdk.Bech32MainPrefix) },
 
 				//
 				// STAKING
@@ -146,8 +149,8 @@ func NewSimApp(
 				// and appends "valoper" and "valcons" for validator and consensus addresses respectively.
 				// When providing a custom address codec in auth, custom address codecs must be provided here as well.
 				//
-				// func() runtime.ValidatorAddressCodec { return <- custom validator address codec type -> }
-				// func() runtime.ConsensusAddressCodec { return <- custom consensus address codec type -> }
+				func() runtime.ValidatorAddressCodec { return authcodec.NewBech32Codec(sdk.Bech32PrefixValAddr) },
+				func() runtime.ConsensusAddressCodec { return authcodec.NewBech32Codec(sdk.Bech32PrefixConsAddr) },
 
 				//
 				// MINT
