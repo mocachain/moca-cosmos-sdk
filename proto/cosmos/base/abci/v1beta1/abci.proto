@@ -87,9 +87,6 @@ message GasInfo {
 
   // MinGasPrice are the min gas price.
   string min_gas_price = 3;
-
-  // RWUsed is the amount of r/w actually consumed.
-  uint64 rw_used = 4;
 }
 
 // Result is the union of ResponseFormat and ResponseCheckTx.
@@ -140,9 +137,6 @@ message TxMsgData {
 
   // msg_responses contains the Msg handler responses packed into Anys.
   repeated google.protobuf.Any msg_responses = 2 [(cosmos_proto.field_added_in) = "cosmos-sdk 0.46"];
-
-  // extra data - the r/w info
-  bytes extra_data = 3;
 }
 
 // SearchTxsResult defines a structure for querying txs pageable
