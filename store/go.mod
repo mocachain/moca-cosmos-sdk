@@ -1,6 +1,6 @@
 module cosmossdk.io/store
 
-go 1.23.0
+go 1.24
 
 require (
 	cosmossdk.io/errors v1.0.2
@@ -10,21 +10,22 @@ require (
 	github.com/cosmos/cosmos-db v1.1.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/gogoproto v1.7.0
-	github.com/cosmos/iavl v1.2.0
+	github.com/cosmos/iavl v1.3.6
 	github.com/cosmos/ics23/go v0.11.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/hashicorp/go-plugin v1.6.3
+	github.com/hashicorp/go-plugin v1.8.0
 	github.com/hashicorp/golang-lru v1.0.2
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/btree v1.7.0
-	go.uber.org/mock v0.5.2
+	go.uber.org/mock v0.6.0
 	google.golang.org/grpc v1.72.2
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.11
 	gotest.tools/v3 v3.5.2
 )
 
 require (
+	cosmossdk.io/core v0.12.1-0.20240725072823-6a2d039e1212 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
@@ -50,8 +51,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
-	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/jhump/protoreflect v1.15.3 // indirect
+	github.com/hashicorp/yamux v0.1.2 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
