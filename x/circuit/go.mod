@@ -9,7 +9,7 @@ require (
 	cosmossdk.io/depinject v1.2.1
 	cosmossdk.io/errors v1.1.0
 	cosmossdk.io/store v1.1.2
-	github.com/cockroachdb/errors v1.13.0
+	github.com/cockroachdb/errors v1.14.0
 	github.com/cometbft/cometbft v0.38.19
 	github.com/cosmos/cosmos-sdk v0.53.4
 	github.com/cosmos/gogoproto v1.7.2
