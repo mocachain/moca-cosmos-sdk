@@ -31,6 +31,7 @@ type KeeperTestSuite struct {
 	feegrantKeeper keeper.Keeper
 	accountKeeper  *feegranttestutil.MockAccountKeeper
 	bankKeeper     *feegranttestutil.MockBankKeeper
+	storeKey       *storetypes.KVStoreKey
 }
 
 func TestKeeperTestSuite(t *testing.T) {
@@ -40,6 +41,7 @@ func TestKeeperTestSuite(t *testing.T) {
 func (suite *KeeperTestSuite) SetupTest() {
 	suite.addrs = simtestutil.CreateIncrementalAccounts(20)
 	key := storetypes.NewKVStoreKey(feegrant.StoreKey)
+	suite.storeKey = key
 	testCtx := testutil.DefaultContextWithDB(suite.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	encCfg := moduletestutil.MakeTestEncodingConfig(module.AppModuleBasic{})
 
@@ -56,6 +58,74 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.ctx = testCtx.Ctx
 	suite.msgSrvr = keeper.NewMsgServerImpl(suite.feegrantKeeper)
 	suite.atom = sdk.NewCoins(sdk.NewCoin("atom", sdkmath.NewInt(555)))
+}
+
+// expirationQueueLen returns the number of entries in the fee-allowance
+// expiration queue (prefix 0x01).
+func (suite *KeeperTestSuite) expirationQueueLen() int {
+	store := suite.ctx.KVStore(suite.storeKey)
+	it := storetypes.KVStorePrefixIterator(store, feegrant.FeeAllowanceQueueKeyPrefix)
+	defer it.Close()
+	n := 0
+	for ; it.Valid(); it.Next() {
+		n++
+	}
+	return n
+}
+
+// TestRevokeRemovesExpirationQueueEntry is a regression test for the fee-grant
+// expiration-queue orphan bug: revoking an expiring allowance must delete the
+// SAME queue entry that GrantAllowance wrote. Before the fix, revoke built the
+// key with a swapped argument order, so the delete missed and the entry was
+// orphaned — which could prematurely delete a re-granted allowance and let a
+// single granter/grantee pair flood the queue. Revoke is exercised via
+// UseGrantedFees, which calls revokeAllowance once the allowance is consumed.
+func (suite *KeeperTestSuite) TestRevokeRemovesExpirationQueueEntry() {
+	granter, grantee := suite.addrs[0], suite.addrs[1]
+	exp := suite.ctx.BlockTime().AddDate(1, 0, 0)
+
+	suite.Require().NoError(suite.feegrantKeeper.GrantAllowance(suite.ctx, granter, grantee,
+		&feegrant.BasicAllowance{SpendLimit: suite.atom, Expiration: &exp}))
+	suite.Require().Equal(1, suite.expirationQueueLen(), "grant with expiry must enqueue one entry")
+
+	// fully consuming the allowance triggers revokeAllowance
+	suite.Require().NoError(suite.feegrantKeeper.UseGrantedFees(suite.ctx, granter, grantee, suite.atom, nil))
+	suite.Require().Equal(0, suite.expirationQueueLen(), "revoke must remove the expiration-queue entry")
+
+	// flood guard: repeated grant/revoke cycles with distinct expiries must not
+	// accumulate orphaned queue entries.
+	for i := 1; i <= 10; i++ {
+		ei := exp.AddDate(0, 0, i)
+		suite.Require().NoError(suite.feegrantKeeper.GrantAllowance(suite.ctx, granter, grantee,
+			&feegrant.BasicAllowance{SpendLimit: suite.atom, Expiration: &ei}))
+		suite.Require().NoError(suite.feegrantKeeper.UseGrantedFees(suite.ctx, granter, grantee, suite.atom, nil))
+	}
+	suite.Require().Equal(0, suite.expirationQueueLen(), "grant/revoke cycles must not orphan queue entries")
+}
+
+// TestRevokedThenRegrantedAllowanceSurvivesOldExpiry verifies the user-visible
+// consequence of the orphan bug: an allowance re-granted after a revoke must not
+// be deleted when the original (revoked) grant's expiry passes.
+func (suite *KeeperTestSuite) TestRevokedThenRegrantedAllowanceSurvivesOldExpiry() {
+	granter, grantee := suite.addrs[0], suite.addrs[1]
+	oldExp := suite.ctx.BlockTime().AddDate(0, 0, 1)
+
+	suite.Require().NoError(suite.feegrantKeeper.GrantAllowance(suite.ctx, granter, grantee,
+		&feegrant.BasicAllowance{SpendLimit: suite.atom, Expiration: &oldExp}))
+	// revoke by fully consuming the allowance
+	suite.Require().NoError(suite.feegrantKeeper.UseGrantedFees(suite.ctx, granter, grantee, suite.atom, nil))
+
+	// re-grant the same pair WITHOUT an expiry (perpetual)
+	suite.Require().NoError(suite.feegrantKeeper.GrantAllowance(suite.ctx, granter, grantee,
+		&feegrant.BasicAllowance{SpendLimit: suite.atom}))
+
+	// advance past the OLD expiry and run the pruner
+	suite.ctx = suite.ctx.WithBlockTime(oldExp.AddDate(0, 0, 1))
+	suite.Require().NoError(suite.feegrantKeeper.RemoveExpiredAllowances(suite.ctx, 100))
+
+	got, err := suite.feegrantKeeper.GetAllowance(suite.ctx, granter, grantee)
+	suite.Require().NoError(err, "re-granted allowance must survive the old grant's expiry")
+	suite.Require().NotNil(got)
 }
 
 func (suite *KeeperTestSuite) TestKeeperCrud() {

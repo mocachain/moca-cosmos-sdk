@@ -25,6 +25,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### Bug Fixes
+
+* (keeper) [#166](https://github.com/mocachain/moca-cosmos-sdk/pull/166) Fix `revokeAllowance` deleting the expiration-queue entry with a swapped argument order (`FeeAllowanceKey(grantee, granter)` instead of `FeeAllowanceKey(granter, grantee)`). The delete missed and orphaned the queue entry, which could prematurely delete a re-granted allowance at the old expiry and allowed unbounded expiration-queue growth via repeated grant/revoke cycles.
+
 ## [v0.2.0](https://github.com/cosmos/cosmos-sdk/releases/tag/x/feegrant/v0.2.0) - 2025-04-24
 
 * SDK v0.53.x support.
