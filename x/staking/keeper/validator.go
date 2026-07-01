@@ -425,6 +425,7 @@ func (k Keeper) GetValidators(ctx context.Context, maxRetrieve uint32) (validato
 	if err != nil {
 		return nil, err
 	}
+	defer iterator.Close()
 
 	i := 0
 	for ; iterator.Valid() && i < int(maxRetrieve); iterator.Next() {
