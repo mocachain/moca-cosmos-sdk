@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 )
 
 type config struct {
@@ -90,7 +91,11 @@ func NewTxConfig(protoCodec codec.Codec, enabledSignModes []signingtypes.SignMod
 // NewDefaultSigningOptions returns the sdk default signing options used by x/tx.  This includes account and
 // validator address prefix enabled codecs.
 func NewDefaultSigningOptions() (*txsigning.Options, error) {
-	return &txsigning.Options{}, nil
+	sdkConfig := sdk.GetConfig()
+	return &txsigning.Options{
+		AddressCodec:          authcodec.NewBech32Codec(sdkConfig.GetBech32AccountAddrPrefix()),
+		ValidatorAddressCodec: authcodec.NewBech32Codec(sdkConfig.GetBech32ValidatorAddrPrefix()),
+	}, nil
 }
 
 // NewSigningHandlerMap returns a new txsigning.HandlerMap using the provided ConfigOptions.
