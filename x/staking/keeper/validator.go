@@ -543,6 +543,7 @@ func (k Keeper) IterateLastValidatorPowers(ctx context.Context, handler func(ope
 	if err != nil {
 		return err
 	}
+	defer iter.Close()
 
 	for ; iter.Valid(); iter.Next() {
 		addr := sdk.AccAddress(types.AddressFromLastValidatorPowerKey(iter.Key()))
