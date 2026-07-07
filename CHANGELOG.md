@@ -52,6 +52,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### Improvements
 
 * (ci) Bump stale `go-version` pins in `test.yml` for jobs whose module's `go.mod` directive exceeds the pinned version (e.g. `test-e2e` pinned to `1.23` while root `go.mod` requires `1.25.0`), which fails under `GOTOOLCHAIN=local`.
+* (x/auth) [#26567](https://github.com/cosmos/cosmos-sdk/pull/26567) More human-readable signature-verification error messages.
 
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
 
