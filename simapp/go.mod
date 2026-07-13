@@ -268,6 +268,7 @@ replace (
 	cosmossdk.io/math => ../math
 	cosmossdk.io/store => ../store
 	cosmossdk.io/x/circuit => ../x/circuit
+	cosmossdk.io/x/feegrant => ../x/feegrant
 	cosmossdk.io/x/nft => ../x/nft
 	cosmossdk.io/x/tx => ../x/tx
 	// eth-key / BLS dependency pins required by moca's crypto/keys/eth
