@@ -231,7 +231,7 @@ replace (
 
 	// --- moca additions ---
 	// moca-cometbft fork (v0.38.12-based; carries x/crosschain votepool package)
-	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc0.0.20260522043823-e86182950736
+	github.com/cometbft/cometbft => github.com/mocachain/moca-cometbft v1.2.0-rc1
 	// moca redirects the legacy client path to the in-tree implementation
 	github.com/cosmos/cosmos-sdk/client => ./client
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
