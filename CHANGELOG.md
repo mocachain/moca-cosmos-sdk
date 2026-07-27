@@ -48,6 +48,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (x/distribution) [#26406](https://github.com/cosmos/cosmos-sdk/pull/26406) Add fallback paths (delegator/validator owner, then community pool) when withdrawing delegator rewards or validator commission to a blocked address during `Begin/EndBlockers`. User msg initiated paths still return `ErrUnauthorized` when withdrawing to blocked addresses.
 * (store) [#25841](https://github.com/cosmos/cosmos-sdk/pull/25841) Isolate the `traceContext` map across branched stores in `cachemulti`, fixing a concurrent map write race when branched stores are used across goroutines.
 * (x/staking) [#26408](https://github.com/cosmos/cosmos-sdk/pull/26408) Fix `MsgBeginRedelegate` failure when redelegating all shares from an unbonded source validator that is removed after unbonding.
+* (x/auth/tx) [#26527](https://github.com/cosmos/cosmos-sdk/pull/26527) Fix nil pointer panic in `GetSigningTxData` when a `SignerInfo` has a nil `PublicKey`.
 
 ### Improvements
 
