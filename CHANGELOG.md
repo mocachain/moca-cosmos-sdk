@@ -44,6 +44,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (x/staking) Add missing `defer iterator.Close()` in the `migrateDelegationsByValidatorIndex` (v4→v5) store migration to prevent an iterator/resource leak. (MOCA-418)
 * (x/staking) Add missing `defer iterator.Close()` in `IterateLastValidatorPowers` to prevent an iterator/resource leak. (MOCA-419)
 * (x/staking) Add missing `defer iterator.Close()` in `GetValidators` to prevent an iterator/resource leak. (MOCA-420)
+* (store) Fix iterator leak in `MigrateStores` when `SetSync` fails mid-loop; the per-store copy is now closed via `defer` immediately after acquiring the iterator. (MOCA-816)
 
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
 
