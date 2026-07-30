@@ -70,9 +70,6 @@ func (m *LegacyAminoPubKey) VerifyMultisignature(getSignBytes multisigtypes.GetS
 	sigIndex := 0
 	for i := range size {
 		if bitarray.GetIndex(i) {
-			if sigIndex >= len(sigs) {
-				return fmt.Errorf("signature size is incorrect %d", len(sigs))
-			}
 			si := sig.Signatures[sigIndex]
 			switch si := si.(type) {
 			case *signing.SingleSignatureData:

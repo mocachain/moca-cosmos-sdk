@@ -35,7 +35,6 @@ func TestCalculateRewardsBasic(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -119,7 +118,6 @@ func TestCalculateRewardsAfterSlash(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -221,7 +219,6 @@ func TestCalculateRewardsAfterManySlashes(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -344,7 +341,6 @@ func TestCalculateRewardsMultiDelegator(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -440,7 +436,6 @@ func TestWithdrawDelegationRewardsBasic(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -514,7 +509,6 @@ func TestCalculateRewardsAfterManySlashesInSameBlock(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -629,7 +623,6 @@ func TestCalculateRewardsMultiDelegatorMultiSlash(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -765,7 +758,6 @@ func TestCalculateRewardsMultiDelegatorMultWithdraw(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -963,7 +955,6 @@ func Test100PercentCommissionReward(t *testing.T) {
 	accountKeeper := distrtestutil.NewMockAccountKeeper(ctrl)
 
 	accountKeeper.EXPECT().GetModuleAddress("distribution").Return(distrAcc.GetAddress())
-	bankKeeper.EXPECT().BlockedAddr(gomock.Any()).Return(false).AnyTimes()
 
 	distrKeeper := keeper.NewKeeper(
 		encCfg.Codec,

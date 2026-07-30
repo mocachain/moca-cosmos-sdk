@@ -81,11 +81,6 @@ func (spkd SetPubKeyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate b
 		return sdk.Context{}, err
 	}
 
-	if len(pubkeys) != len(signers) {
-		return ctx, errorsmod.Wrapf(sdkerrors.ErrTxDecode,
-			"expected %d signer infos, got %d", len(signers), len(pubkeys))
-	}
-
 	signerStrs := make([]string, len(signers))
 	for i, pk := range pubkeys {
 		var err error
@@ -144,11 +139,10 @@ func (spkd SetPubKeyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate b
 			))
 		}
 
-		sigBzs, err := flattenSignatures(sig.Data)
+		sigBzs, err := signatureDataToBz(sig.Data)
 		if err != nil {
-			return ctx, errorsmod.Wrap(sdkerrors.ErrTooManySignatures, err.Error())
+			return ctx, err
 		}
-
 		for _, sigBz := range sigBzs {
 			events = append(events, sdk.NewEvent(sdk.EventTypeTx,
 				sdk.NewAttribute(sdk.AttributeKeySignature, base64.StdEncoding.EncodeToString(sigBz)),
@@ -611,11 +605,11 @@ func DefaultSigVerificationGasConsumer(
 		return nil
 
 	case multisig.PubKey:
-		multiSignature, ok := sig.Data.(*signing.MultiSignatureData)
+		multisignature, ok := sig.Data.(*signing.MultiSignatureData)
 		if !ok {
 			return fmt.Errorf("expected %T, got, %T", &signing.MultiSignatureData{}, sig.Data)
 		}
-		err := ConsumeMultisignatureVerificationGas(meter, multiSignature, pubkey, params, sig.Sequence)
+		err := ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params, sig.Sequence)
 		if err != nil {
 			return err
 		}
@@ -632,23 +626,14 @@ func ConsumeMultisignatureVerificationGas(
 	params types.Params, accSeq uint64,
 ) error {
 	size := sig.BitArray.Count()
-	pubKeys := pubkey.GetPubKeys()
-	// the bit array is attacker-controlled and reaches this gas consumer before
-	// VerifyMultisignature runs its own checks, so bound it against the key set here.
-	if len(pubKeys) != size {
-		return fmt.Errorf("bit array size is incorrect, expecting: %d", len(pubKeys))
-	}
-
 	sigIndex := 0
+
 	for i := range size {
 		if !sig.BitArray.GetIndex(i) {
 			continue
 		}
-		if sigIndex >= len(sig.Signatures) {
-			return fmt.Errorf("signature size is incorrect %d", len(sig.Signatures))
-		}
 		sigV2 := signing.SignatureV2{
-			PubKey:   pubKeys[i],
+			PubKey:   pubkey.GetPubKeys()[i],
 			Data:     sig.Signatures[sigIndex],
 			Sequence: accSeq,
 		}
@@ -692,51 +677,41 @@ func CountSubKeys(pub cryptotypes.PubKey) int {
 	return numKeys
 }
 
-// flattenSignatures converts a SignatureData into raw bytes signature.
+// signatureDataToBz converts a SignatureData into raw bytes signature.
 // For SingleSignatureData, it returns the signature raw bytes.
-// For MultiSignatureData, it returns an array of all individual signatures + the aggregated signature.
-func flattenSignatures(data signing.SignatureData) ([][]byte, error) {
-	return flattenSignaturesAtDepth(data, 0, 2, 32)
-}
-
-func flattenSignaturesAtDepth(data signing.SignatureData, depth, maxDepth, maxLength int) ([][]byte, error) {
-	switch {
-	case data == nil:
-		return nil, fmt.Errorf("SignatureData is required")
-	case depth > maxDepth:
-		return nil, fmt.Errorf("max depth of %d reached", maxDepth)
+// For MultiSignatureData, it returns an array of all individual signatures,
+// as well as the aggregated signature.
+func signatureDataToBz(data signing.SignatureData) ([][]byte, error) {
+	if data == nil {
+		return nil, fmt.Errorf("got empty SignatureData")
 	}
 
-	if single, ok := data.(*signing.SingleSignatureData); ok {
-		return [][]byte{single.Signature}, nil
-	}
+	switch data := data.(type) {
+	case *signing.SingleSignatureData:
+		return [][]byte{data.Signature}, nil
+	case *signing.MultiSignatureData:
+		sigs := [][]byte{}
+		var err error
 
-	multi, ok := data.(*signing.MultiSignatureData)
-	switch {
-	case !ok:
-		return nil, fmt.Errorf("unexpected signature data type %T", data)
-	case len(multi.Signatures) > maxLength:
-		return nil, fmt.Errorf("max breadth of %d reached", maxLength)
-	}
+		for _, d := range data.Signatures {
+			nestedSigs, err := signatureDataToBz(d)
+			if err != nil {
+				return nil, err
+			}
+			sigs = append(sigs, nestedSigs...)
+		}
 
-	sigs := make([][]byte, 0, len(multi.Signatures)+1)
-
-	for _, sig := range multi.Signatures {
-		chunk, err := flattenSignaturesAtDepth(sig, depth+1, maxDepth, maxLength)
+		multiSignature := cryptotypes.MultiSignature{
+			Signatures: sigs,
+		}
+		aggregatedSig, err := multiSignature.Marshal()
 		if err != nil {
 			return nil, err
 		}
+		sigs = append(sigs, aggregatedSig)
 
-		sigs = append(sigs, chunk...)
+		return sigs, nil
+	default:
+		return nil, sdkerrors.ErrInvalidType.Wrapf("unexpected signature data type %T", data)
 	}
-
-	aggregatedSig := cryptotypes.MultiSignature{Signatures: sigs}
-	aggregatedSigBytes, err := aggregatedSig.Marshal()
-	if err != nil {
-		return nil, err
-	}
-
-	sigs = append(sigs, aggregatedSigBytes)
-
-	return sigs, nil
 }
