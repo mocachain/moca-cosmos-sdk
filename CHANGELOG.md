@@ -45,23 +45,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (x/staking) Add missing `defer iterator.Close()` in `IterateLastValidatorPowers` to prevent an iterator/resource leak. (MOCA-419)
 * (x/staking) Add missing `defer iterator.Close()` in `GetValidators` to prevent an iterator/resource leak. (MOCA-420)
 * (store) Fix iterator leak in `MigrateStores` when `SetSync` fails mid-loop; the per-store copy is now closed via `defer` immediately after acquiring the iterator. (MOCA-816)
-* (x/distribution) [#26406](https://github.com/cosmos/cosmos-sdk/pull/26406) Add fallback paths (delegator/validator owner, then community pool) when withdrawing delegator rewards or validator commission to a blocked address during `Begin/EndBlockers`. User msg initiated paths still return `ErrUnauthorized` when withdrawing to blocked addresses.
-* (store) [#25841](https://github.com/cosmos/cosmos-sdk/pull/25841) Isolate the `traceContext` map across branched stores in `cachemulti`, fixing a concurrent map write race when branched stores are used across goroutines.
-* (x/staking) [#26408](https://github.com/cosmos/cosmos-sdk/pull/26408) Fix `MsgBeginRedelegate` failure when redelegating all shares from an unbonded source validator that is removed after unbonding.
-* (x/auth) [#26515](https://github.com/cosmos/cosmos-sdk/pull/26515) Bound the pubkey and signature indices in `ConsumeMultisignatureVerificationGas` and `VerifyMultisignature` so a multisig signature with a bit array larger than the key set, or with more set bits than supplied signatures, returns an error instead of panicking with index out of range.
-* (x/auth/ante) [#26573](https://github.com/cosmos/cosmos-sdk/pull/26573) Reject tx with extra SignerInfos in SetPubKeyDecorator.
-* (x/auth/tx) [#26517](https://github.com/cosmos/cosmos-sdk/pull/26517) Return a decode error instead of panicking when a transaction's `SignerInfos` and `Signatures` counts disagree in `GetSignaturesV2`, or a multisig's `ModeInfos` and sub-signature counts disagree in `ModeInfoAndSigToSignatureData`.
-* (x/auth/tx) [#26527](https://github.com/cosmos/cosmos-sdk/pull/26527) Fix nil pointer panic in `GetSigningTxData` when a `SignerInfo` has a nil `PublicKey`.
-* (x/distribution) [#26518](https://github.com/cosmos/cosmos-sdk/pull/26518) Return an error from internal historical rewards reads when the record is absent instead of silently decoding it as zero, preventing incorrect reward calculations on inconsistent state.
-* (x/auth/tx) [#26571](https://github.com/cosmos/cosmos-sdk/pull/26571) Avoid nil pointer panic in `GetSigningTxData` for multisig `ModeInfo` with a nil `Multi` or nil `Bitarray`.
-* (crypto) [#26529](https://github.com/cosmos/cosmos-sdk/pull/26529) Validate the SEC1 tag byte (`0x02`/`0x03`) when unmarshaling a `secp256k1.PubKey`, rejecting malformed compressed keys that previously passed the length-only check.
-* (crypto) [#26509](https://github.com/cosmos/cosmos-sdk/pull/26509) Bound compact bit array index by elems length to avoid out-of-range panics on malformed input.
 
 ### Improvements
 
 * (ci) Bump stale `go-version` pins in `test.yml` for jobs whose module's `go.mod` directive exceeds the pinned version (e.g. `test-e2e` pinned to `1.23` while root `go.mod` requires `1.25.0`), which fails under `GOTOOLCHAIN=local`.
-* (x/auth) [#26567](https://github.com/cosmos/cosmos-sdk/pull/26567) More human-readable signature-verification error messages.
-* (ci) [#26498](https://github.com/cosmos/cosmos-sdk/pull/26498) Add an explicit `actions/setup-go` step (tracking `go.mod` via `go-version-file`) to the `test-system`/`test-system-legacy` jobs in `systemtests.yml`, which previously had none and relied on whatever Go the runner image happened to ship.
 
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
 

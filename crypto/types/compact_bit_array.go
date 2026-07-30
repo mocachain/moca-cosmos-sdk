@@ -55,7 +55,7 @@ func (bA *CompactBitArray) GetIndex(i int) bool {
 	if bA == nil {
 		return false
 	}
-	if i < 0 || i >= bA.Count() || i>>3 >= len(bA.Elems) {
+	if i < 0 || i >= bA.Count() {
 		return false
 	}
 
@@ -69,7 +69,7 @@ func (bA *CompactBitArray) SetIndex(i int, v bool) bool {
 		return false
 	}
 
-	if i < 0 || i >= bA.Count() || i>>3 >= len(bA.Elems) {
+	if i < 0 || i >= bA.Count() {
 		return false
 	}
 
