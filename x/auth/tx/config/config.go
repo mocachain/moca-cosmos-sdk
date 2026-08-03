@@ -11,6 +11,7 @@ import (
 
 	bankv1beta1 "cosmossdk.io/api/cosmos/bank/v1beta1"
 	txconfigv1 "cosmossdk.io/api/cosmos/tx/config/v1"
+	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/depinject"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -40,9 +41,11 @@ func init() {
 type ModuleInputs struct {
 	depinject.In
 
-	Config            *txconfigv1.Config
-	Codec             codec.Codec
-	ProtoFileResolver txsigning.ProtoFileResolver
+	Config                *txconfigv1.Config
+	AddressCodec          address.Codec
+	ValidatorAddressCodec runtime.ValidatorAddressCodec
+	Codec                 codec.Codec
+	ProtoFileResolver     txsigning.ProtoFileResolver
 	// BankKeeper is the expected bank keeper to be passed to AnteHandlers
 	BankKeeper             authtypes.BankKeeper               `optional:"true"`
 	MetadataBankKeeper     BankKeeper                         `optional:"true"`
@@ -73,8 +76,10 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	txConfigOptions := tx.ConfigOptions{
 		EnabledSignModes: tx.DefaultSignModes,
 		SigningOptions: &txsigning.Options{
-			FileResolver:     in.ProtoFileResolver,
-			CustomGetSigners: make(map[protoreflect.FullName]txsigning.GetSignersFunc),
+			FileResolver:          in.ProtoFileResolver,
+			AddressCodec:          in.AddressCodec,
+			ValidatorAddressCodec: in.ValidatorAddressCodec,
+			CustomGetSigners:      make(map[protoreflect.FullName]txsigning.GetSignersFunc),
 		},
 		CustomSignModes: customSignModeHandlers,
 	}
