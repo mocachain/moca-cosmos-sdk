@@ -20,7 +20,7 @@ jobs:
     outputs:
       git_diff: ${{ steps.git_diff.outputs.diff }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-tags: true
       - uses: actions/setup-go@v7
@@ -47,7 +47,7 @@ jobs:
     if: needs.setup.outputs.git_diff
     runs-on: depot-ubuntu-22.04-4
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-tags: true
       - uses: actions/setup-go@v6
@@ -64,7 +64,7 @@ jobs:
     if: needs.setup.outputs.git_diff
     runs-on: depot-ubuntu-22.04-4
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-tags: true
       - uses: actions/setup-go@v6
