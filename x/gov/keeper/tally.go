@@ -54,7 +54,11 @@ func defaultCalculateVoteResultsAndVotingPower(
 
 		// iterate over all delegations from voter, deduct from any delegated-to validators
 		err = k.sk.IterateDelegations(ctx, voter, func(index int64, delegation stakingtypes.DelegationI) (stop bool) {
-			valAddrStr := delegation.GetValidatorAddr()
+			valAddr, err := sdk.AccAddressFromHexUnsafe(delegation.GetValidatorAddr())
+			if err != nil {
+				return false
+			}
+			valAddrStr := sdk.AccAddress(valAddr).String()
 
 			if val, ok := validators[valAddrStr]; ok {
 				// There is no need to handle the special case that validator address equal to voter address.
@@ -121,7 +125,7 @@ func (k Keeper) getCurrentValidators(ctx context.Context) (map[string]v1.Validat
 		if err != nil {
 			return false
 		}
-		currValidators[validator.GetOperator()] = v1.NewValidatorGovInfo(
+		currValidators[sdk.AccAddress(valBz).String()] = v1.NewValidatorGovInfo(
 			valBz,
 			validator.GetBondedTokens(),
 			validator.GetDelegatorShares(),
