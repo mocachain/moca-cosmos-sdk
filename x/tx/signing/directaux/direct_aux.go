@@ -1,10 +1,12 @@
 package directaux
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/cosmos/cosmos-proto/anyutil"
 	"google.golang.org/protobuf/proto"
@@ -88,7 +90,7 @@ func (h SignModeHandler) GetSignBytes(
 		}
 		feePayer = hex.EncodeToString(fp)
 	}
-	if feePayer == signerData.Address {
+	if sameHexAddress(feePayer, signerData.Address) {
 		return nil, fmt.Errorf("fee payer %s cannot sign with %s: unauthorized",
 			feePayer, signingv1beta1.SignMode_SIGN_MODE_DIRECT_AUX)
 	}
@@ -103,4 +105,19 @@ func (h SignModeHandler) GetSignBytes(
 
 	protov2MarshalOpts := proto.MarshalOptions{Deterministic: true}
 	return protov2MarshalOpts.Marshal(signDocDirectAux)
+}
+
+// sameHexAddress reports whether a and b are the same 20-byte hex-encoded
+// address, tolerating an optional "0x"/"0X" prefix and any letter case on
+// either side. If either side isn't valid hex, it falls back to an exact
+// string match rather than declaring them unequal — the fee-payer guard
+// this feeds should stay at least as strict as a plain string comparison
+// for input it can't normalize, not more permissive.
+func sameHexAddress(a, b string) bool {
+	aBytes, aErr := hex.DecodeString(strings.TrimPrefix(strings.TrimPrefix(a, "0x"), "0X"))
+	bBytes, bErr := hex.DecodeString(strings.TrimPrefix(strings.TrimPrefix(b, "0x"), "0X"))
+	if aErr != nil || bErr != nil {
+		return a == b
+	}
+	return bytes.Equal(aBytes, bBytes)
 }

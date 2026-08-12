@@ -2,7 +2,6 @@ package tx
 
 import (
 	"fmt"
-	"strings"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -54,9 +53,14 @@ func (signModeDirectAuxHandler) GetSignBytes(
 
 	feePayer := protoTx.FeePayer()
 
+	dataAddr, err := sdk.AccAddressFromHexUnsafe(data.Address)
+	if err != nil {
+		return nil, err
+	}
+
 	// Fee payer cannot use SIGN_MODE_DIRECT_AUX, because SIGN_MODE_DIRECT_AUX
 	// does not sign over fees, which would create malleability issues.
-	if strings.EqualFold(sdk.AccAddress(feePayer).String(), data.Address) {
+	if sdk.AccAddress(feePayer).Equals(dataAddr) {
 		return nil, sdkerrors.ErrUnauthorized.Wrapf("fee payer %s cannot sign with %s", sdk.AccAddress(feePayer).String(), signingtypes.SignMode_SIGN_MODE_DIRECT_AUX)
 	}
 
