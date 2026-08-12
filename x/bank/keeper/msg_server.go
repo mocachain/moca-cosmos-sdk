@@ -140,7 +140,12 @@ func (k msgServer) MultiSend(goCtx context.Context, msg *types.MsgMultiSend) (*t
 }
 
 func (k msgServer) UpdateParams(goCtx context.Context, req *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if k.GetAuthority() != req.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.GetAuthority())
+	if err != nil {
+		return nil, err
+	}
+	reqAuthority, err := sdk.AccAddressFromHexUnsafe(req.Authority)
+	if err != nil || !authority.Equals(reqAuthority) {
 		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), req.Authority)
 	}
 
@@ -157,7 +162,12 @@ func (k msgServer) UpdateParams(goCtx context.Context, req *types.MsgUpdateParam
 }
 
 func (k msgServer) SetSendEnabled(goCtx context.Context, msg *types.MsgSetSendEnabled) (*types.MsgSetSendEnabledResponse, error) {
-	if k.GetAuthority() != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.GetAuthority())
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), msg.Authority)
 	}
 
