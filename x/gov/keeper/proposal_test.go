@@ -6,11 +6,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"cosmossdk.io/collections"
+	storetypes "cosmossdk.io/store/types"
 
+	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/runtime"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	govtestutil "github.com/cosmos/cosmos-sdk/x/gov/testutil"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -302,6 +310,53 @@ func TestMigrateProposalMessages(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Test", content.GetTitle())
 	require.Equal(t, "description", content.GetDescription())
+}
+
+// TestCancelProposal_NonCanonicalProposerForm is a regression test for
+// MOCA-1263: CancelProposal compared the stored proposer address against
+// the caller-supplied address as raw strings, so a proposer submitting
+// MsgCancelProposal with a validly-different spelling of their own address
+// than what got canonically stored at submission time was wrongly rejected
+// as "invalid proposer". Uses a zero-deposit proposal so ChargeDeposit's
+// internal deposit/bank/community-pool paths are all no-ops, keeping the
+// mock surface minimal.
+func TestCancelProposal_NonCanonicalProposerForm(t *testing.T) {
+	key := storetypes.NewKVStoreKey(types.StoreKey)
+	storeService := runtime.NewKVStoreService(key)
+	testCtx := testutil.DefaultContextWithDB(t, key, storetypes.NewTransientStoreKey("transient_test"))
+	ctx := testCtx.Ctx
+	encCfg := moduletestutil.MakeTestEncodingConfig()
+
+	ctrl := gomock.NewController(t)
+	acctKeeper := govtestutil.NewMockAccountKeeper(ctrl)
+	bankKeeper := govtestutil.NewMockBankKeeper(ctrl)
+	stakingKeeper := govtestutil.NewMockStakingKeeper(ctrl)
+	distributionKeeper := govtestutil.NewMockDistributionKeeper(ctrl)
+
+	acctKeeper.EXPECT().GetModuleAddress(types.ModuleName).Return(govAcct).AnyTimes()
+
+	msr := baseapp.NewMsgServiceRouter()
+	govKeeper := keeper.NewKeeper(encCfg.Codec, storeService, acctKeeper, bankKeeper, stakingKeeper, distributionKeeper, msr, types.DefaultConfig(), govAcct.String())
+	require.NoError(t, govKeeper.Params.Set(ctx, v1.DefaultParams()))
+
+	_, _, proposer := testdata.KeyTestPubAddr()
+	const proposalID = uint64(1)
+	require.NoError(t, govKeeper.Proposals.Set(ctx, proposalID, v1.Proposal{
+		Id:       proposalID,
+		Proposer: proposer.String(),
+		Status:   v1.StatusVotingPeriod,
+	}))
+
+	// Non-canonical (all-lowercase) spelling of the proposer's own address —
+	// a valid spelling of the same account, different from the canonical
+	// checksummed form stored on the proposal at submission time.
+	nonCanonicalProposer := strings.ToLower(proposer.String())
+	require.NotEqual(t, proposer.String(), nonCanonicalProposer, "sanity check: fixture must actually differ in spelling from the canonical form")
+
+	require.NoError(t, govKeeper.CancelProposal(ctx, proposalID, nonCanonicalProposer))
+
+	_, err := govKeeper.Proposals.Get(ctx, proposalID)
+	require.ErrorIs(t, err, collections.ErrNotFound, "proposal should have been deleted by a successful cancellation")
 }
 
 func (suite *KeeperTestSuite) TestUpdateCrossChainParams() {
