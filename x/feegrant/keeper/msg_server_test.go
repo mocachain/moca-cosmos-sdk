@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"strings"
 	"time"
 
 	"go.uber.org/mock/gomock"
@@ -52,6 +53,24 @@ func (suite *KeeperTestSuite) TestGrantAllowance() {
 			},
 			true,
 			"invalid address hex length",
+		},
+		{
+			// Same account as both grantee and granter, but spelled
+			// differently (canonical checksummed form vs. missing the "0x"
+			// prefix) so a raw string/EqualFold comparison would have
+			// missed it. See MOCA-1263 PR #290 review discussion.
+			"identical grantee and granter, non-canonical spelling",
+			func() *feegrant.MsgGrantAllowance {
+				cdcAny, err := codectypes.NewAnyWithValue(&feegrant.BasicAllowance{})
+				suite.Require().NoError(err)
+				return &feegrant.MsgGrantAllowance{
+					Granter:   suite.addrs[0].String(),
+					Grantee:   strings.TrimPrefix(suite.addrs[0].String(), "0x"),
+					Allowance: cdcAny,
+				}
+			},
+			true,
+			"cannot self-grant fee authorization",
 		},
 		{
 			"valid: grantee account doesn't exist",
@@ -216,6 +235,17 @@ func (suite *KeeperTestSuite) TestRevokeAllowance() {
 			func() {},
 			true,
 			"invalid address hex length",
+		},
+		{
+			// Same non-canonical-spelling case as TestGrantAllowance.
+			"error: identical grantee and granter, non-canonical spelling",
+			&feegrant.MsgRevokeAllowance{
+				Granter: suite.addrs[0].String(),
+				Grantee: strings.TrimPrefix(suite.addrs[0].String(), "0x"),
+			},
+			func() {},
+			true,
+			"addresses must be different",
 		},
 		{
 			"error: fee allowance not found",
