@@ -95,7 +95,8 @@ func AddGenesisAccount(
 
 		genesisB := banktypes.GetGenesisStateFromAppState(cdc, appState)
 		for idx, acc := range genesisB.Balances {
-			if acc.Address != accAddr.String() {
+			balAddr, err := sdk.AccAddressFromHexUnsafe(acc.Address)
+			if err != nil || !balAddr.Equals(accAddr) {
 				continue
 			}
 
@@ -182,9 +183,11 @@ func AddGenesisAccounts(
 	balanceCache := make(map[string]banktypes.Balance)
 	for _, acc := range accs {
 		for _, balance := range bankGenState.GetBalances() {
-			if balance.Address == acc.GetAddress().String() {
-				balanceCache[acc.GetAddress().String()] = balance
+			balAddr, err := sdk.AccAddressFromHexUnsafe(balance.Address)
+			if err != nil || !balAddr.Equals(acc.GetAddress()) {
+				continue
 			}
+			balanceCache[acc.GetAddress().String()] = balance
 		}
 	}
 
@@ -238,13 +241,14 @@ func AddGenesisAccounts(
 			return fmt.Errorf("failed to validate new genesis account: %w", err)
 		}
 
-		if _, ok := balanceCache[addr]; ok {
+		if _, ok := balanceCache[accAddr.String()]; ok {
 			if !appendAcct {
 				return fmt.Errorf(" Account %s already exists\nUse `append` flag to append account at existing address", accAddr)
 			}
 
 			for idx, acc := range bankGenState.Balances {
-				if acc.Address != addr {
+				balAddr, err := sdk.AccAddressFromHexUnsafe(acc.Address)
+				if err != nil || !balAddr.Equals(accAddr) {
 					continue
 				}
 
