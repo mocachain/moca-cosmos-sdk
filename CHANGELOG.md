@@ -58,6 +58,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (crypto) [#26509](https://github.com/cosmos/cosmos-sdk/pull/26509) Bound compact bit array index by elems length to avoid out-of-range panics on malformed input.
 * (testutil) Restore address-codec wiring in `codec/testutil` `CodecOptions` and `x/auth/tx.NewDefaultSigningOptions` (bech32 codecs, matching production) so `MakeTestEncodingConfig` no longer panics with "address codec is required" across the unit-test suite.
 * (x/gov) Use a consistently-derived address form for validator map keys/lookups in vote tallying, matching how the direct voter lookup already normalizes addresses. (MOCA-814)
+* (x/gov) Compare deposit-cancellation destination addresses by decoded value rather than string form when routing charged deposits. (MOCA-1263)
+* (x/authz) Compare grantee/granter addresses by decoded value rather than string form in `Grant`/`Revoke`. (MOCA-1263)
+* (x/feegrant) Compare grantee/granter addresses by decoded value rather than string form in `GrantAllowance`. (MOCA-1263)
+* (x/group) Compare admin addresses by decoded value rather than string form when authorizing group and group-policy admin updates. (MOCA-1263)
 
 ### Improvements
 

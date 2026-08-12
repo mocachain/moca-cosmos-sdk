@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -224,16 +223,18 @@ func (k Keeper) UpdateGroupAdmin(goCtx context.Context, msg *group.MsgUpdateGrou
 		return nil, errorsmod.Wrap(errors.ErrEmpty, "group id")
 	}
 
-	if strings.EqualFold(msg.Admin, msg.NewAdmin) {
-		return nil, errorsmod.Wrap(errors.ErrInvalid, "new and old admin are the same")
-	}
-
-	if _, err := sdk.AccAddressFromHexUnsafe(msg.Admin); err != nil {
+	admin, err := sdk.AccAddressFromHexUnsafe(msg.Admin)
+	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "admin address")
 	}
 
-	if _, err := sdk.AccAddressFromHexUnsafe(msg.NewAdmin); err != nil {
+	newAdmin, err := sdk.AccAddressFromHexUnsafe(msg.NewAdmin)
+	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "new admin address")
+	}
+
+	if admin.Equals(newAdmin) {
+		return nil, errorsmod.Wrap(errors.ErrInvalid, "new and old admin are the same")
 	}
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
@@ -426,12 +427,18 @@ func (k Keeper) CreateGroupPolicy(goCtx context.Context, msg *group.MsgCreateGro
 }
 
 func (k Keeper) UpdateGroupPolicyAdmin(goCtx context.Context, msg *group.MsgUpdateGroupPolicyAdmin) (*group.MsgUpdateGroupPolicyAdminResponse, error) {
-	if strings.EqualFold(msg.Admin, msg.NewAdmin) {
-		return nil, errorsmod.Wrap(errors.ErrInvalid, "new and old admin are same")
+	admin, err := sdk.AccAddressFromHexUnsafe(msg.Admin)
+	if err != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "admin address")
 	}
 
-	if _, err := sdk.AccAddressFromHexUnsafe(msg.NewAdmin); err != nil {
+	newAdmin, err := sdk.AccAddressFromHexUnsafe(msg.NewAdmin)
+	if err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "new admin address")
+	}
+
+	if admin.Equals(newAdmin) {
+		return nil, errorsmod.Wrap(errors.ErrInvalid, "new and old admin are same")
 	}
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
@@ -1012,7 +1019,7 @@ func (k Keeper) doUpdateGroupPolicy(ctx sdk.Context, reqGroupPolicy, reqAdmin st
 		return errorsmod.Wrap(err, "group policy address")
 	}
 
-	_, err = sdk.AccAddressFromHexUnsafe(reqAdmin)
+	reqAdminAddr, err := sdk.AccAddressFromHexUnsafe(reqAdmin)
 	if err != nil {
 		return errorsmod.Wrap(err, "group policy admin")
 	}
@@ -1022,8 +1029,13 @@ func (k Keeper) doUpdateGroupPolicy(ctx sdk.Context, reqGroupPolicy, reqAdmin st
 		return errorsmod.Wrap(err, "load group policy")
 	}
 
+	storedAdminAddr, err := sdk.AccAddressFromHexUnsafe(groupPolicyInfo.Admin)
+	if err != nil {
+		return errorsmod.Wrap(err, "stored group policy admin")
+	}
+
 	// Only current group policy admin is authorized to update a group policy.
-	if reqAdmin != groupPolicyInfo.Admin {
+	if !reqAdminAddr.Equals(storedAdminAddr) {
 		return errorsmod.Wrap(sdkerrors.ErrUnauthorized, "not group policy admin")
 	}
 
@@ -1050,7 +1062,17 @@ func (k Keeper) doUpdateGroup(ctx sdk.Context, groupID uint64, reqGroupAdmin str
 		return err
 	}
 
-	if !strings.EqualFold(groupInfo.Admin, reqGroupAdmin) {
+	storedAdmin, err := sdk.AccAddressFromHexUnsafe(groupInfo.Admin)
+	if err != nil {
+		return errorsmod.Wrap(err, "stored group admin")
+	}
+
+	reqAdmin, err := sdk.AccAddressFromHexUnsafe(reqGroupAdmin)
+	if err != nil {
+		return errorsmod.Wrap(err, "requested admin")
+	}
+
+	if !storedAdmin.Equals(reqAdmin) {
 		return errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "not group admin; got %s, expected %s", reqGroupAdmin, groupInfo.Admin)
 	}
 

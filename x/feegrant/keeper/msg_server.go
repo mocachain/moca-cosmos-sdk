@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"strings"
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/x/feegrant"
@@ -27,10 +26,6 @@ var _ feegrant.MsgServer = msgServer{}
 
 // GrantAllowance grants an allowance from the granter's funds to be used by the grantee.
 func (k msgServer) GrantAllowance(goCtx context.Context, msg *feegrant.MsgGrantAllowance) (*feegrant.MsgGrantAllowanceResponse, error) {
-	if strings.EqualFold(msg.Grantee, msg.Granter) {
-		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "cannot self-grant fee authorization")
-	}
-
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	grantee, err := sdk.AccAddressFromHexUnsafe(msg.Grantee)
@@ -41,6 +36,10 @@ func (k msgServer) GrantAllowance(goCtx context.Context, msg *feegrant.MsgGrantA
 	granter, err := sdk.AccAddressFromHexUnsafe(msg.Granter)
 	if err != nil {
 		return nil, err
+	}
+
+	if grantee.Equals(granter) {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "cannot self-grant fee authorization")
 	}
 
 	if f, _ := k.GetAllowance(ctx, granter, grantee); f != nil {
