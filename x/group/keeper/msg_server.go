@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -664,7 +663,8 @@ func (k Keeper) WithdrawProposal(goCtx context.Context, msg *group.MsgWithdrawPr
 		return nil, errorsmod.Wrap(errors.ErrEmpty, "proposal id")
 	}
 
-	if _, err := sdk.AccAddressFromHexUnsafe(msg.Address); err != nil {
+	addr, err := sdk.AccAddressFromHexUnsafe(msg.Address)
+	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid group policy admin / proposer address: %s", msg.Address)
 	}
 
@@ -684,8 +684,13 @@ func (k Keeper) WithdrawProposal(goCtx context.Context, msg *group.MsgWithdrawPr
 		return nil, errorsmod.Wrap(err, "load group policy")
 	}
 
+	policyAdmin, err := sdk.AccAddressFromHexUnsafe(policyInfo.Admin)
+	if err != nil {
+		return nil, errorsmod.Wrap(err, "stored group policy admin")
+	}
+
 	// check address is the group policy admin he is in proposers list..
-	if msg.Address != policyInfo.Admin && !isProposer(proposal, msg.Address) {
+	if !addr.Equals(policyAdmin) && !isProposer(proposal, msg.Address) {
 		return nil, errorsmod.Wrapf(errors.ErrUnauthorized, "given address is neither group policy admin nor in proposers: %s", msg.Address)
 	}
 
@@ -1182,7 +1187,22 @@ func (k Keeper) validateMembers(members []group.MemberRequest) error {
 
 // isProposer checks that an address is a proposer of a given proposal.
 func isProposer(proposal group.Proposal, address string) bool {
-	return slices.Contains(proposal.Proposers, address)
+	addr, err := sdk.AccAddressFromHexUnsafe(address)
+	if err != nil {
+		return false
+	}
+
+	for _, p := range proposal.Proposers {
+		proposerAddr, err := sdk.AccAddressFromHexUnsafe(p)
+		if err != nil {
+			continue
+		}
+		if proposerAddr.Equals(addr) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func validateMsgs(msgs []sdk.Msg) error {
