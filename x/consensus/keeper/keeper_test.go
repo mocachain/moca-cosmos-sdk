@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"strings"
 	"testing"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -185,6 +186,20 @@ func (s *KeeperTestSuite) TestUpdateParams() {
 			},
 			expErr:    true,
 			expErrMsg: "invalid authority",
+		},
+		{
+			// The configured authority in a valid-but-non-canonical spelling
+			// (lowercase, no "0x" prefix) decodes to the same account and must
+			// be accepted; only the exact canonical rendering used to pass.
+			name: "valid non-canonical authority spelling",
+			input: &types.MsgUpdateParams{
+				Authority: strings.ToLower(strings.TrimPrefix(s.consensusParamsKeeper.GetAuthority(), "0x")),
+				Block:     defaultConsensusParams.Block,
+				Validator: defaultConsensusParams.Validator,
+				Evidence:  defaultConsensusParams.Evidence,
+			},
+			expErr:    false,
+			expErrMsg: "",
 		},
 		{
 			name: "nil evidence params",

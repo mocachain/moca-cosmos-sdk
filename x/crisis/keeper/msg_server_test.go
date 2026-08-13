@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -137,6 +138,17 @@ func (s *KeeperTestSuite) TestMsgUpdateParams() {
 			},
 			expErr:    true,
 			expErrMsg: "invalid authority",
+		},
+		{
+			// The configured authority in a valid-but-non-canonical spelling
+			// (lowercase, no "0x" prefix) decodes to the same account and must
+			// be accepted; only the exact canonical rendering used to pass.
+			name: "valid non-canonical authority spelling",
+			input: &types.MsgUpdateParams{
+				Authority:   strings.ToLower(strings.TrimPrefix(s.keeper.GetAuthority(), "0x")),
+				ConstantFee: constantFee,
+			},
+			expErr: false,
 		},
 		{
 			name: "invalid constant fee",
