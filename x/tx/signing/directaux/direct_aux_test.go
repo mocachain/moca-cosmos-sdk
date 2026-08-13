@@ -1,9 +1,11 @@
 package directaux_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/cosmos/cosmos-proto/anyutil"
@@ -85,6 +87,7 @@ func TestDirectAuxHandler(t *testing.T) {
 	}
 	signersCtx, err := signing.NewContext(signing.Options{
 		AddressCodec:          dummyAddressCodec{},
+		ValidatorAddressCodec: dummyAddressCodec{},
 	})
 	require.NoError(t, err)
 	modeHandler, err := directaux.NewSignModeHandler(directaux.SignModeHandlerOptions{
@@ -146,6 +149,99 @@ func TestDirectAuxHandler(t *testing.T) {
 	expectedSignBytes, err = proto.Marshal(signDocDirectAux)
 	require.NoError(t, err)
 	require.NotEqual(t, expectedSignBytes, signBytes)
+}
+
+// TestDirectAuxHandlerFeePayerNonCanonicalSpelling pins the fee-payer guard
+// itself, not just the sameHexAddress helper: a fee payer that is the same
+// decoded address as the signer must be rejected regardless of which valid
+// spelling (letter case, optional "0x" prefix) either side uses. The
+// derived-fee-payer case mirrors production shape, where the fallback fee
+// payer is computed as prefix-less lowercase hex while SignerData.Address
+// carries a "0x"-prefixed, mixed-case rendering.
+func TestDirectAuxHandlerFeePayerNonCanonicalSpelling(t *testing.T) {
+	addrLowerNoPrefix := hex.EncodeToString(bytes.Repeat([]byte{0xAB}, 20))
+	addrUpperPrefixed := "0x" + strings.ToUpper(addrLowerNoPrefix)
+	otherAddr := "0x" + hex.EncodeToString(bytes.Repeat([]byte{0xCD}, 20))
+	require.NotEqual(t, addrLowerNoPrefix, addrUpperPrefixed, "sanity check: the two spellings must differ as strings")
+
+	pk := &secp256k1.PubKey{Key: make([]byte, 256)}
+	anyPk, err := anyutil.New(pk)
+	require.NoError(t, err)
+
+	msg, err := anyutil.New(&bankv1beta1.MsgSend{FromAddress: addrLowerNoPrefix})
+	require.NoError(t, err)
+	txBody := &txv1beta1.TxBody{Messages: []*anypb.Any{msg}}
+	bodyBz, err := proto.Marshal(txBody)
+	require.NoError(t, err)
+
+	signersCtx, err := signing.NewContext(signing.Options{
+		AddressCodec:          dummyAddressCodec{},
+		ValidatorAddressCodec: dummyAddressCodec{},
+	})
+	require.NoError(t, err)
+	modeHandler, err := directaux.NewSignModeHandler(directaux.SignModeHandlerOptions{
+		SignersContext: signersCtx,
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name          string
+		feePayer      string // AuthInfo.Fee.Payer; empty means derived from the first msg signer
+		signerAddress string
+		expectErr     bool
+	}{
+		{
+			name:          "explicit fee payer, different valid spelling of the signer address",
+			feePayer:      addrUpperPrefixed,
+			signerAddress: addrLowerNoPrefix,
+			expectErr:     true,
+		},
+		{
+			name:          "derived fee payer (lowercase, no prefix) vs prefixed mixed-case signer address",
+			feePayer:      "",
+			signerAddress: addrUpperPrefixed,
+			expectErr:     true,
+		},
+		{
+			name:          "explicit fee payer that is a different account",
+			feePayer:      otherAddr,
+			signerAddress: addrLowerNoPrefix,
+			expectErr:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			authInfo := &txv1beta1.AuthInfo{
+				Fee: &txv1beta1.Fee{
+					Amount:   []*basev1beta1.Coin{{Denom: "uatom", Amount: "1000"}},
+					GasLimit: 20000,
+					Payer:    tc.feePayer,
+				},
+			}
+			authInfoBz, err := proto.Marshal(authInfo)
+			require.NoError(t, err)
+
+			signBytes, err := modeHandler.GetSignBytes(context.Background(), signing.SignerData{
+				ChainID:       "test-chain",
+				AccountNumber: 1,
+				Sequence:      2,
+				Address:       tc.signerAddress,
+				PubKey:        anyPk,
+			}, signing.TxData{
+				Body:          txBody,
+				AuthInfo:      authInfo,
+				AuthInfoBytes: authInfoBz,
+				BodyBytes:     bodyBz,
+			})
+			if tc.expectErr {
+				require.ErrorContains(t, err, "cannot sign with "+signingv1beta1.SignMode_SIGN_MODE_DIRECT_AUX.String())
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, signBytes)
+			}
+		})
+	}
 }
 
 type dummyAddressCodec struct{}
