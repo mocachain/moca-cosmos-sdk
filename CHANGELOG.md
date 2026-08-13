@@ -58,7 +58,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (crypto) [#26509](https://github.com/cosmos/cosmos-sdk/pull/26509) Bound compact bit array index by elems length to avoid out-of-range panics on malformed input.
 * (testutil) Restore address-codec wiring in `codec/testutil` `CodecOptions` and `x/auth/tx.NewDefaultSigningOptions` (bech32 codecs, matching production) so `MakeTestEncodingConfig` no longer panics with "address codec is required" across the unit-test suite.
 * (x/gov) Use a consistently-derived address form for validator map keys/lookups in vote tallying, matching how the direct voter lookup already normalizes addresses. (MOCA-814)
-* (x/staking) `getValidatorDelegationsLegacy` (the fallback path used when the primary indexed delegations query errors) filtered results with `strings.EqualFold` against the raw query address instead of the already-decoded value, which normalizes case but not `0x`-prefix presence — could silently omit a delegation from paginated query results.
+* (x/staking) `getValidatorDelegationsLegacy` (the fallback path used when the primary indexed delegations query errors) filtered results with `strings.EqualFold` against the raw query address instead of the already-decoded value, which normalizes case but not `0x`-prefix presence — could silently omit a delegation from paginated query results. Added a regression test that stages a failing primary scan (a dangling index entry pointing at undecodable bytes) and asserts the fallback returns the matching delegation for a non-canonical `ValidatorAddr` spelling.
 
 ### Improvements
 
