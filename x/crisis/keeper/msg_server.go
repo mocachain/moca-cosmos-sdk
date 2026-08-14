@@ -77,7 +77,12 @@ func (k *Keeper) VerifyInvariant(goCtx context.Context, msg *types.MsgVerifyInva
 // UpdateParams implements MsgServer.UpdateParams method.
 // It defines a method to update the x/crisis module parameters.
 func (k *Keeper) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
 	}
 

@@ -27,7 +27,12 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 // UpdateParams implements MsgServer.UpdateParams method.
 // It defines a method to update the x/slashing module parameters.
 func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
 	}
 

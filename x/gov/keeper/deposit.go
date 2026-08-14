@@ -237,6 +237,18 @@ func (keeper Keeper) ChargeDeposit(ctx context.Context, proposalID uint64, destA
 	if !cancellationCharges.IsZero() {
 		// get the distribution module account address
 		distributionAddress := keeper.authKeeper.GetModuleAddress(disttypes.ModuleName)
+
+		// decode once up front so the switch below compares addresses, not their
+		// (case-insensitive but otherwise unnormalized) string renderings
+		var destAccAddress sdk.AccAddress
+		if destAddress != "" {
+			var err error
+			destAccAddress, err = sdk.AccAddressFromHexUnsafe(destAddress)
+			if err != nil {
+				return err
+			}
+		}
+
 		switch {
 		case destAddress == "":
 			// burn the cancellation charges from deposits
@@ -244,17 +256,13 @@ func (keeper Keeper) ChargeDeposit(ctx context.Context, proposalID uint64, destA
 			if err != nil {
 				return err
 			}
-		case distributionAddress.String() == destAddress:
+		case distributionAddress.Equals(destAccAddress):
 			err := keeper.distrKeeper.FundCommunityPool(ctx, cancellationCharges, keeper.ModuleAccountAddress())
 			if err != nil {
 				return err
 			}
 		default:
-			destAccAddress, err := sdk.AccAddressFromHexUnsafe(destAddress)
-			if err != nil {
-				return err
-			}
-			err = keeper.bankKeeper.SendCoinsFromModuleToAccount(
+			err := keeper.bankKeeper.SendCoinsFromModuleToAccount(
 				ctx, types.ModuleName, destAccAddress, cancellationCharges,
 			)
 			if err != nil {

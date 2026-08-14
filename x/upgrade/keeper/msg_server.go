@@ -28,12 +28,17 @@ var (
 
 // SoftwareUpgrade implements the Msg/SoftwareUpgrade Msg service.
 func (k msgServer) SoftwareUpgrade(goCtx context.Context, msg *types.MsgSoftwareUpgrade) (*types.MsgSoftwareUpgradeResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(types.ErrInvalidSigner, "expected %s got %s", k.authority, msg.Authority)
 	}
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	err := k.ScheduleUpgrade(ctx, msg.Plan)
+	err = k.ScheduleUpgrade(ctx, msg.Plan)
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +48,16 @@ func (k msgServer) SoftwareUpgrade(goCtx context.Context, msg *types.MsgSoftware
 
 // CancelUpgrade implements the Msg/CancelUpgrade Msg service.
 func (k msgServer) CancelUpgrade(ctx context.Context, msg *types.MsgCancelUpgrade) (*types.MsgCancelUpgradeResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(types.ErrInvalidSigner, "expected %s got %s", k.authority, msg.Authority)
 	}
 
-	err := k.ClearUpgradePlan(ctx)
+	err = k.ClearUpgradePlan(ctx)
 	if err != nil {
 		return nil, err
 	}

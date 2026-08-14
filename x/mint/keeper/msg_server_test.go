@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"strings"
+
 	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -54,6 +56,17 @@ func (s *IntegrationTestSuite) TestUpdateParams() {
 					GoalBonded:          sdkmath.LegacyNewDecWithPrec(37, 2),
 					BlocksPerYear:       uint64(60 * 60 * 8766 / 5),
 				},
+			},
+			expectErr: false,
+		},
+		{
+			// The configured authority in a valid-but-non-canonical spelling
+			// (lowercase, no "0x" prefix) decodes to the same account and must
+			// be accepted; only the exact canonical rendering used to pass.
+			name: "set valid params with non-canonical authority spelling",
+			request: &types.MsgUpdateParams{
+				Authority: strings.ToLower(strings.TrimPrefix(s.mintKeeper.GetAuthority(), "0x")),
+				Params:    types.DefaultParams(),
 			},
 			expectErr: false,
 		},
