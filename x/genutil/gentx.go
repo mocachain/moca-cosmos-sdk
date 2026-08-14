@@ -3,7 +3,6 @@ package genutil
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
@@ -56,7 +55,8 @@ func ValidateAccountInGenesis(
 			accAddress := bal.GetAddress()
 			accCoins := bal.GetCoins()
 			// ensure that account is in genesis
-			if strings.EqualFold(accAddress, addr.String()) {
+			balAddr, decodeErr := sdk.AccAddressFromHexUnsafe(accAddress)
+			if decodeErr == nil && balAddr.Equals(addr) {
 				// ensure account contains enough funds of default bond denom
 				if coins.AmountOf(bondDenom).GT(accCoins.AmountOf(bondDenom)) {
 					err = fmt.Errorf(

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -218,6 +219,22 @@ func (suite *GenTxTestSuite) TestValidateAccountInGenesis() {
 				coins = sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 10)}
 				balances := banktypes.Balance{
 					Address: addr1.String(),
+					Coins:   sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 25)},
+				}
+				appGenesisState[banktypes.ModuleName] = suite.setAccountBalance([]banktypes.Balance{balances})
+			},
+			true,
+		},
+		{
+			"account with enough funds stored under a non-canonical address spelling",
+			func() {
+				coins = sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 10)}
+				balances := banktypes.Balance{
+					// Same account as addr1, spelled without the "0x" prefix.
+					// The pre-fix EqualFold comparison missed this (it only
+					// normalizes case, not prefix presence) and wrongly
+					// reported the account as unfunded.
+					Address: strings.TrimPrefix(addr1.String(), "0x"),
 					Coins:   sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 25)},
 				}
 				appGenesisState[banktypes.ModuleName] = suite.setAccountBalance([]banktypes.Balance{balances})
