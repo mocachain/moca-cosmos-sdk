@@ -146,14 +146,15 @@ func (k Querier) ValidatorDelegations(ctx context.Context, req *types.QueryValid
 func (k Querier) getValidatorDelegationsLegacy(ctx context.Context, req *types.QueryValidatorDelegationsRequest) ([]*types.Delegation, *query.PageResponse, error) {
 	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
 
+	valAddr, err := sdk.AccAddressFromHexUnsafe(req.ValidatorAddr)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	valStore := prefix.NewStore(store, types.DelegationKey)
 	return query.GenericFilteredPaginate(k.cdc, valStore, req.Pagination, func(key []byte, delegation *types.Delegation) (*types.Delegation, error) {
-		_, err := sdk.AccAddressFromHexUnsafe(req.ValidatorAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		if !strings.EqualFold(delegation.GetValidatorAddr(), req.ValidatorAddr) {
+		delValAddr, err := sdk.AccAddressFromHexUnsafe(delegation.GetValidatorAddr())
+		if err != nil || !delValAddr.Equals(valAddr) {
 			return nil, nil
 		}
 
