@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/mock/gomock"
@@ -49,6 +50,26 @@ func (suite *TestSuite) TestGrant() {
 				return &authz.MsgGrant{
 					Granter: grantee.String(),
 					Grantee: grantee.String(),
+					Grant:   grant,
+				}
+			},
+			expErr: true,
+			errMsg: "grantee and granter should be different",
+		},
+		{
+			// Grantee/Granter are the same underlying account, spelled
+			// differently (canonical checksummed vs. missing the "0x"
+			// prefix). strings.EqualFold alone would treat these as
+			// different since it doesn't account for prefix presence, only
+			// case — decoding both sides is required to catch this as a
+			// self-grant.
+			name: "identical grantee and granter, non-canonical spelling",
+			malleate: func() *authz.MsgGrant {
+				grant, err := authz.NewGrant(curBlockTime, banktypes.NewSendAuthorization(coins, nil), &oneYear)
+				suite.Require().NoError(err)
+				return &authz.MsgGrant{
+					Granter: grantee.String(),
+					Grantee: strings.TrimPrefix(grantee.String(), "0x"),
 					Grant:   grant,
 				}
 			},
@@ -222,6 +243,21 @@ func (suite *TestSuite) TestRevoke() {
 				return &authz.MsgRevoke{
 					Granter:    grantee.String(),
 					Grantee:    grantee.String(),
+					MsgTypeUrl: bankSendAuthMsgType,
+				}
+			},
+			expErr: true,
+			errMsg: "grantee and granter should be different",
+		},
+		{
+			// Same non-canonical-spelling case as TestGrant: the two
+			// addresses are the same account, just spelled with and
+			// without the "0x" prefix.
+			name: "identical grantee and granter, non-canonical spelling",
+			malleate: func() *authz.MsgRevoke {
+				return &authz.MsgRevoke{
+					Granter:    grantee.String(),
+					Grantee:    strings.TrimPrefix(grantee.String(), "0x"),
 					MsgTypeUrl: bankSendAuthMsgType,
 				}
 			},
