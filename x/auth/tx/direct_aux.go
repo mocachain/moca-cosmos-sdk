@@ -13,23 +13,29 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-var _ signing.SignModeHandler = signModeDirectAuxHandler{}
+var _ signing.SignModeHandler = SignModeDirectAuxHandler{}
 
-// signModeDirectAuxHandler defines the SIGN_MODE_DIRECT_AUX SignModeHandler
-type signModeDirectAuxHandler struct{}
+// SignModeDirectAuxHandler defines the SIGN_MODE_DIRECT_AUX SignModeHandler.
+//
+// NOTE: it is not wired into NewTxConfig — config.go registers the
+// cosmossdk.io/x/tx directaux handler for SIGN_MODE_DIRECT_AUX. This type is
+// exported only so its fee-payer authorization guard can be regression-tested
+// from an external test package; the package's own (internal) test binary does
+// not currently build due to a pre-existing, unrelated import cycle.
+type SignModeDirectAuxHandler struct{}
 
 // DefaultMode implements SignModeHandler.DefaultMode
-func (signModeDirectAuxHandler) DefaultMode() signingtypes.SignMode {
+func (SignModeDirectAuxHandler) DefaultMode() signingtypes.SignMode {
 	return signingtypes.SignMode_SIGN_MODE_DIRECT_AUX
 }
 
 // Modes implements SignModeHandler.Modes
-func (signModeDirectAuxHandler) Modes() []signingtypes.SignMode {
+func (SignModeDirectAuxHandler) Modes() []signingtypes.SignMode {
 	return []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT_AUX}
 }
 
 // GetSignBytes implements SignModeHandler.GetSignBytes
-func (signModeDirectAuxHandler) GetSignBytes(
+func (SignModeDirectAuxHandler) GetSignBytes(
 	mode signingtypes.SignMode, data signing.SignerData, tx sdk.Tx,
 ) ([]byte, error) {
 	if mode != signingtypes.SignMode_SIGN_MODE_DIRECT_AUX {
