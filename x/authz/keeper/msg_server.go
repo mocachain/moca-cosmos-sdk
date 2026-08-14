@@ -3,7 +3,6 @@ package keeper
 import (
 	"context"
 	"errors"
-	"strings"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -16,10 +15,6 @@ var _ authz.MsgServer = Keeper{}
 
 // Grant implements the MsgServer.Grant method to create a new grant.
 func (k Keeper) Grant(goCtx context.Context, msg *authz.MsgGrant) (*authz.MsgGrantResponse, error) {
-	if strings.EqualFold(msg.Grantee, msg.Granter) {
-		return nil, authz.ErrGranteeIsGranter
-	}
-
 	grantee, err := sdk.AccAddressFromHexUnsafe(msg.Grantee)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid grantee address: %s", err)
@@ -28,6 +23,10 @@ func (k Keeper) Grant(goCtx context.Context, msg *authz.MsgGrant) (*authz.MsgGra
 	granter, err := sdk.AccAddressFromHexUnsafe(msg.Granter)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid granter address: %s", err)
+	}
+
+	if grantee.Equals(granter) {
+		return nil, authz.ErrGranteeIsGranter
 	}
 
 	if err := msg.Grant.ValidateBasic(); err != nil {
@@ -66,10 +65,6 @@ func (k Keeper) Grant(goCtx context.Context, msg *authz.MsgGrant) (*authz.MsgGra
 
 // Revoke implements the MsgServer.Revoke method.
 func (k Keeper) Revoke(goCtx context.Context, msg *authz.MsgRevoke) (*authz.MsgRevokeResponse, error) {
-	if strings.EqualFold(msg.Grantee, msg.Granter) {
-		return nil, authz.ErrGranteeIsGranter
-	}
-
 	grantee, err := sdk.AccAddressFromHexUnsafe(msg.Grantee)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid grantee address: %s", err)
@@ -78,6 +73,10 @@ func (k Keeper) Revoke(goCtx context.Context, msg *authz.MsgRevoke) (*authz.MsgR
 	granter, err := sdk.AccAddressFromHexUnsafe(msg.Granter)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid granter address: %s", err)
+	}
+
+	if grantee.Equals(granter) {
+		return nil, authz.ErrGranteeIsGranter
 	}
 
 	if msg.MsgTypeUrl == "" {
