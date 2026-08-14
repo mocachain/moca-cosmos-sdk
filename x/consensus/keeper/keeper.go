@@ -65,7 +65,12 @@ func (k Keeper) Params(ctx context.Context, _ *types.QueryParamsRequest) (*types
 var _ types.MsgServer = Keeper{}
 
 func (k Keeper) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if k.GetAuthority() != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.GetAuthority())
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.GetAuthority(), msg.Authority)
 	}
 

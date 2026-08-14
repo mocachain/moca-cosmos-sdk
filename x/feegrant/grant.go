@@ -40,7 +40,16 @@ func (a Grant) ValidateBasic() error {
 	if a.Grantee == "" {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "missing grantee address")
 	}
-	if a.Grantee == a.Granter {
+
+	granter, err := sdk.AccAddressFromHexUnsafe(a.Granter)
+	if err != nil {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "invalid granter address")
+	}
+	grantee, err := sdk.AccAddressFromHexUnsafe(a.Grantee)
+	if err != nil {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "invalid grantee address")
+	}
+	if grantee.Equals(granter) {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "cannot self-grant fee authorization")
 	}
 

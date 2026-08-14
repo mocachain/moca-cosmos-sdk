@@ -151,8 +151,17 @@ func (keeper Keeper) CancelProposal(ctx context.Context, proposalID uint64, prop
 		return types.ErrInvalidProposal.Wrapf("proposal %d doesn't have proposer %s, so cannot be canceled", proposalID, proposer)
 	}
 
+	proposerAddr, err := sdk.AccAddressFromHexUnsafe(proposer)
+	if err != nil {
+		return types.ErrInvalidProposer.Wrapf("invalid proposer address: %s", proposer)
+	}
+	storedProposerAddr, err := sdk.AccAddressFromHexUnsafe(proposal.Proposer)
+	if err != nil {
+		return err
+	}
+
 	// Check creator of the proposal
-	if proposal.Proposer != proposer {
+	if !storedProposerAddr.Equals(proposerAddr) {
 		return types.ErrInvalidProposer.Wrapf("invalid proposer %s", proposer)
 	}
 
