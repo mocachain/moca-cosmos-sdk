@@ -22,7 +22,12 @@ func NewMsgServerImpl(ak AccountKeeper) types.MsgServer {
 }
 
 func (ms msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
-	if ms.ak.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(ms.ak.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, fmt.Errorf(
 			"expected gov account as only signer for proposal message; invalid authority; expected %s, got %s",
 			ms.ak.authority, msg.Authority)

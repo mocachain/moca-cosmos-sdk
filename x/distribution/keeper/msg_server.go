@@ -251,11 +251,17 @@ func (k msgServer) DepositValidatorRewardsPool(ctx context.Context, msg *types.M
 }
 
 func (k *Keeper) validateAuthority(authority string) error {
-	if _, err := sdk.AccAddressFromHexUnsafe(authority); err != nil {
+	authorityAddr, err := sdk.AccAddressFromHexUnsafe(authority)
+	if err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid authority address: %s", err)
 	}
 
-	if k.authority != authority {
+	kAuthorityAddr, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return err
+	}
+
+	if !authorityAddr.Equals(kAuthorityAddr) {
 		return errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, authority)
 	}
 

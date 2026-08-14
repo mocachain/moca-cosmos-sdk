@@ -149,9 +149,10 @@ func (k msgServer) CancelProposal(goCtx context.Context, msg *v1.MsgCancelPropos
 func (k msgServer) ExecLegacyContent(goCtx context.Context, msg *v1.MsgExecLegacyContent) (*v1.MsgExecLegacyContentResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	govAcct := k.GetGovernanceAccount(ctx).GetAddress().String()
-	if govAcct != msg.Authority {
-		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "expected %s got %s", govAcct, msg.Authority)
+	govAcctAddr := k.GetGovernanceAccount(ctx).GetAddress()
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !govAcctAddr.Equals(msgAuthority) {
+		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "expected %s got %s", govAcctAddr, msg.Authority)
 	}
 
 	content, err := v1.LegacyContentFromMessage(msg)
@@ -268,7 +269,12 @@ func (k msgServer) Deposit(goCtx context.Context, msg *v1.MsgDeposit) (*v1.MsgDe
 
 // UpdateParams implements the MsgServer.UpdateParams method.
 func (k msgServer) UpdateParams(goCtx context.Context, msg *v1.MsgUpdateParams) (*v1.MsgUpdateParamsResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
 	}
 
@@ -286,7 +292,12 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *v1.MsgUpdateParams) 
 
 // UpdateCrossChainParams implements the MsgServer.UpdateCrossChainParams method.
 func (k msgServer) UpdateCrossChainParams(goCtx context.Context, msg *v1.MsgUpdateCrossChainParams) (*v1.MsgUpdateCrossChainParamsResponse, error) {
-	if k.authority != msg.Authority {
+	authority, err := sdk.AccAddressFromHexUnsafe(k.authority)
+	if err != nil {
+		return nil, err
+	}
+	msgAuthority, err := sdk.AccAddressFromHexUnsafe(msg.Authority)
+	if err != nil || !authority.Equals(msgAuthority) {
 		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
 	}
 	ctx := sdk.UnwrapSDKContext(goCtx)
