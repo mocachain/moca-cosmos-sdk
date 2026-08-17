@@ -164,7 +164,11 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		}
 	}
 
-	validator, err := types.NewValidator(msg.ValidatorAddress, pk, msg.Description, delAddr.String(), relayerAddr.String(), challengerAddr.String(), blsPk)
+	// Store the operator address in canonical form (valAddr was decoded from
+	// msg.ValidatorAddress above), so the persisted OperatorAddress matches the
+	// EIP-55 checksummed form used elsewhere on lookup — the same canonical form
+	// already used for delAddr/relayerAddr/challengerAddr below.
+	validator, err := types.NewValidator(valAddr.String(), pk, msg.Description, delAddr.String(), relayerAddr.String(), challengerAddr.String(), blsPk)
 	if err != nil {
 		return nil, err
 	}
