@@ -147,16 +147,28 @@ func (rs *Store) MigrateStores(targetType types.StoreType, newDb dbm.DB) error {
 		switch store.GetStoreType() {
 		case types.StoreTypeIAVL:
 			rs.logger.Info("Migrating IAVL store", "store name", key.Name())
-			iterator := store.Iterator(nil, nil)
-			for ; iterator.Valid(); iterator.Next() {
-				prefixKey := append([]byte("s/k:"+key.Name()+"/"), iterator.Key()...)
-				if err := newDb.SetSync(prefixKey, iterator.Value()); err != nil {
-					return err
-				}
+			if err := migrateIAVLStore(store, newDb, key.Name()); err != nil {
+				return err
 			}
-			_ = iterator.Close()
 		default:
 
+		}
+	}
+	return nil
+}
+
+// migrateIAVLStore copies every key/value pair from store into newDb under the
+// "s/k:<name>/" prefix. It is split out of MigrateStores so the iterator is
+// closed via defer as soon as this store is done, rather than accumulating
+// open iterators across every store in rs.stores until MigrateStores itself returns.
+func migrateIAVLStore(store types.KVStore, newDb dbm.DB, name string) error {
+	iterator := store.Iterator(nil, nil)
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		prefixKey := append([]byte("s/k:"+name+"/"), iterator.Key()...)
+		if err := newDb.SetSync(prefixKey, iterator.Value()); err != nil {
+			return err
 		}
 	}
 	return nil
