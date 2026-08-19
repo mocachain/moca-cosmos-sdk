@@ -25,7 +25,9 @@ ENV CGO_CFLAGS="-O -D__BLST_PORTABLE__"
 ENV CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
 
 COPY ./ /work
-RUN LEDGER_ENABLED=false make clean build
+# Build the manual-wiring (app_v1) simd: moca wires its chain manually rather than
+# via depinject, so the localnet/liveness node uses the app_v1 build.
+RUN LEDGER_ENABLED=false COSMOS_BUILD_OPTIONS=legacy make clean build
 
 
 FROM alpine AS run
