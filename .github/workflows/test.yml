@@ -262,11 +262,10 @@ jobs:
             simapp/go.sum
       - name: tests simapp
         if: env.GIT_DIFF
+        # moca wires its chain manually (the app_v1 build), not via depinject. The
+        # depinject SimApp is not used by the chain and is not wired for moca's
+        # greenfield modules (x/crosschain, x/oracle, x/gashub), so simapp is
+        # exercised via the app_v1 build only.
         run: |
           cd simapp
-          go test -mod=readonly -timeout 60m -coverprofile=coverage.out -covermode=atomic -tags='norace ledger test_ledger_mock rocksdb_build' ./...
-      - name: tests simapp v1
-        if: env.GIT_DIFF
-        run: |
-          cd simapp
-          go test -mod=readonly -timeout 60m -tags='app_v1 norace ledger test_ledger_mock rocksdb_build' ./...
+          go test -mod=readonly -timeout 60m -coverprofile=coverage.out -covermode=atomic -tags='app_v1 norace ledger test_ledger_mock rocksdb_build' ./...
