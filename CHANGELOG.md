@@ -72,6 +72,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+* (x/auth/ante, x/auth/keeper, x/authz, x/distribution, x/gov, x/group, x/protocolpool) [#385](https://github.com/mocachain/moca-cosmos-sdk/pull/385) Use constant format strings in 17 `Wrapf`/`status.Errorf` calls so `go vet` (and therefore `go test`) accepts them under the module's `go 1.25` directive; the messages are unchanged. Make the `x/auth/tx`, `x/auth/ante`, `x/bank/keeper` and `x/gov/migrations/v3` test packages compile again: import the sentinel errors from `types/errors` as upstream does, and read the tx file inline in `TestBuilderWithTimeoutTimestamp` instead of through `x/auth/client`, which in this fork closes an import cycle back into `x/auth/tx`.
 * (ci) Bump stale `go-version` pins in `test.yml` for jobs whose module's `go.mod` directive exceeds the pinned version (e.g. `test-e2e` pinned to `1.23` while root `go.mod` requires `1.25.0`), which fails under `GOTOOLCHAIN=local`.
 * (x/auth) [#26567](https://github.com/cosmos/cosmos-sdk/pull/26567) More human-readable signature-verification error messages.
 * (ci) [#26498](https://github.com/cosmos/cosmos-sdk/pull/26498) Add an explicit `actions/setup-go` step (tracking `go.mod` via `go-version-file`) to the `test-system`/`test-system-legacy` jobs in `systemtests.yml`, which previously had none and relied on whatever Go the runner image happened to ship.
