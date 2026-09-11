@@ -17,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	"github.com/cosmos/cosmos-sdk/types/bech32/legacybech32" //nolint:staticcheck // SA1019: legacybech32 is deprecated: use the bech32 package instead.
 )
 
@@ -128,6 +129,29 @@ func (s *addressTestSuite) TestRandBech32AccAddrConsistency() {
 
 	_, err := types.AccAddressFromHexUnsafe("")
 	s.Require().Equal(types.ErrEmptyHexAddress, err)
+}
+
+// AccAddressFromHexUnsafe's bech32 branch must only accept the 20-byte payloads the hex branch
+// accepts: a longer payload would parse, then render and re-key as its last 20 bytes.
+func (s *addressTestSuite) TestAccAddressFromHexUnsafeBech32PayloadLength() {
+	prefix := types.GetConfig().GetBech32AccountAddrPrefix()
+
+	for _, n := range []int{1, 19, 21, 22, 32} {
+		bz := bytes.Repeat([]byte{0xab}, n)
+		str, err := bech32.ConvertAndEncode(prefix, bz)
+		s.Require().NoError(err)
+
+		_, err = types.AccAddressFromHexUnsafe(str)
+		s.Require().Error(err, "a %d-byte bech32 payload must be rejected", n)
+	}
+
+	bz := bytes.Repeat([]byte{0xab}, types.EthAddressLength)
+	str, err := bech32.ConvertAndEncode(prefix, bz)
+	s.Require().NoError(err)
+
+	res, err := types.AccAddressFromHexUnsafe(str)
+	s.Require().NoError(err)
+	s.Require().Equal(types.AccAddress(bz), res)
 }
 
 // Test that the account address cache ignores the bech32 prefix setting, retrieving bech32 addresses from the cache.
@@ -568,14 +592,14 @@ func (s *addressTestSuite) TestGetFromBech32() {
 }
 
 func (s *addressTestSuite) TestMustAccAddressFromBech32() {
-	bech32PrefixValAddr := types.GetConfig().GetBech32ValidatorAddrPrefix()
+	bech32PrefixAccAddr := types.GetConfig().GetBech32AccountAddrPrefix()
 	addr20byte := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}
-	address := types.MustBech32ifyAddressBytes(bech32PrefixValAddr, addr20byte)
+	address := types.MustBech32ifyAddressBytes(bech32PrefixAccAddr, addr20byte)
 
-	valAddress1, err := types.ValAddressFromBech32(address)
+	accAddress1, err := types.AccAddressFromBech32(address)
 	s.Require().Nil(err)
 
-	valAddress2 := types.MustValAddressFromBech32(address)
+	accAddress2 := types.MustAccAddressFromBech32(address)
 
-	s.Require().Equal(valAddress1, valAddress2)
+	s.Require().Equal(accAddress1, accAddress2)
 }
