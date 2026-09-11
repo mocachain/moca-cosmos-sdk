@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -17,9 +18,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 )
 
 func TestTxBuilder(t *testing.T) {
@@ -187,7 +188,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ := errorsmod.ABCIInfo(err, false)
-	require.Equal(t, errorsmod.ErrInsufficientFee.ABCICode(), code)
+	require.Equal(t, sdkerrors.ErrInsufficientFee.ABCICode(), code)
 
 	// require to fail validation when no signatures exist
 	err = txBuilder.SetSignatures()
@@ -196,7 +197,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ = errorsmod.ABCIInfo(err, false)
-	require.Equal(t, errorsmod.ErrNoSignatures.ABCICode(), code)
+	require.Equal(t, sdkerrors.ErrNoSignatures.ABCICode(), code)
 
 	// require to fail with nil values for tx, authinfo
 	err = txBuilder.SetMsgs(msgs...)
@@ -211,7 +212,7 @@ func TestBuilderValidateBasic(t *testing.T) {
 	err = txBuilder.ValidateBasic()
 	require.Error(t, err)
 	_, code, _ = errorsmod.ABCIInfo(err, false)
-	require.Equal(t, errorsmod.ErrUnauthorized.ABCICode(), code)
+	require.Equal(t, sdkerrors.ErrUnauthorized.ABCICode(), code)
 
 	require.Error(t, err)
 	txBuilder.SetFeeAmount(feeAmount)
@@ -352,7 +353,12 @@ func TestBuilderWithTimeoutTimestamp(t *testing.T) {
 
 	file := testutil.WriteToNewTempFile(t, string(encodedTx))
 	clientCtx := client.Context{InterfaceRegistry: interfaceRegistry, TxConfig: txConfig}
-	decodedTx, err := authclient.ReadTxFromFile(clientCtx, file.Name())
+	// Read the file back directly instead of through x/auth/client: in this fork client/tx
+	// imports x/auth/tx for the EIP-712 message-type printer, so importing x/auth/client
+	// from this internal test package would close an import cycle.
+	bz, err := os.ReadFile(file.Name())
+	require.NoError(t, err)
+	decodedTx, err := clientCtx.TxConfig.TxJSONDecoder()(bz)
 	require.NoError(t, err)
 
 	txBldr, err := txConfig.WrapTxBuilder(decodedTx)
