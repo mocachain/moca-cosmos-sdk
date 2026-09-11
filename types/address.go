@@ -187,6 +187,9 @@ func AccAddressFromHexUnsafe(address string) (AccAddress, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(bz) != EthAddressLength {
+			return nil, fmt.Errorf("invalid address length: %v != %v", len(bz), EthAddressLength)
+		}
 
 		return bz, nil
 	} else {
