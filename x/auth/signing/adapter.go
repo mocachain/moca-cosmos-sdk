@@ -114,6 +114,13 @@ func EIP712VerifySignature(ctx context.Context, signerData txsigning.SignerData,
 		sig[crypto.RecoveryIDOffset] -= 27
 	}
 
+	// require the canonical low-S form so each tx has one signature encoding
+	r := new(big.Int).SetBytes(sig[:32])
+	s := new(big.Int).SetBytes(sig[32:64])
+	if !crypto.ValidateSignatureValues(sig[crypto.RecoveryIDOffset], r, s, true) {
+		return errorsmod.Wrap(sdkerrors.ErrorInvalidSigner, "signature s value is in the upper half of the curve order (non-canonical)")
+	}
+
 	// recover the pubkey from the signature
 	feePayerPubkey, err := ethersecp256k1.RecoverPubkey(sigHash, sig)
 	if err != nil {
