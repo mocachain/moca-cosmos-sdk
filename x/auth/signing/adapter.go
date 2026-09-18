@@ -114,7 +114,7 @@ func EIP712VerifySignature(ctx context.Context, signerData txsigning.SignerData,
 		sig[crypto.RecoveryIDOffset] -= 27
 	}
 
-	// reject the malleable high-S form so each tx has one canonical signature
+	// require the canonical low-S form so each tx has one signature encoding
 	r := new(big.Int).SetBytes(sig[:32])
 	s := new(big.Int).SetBytes(sig[32:64])
 	if !crypto.ValidateSignatureValues(sig[crypto.RecoveryIDOffset], r, s, true) {
