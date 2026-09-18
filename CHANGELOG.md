@@ -77,6 +77,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (x/auth) [#26567](https://github.com/cosmos/cosmos-sdk/pull/26567) More human-readable signature-verification error messages.
 * (ci) [#26498](https://github.com/cosmos/cosmos-sdk/pull/26498) Add an explicit `actions/setup-go` step (tracking `go.mod` via `go-version-file`) to the `test-system`/`test-system-legacy` jobs in `systemtests.yml`, which previously had none and relied on whatever Go the runner image happened to ship.
 
+### State Machine Breaking
+
+* (x/auth/signing) `EIP712VerifySignature` now validates that a signature is in canonical low-S form before recovering the signer's pubkey, matching the check `crypto.VerifySignature` already performs on the EVM tx-signing path. Every Cosmos-layer single-signature transaction is verified through this adapter, so a signature with a non-canonical `s` value is now rejected instead of accepted; signers using this fork's `ethsecp256k1` keyring (mocad, moca-cmd, moca-go-sdk, storage-provider) already produce canonical signatures and are unaffected. This narrows what a given transaction's signature accepts for the same inputs, so nodes on old and new binaries can disagree — ship as a coordinated upgrade rather than an independent point release. (MOCA-815)
+
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
 
 ### Improvements
