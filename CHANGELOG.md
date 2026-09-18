@@ -79,7 +79,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
-* (x/auth/signing) `EIP712VerifySignature` now validates that a signature is in canonical low-S form before recovering the signer's pubkey, matching the check `crypto.VerifySignature` already performs on the EVM tx-signing path. Every Cosmos-layer single-signature transaction is verified through this adapter, so a signature with a non-canonical `s` value is now rejected instead of accepted; signers using this fork's `ethsecp256k1` keyring (mocad, moca-cmd, moca-go-sdk, storage-provider) already produce canonical signatures and are unaffected. This narrows what a given transaction's signature accepts for the same inputs, so nodes on old and new binaries can disagree — ship as a coordinated upgrade rather than an independent point release. (MOCA-815)
+* (x/auth/signing) [#390](https://github.com/mocachain/moca-cosmos-sdk/pull/390) `EIP712VerifySignature` now validates that a signature is in canonical low-S form before recovering the signer's pubkey, matching the check `crypto.VerifySignature` already performs on the EVM tx-signing path. Every Cosmos-layer single-signature transaction is verified through this adapter, so a signature with a non-canonical `s` value is now rejected instead of accepted; signers using this fork's `ethsecp256k1` keyring (mocad, moca-cmd, moca-go-sdk, storage-provider) already produce canonical signatures and are unaffected. This narrows what a given transaction's signature accepts for the same inputs, so nodes on old and new binaries can disagree — ship as a coordinated upgrade rather than an independent point release. (MOCA-815)
 
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
 
