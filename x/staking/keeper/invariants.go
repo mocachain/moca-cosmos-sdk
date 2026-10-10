@@ -113,6 +113,7 @@ func NonNegativePowerInvariant(k *Keeper) sdk.Invariant {
 		if err != nil {
 			panic(err)
 		}
+		defer iterator.Close()
 		for ; iterator.Valid(); iterator.Next() {
 			validator, err := k.GetValidator(ctx, iterator.Value())
 			if err != nil {
@@ -133,7 +134,6 @@ func NonNegativePowerInvariant(k *Keeper) sdk.Invariant {
 				msg += fmt.Sprintf("\tnegative tokens for validator: %v\n", validator)
 			}
 		}
-		iterator.Close()
 
 		return sdk.FormatInvariant(types.ModuleName, "nonnegative power", fmt.Sprintf("found invalid validator powers\n%s", msg)), broken
 	}
