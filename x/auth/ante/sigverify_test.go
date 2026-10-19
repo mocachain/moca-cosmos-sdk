@@ -2,15 +2,18 @@ package ante_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -335,6 +338,166 @@ func TestSigVerification(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestSigVerification_EIP712TxChecks covers the transaction checks that
+// SigVerificationDecorator applies to EIP-712 signed transactions. Every
+// rejected case is otherwise validly signed, so it is rejected by these checks
+// rather than by signature verification.
+func TestSigVerification_EIP712TxChecks(t *testing.T) {
+	suite := SetupTestSuite(t, true)
+
+	priv, _, addr := testdata.KeyTestPubAddrEthSecp256k1(t)
+	acc := suite.accountKeeper.NewAccountWithAddress(suite.ctx, addr)
+	require.NoError(t, acc.SetAccountNumber(1000))
+	suite.accountKeeper.SetAccount(suite.ctx, acc)
+
+	// Encode the signer with the test codec, which decodes msg signers as bech32.
+	signer, err := suite.encCfg.InterfaceRegistry.SigningContext().AddressCodec().BytesToString(addr)
+	require.NoError(t, err)
+	extOpt, err := codectypes.NewAnyWithValue(&testdata.Cat{Moniker: "ext"})
+	require.NoError(t, err)
+
+	editAuthInfo := func(edit func(*txtypes.AuthInfo)) func(*testing.T, *txtypes.TxRaw) {
+		return func(t *testing.T, raw *txtypes.TxRaw) {
+			t.Helper()
+			var authInfo txtypes.AuthInfo
+			require.NoError(t, authInfo.Unmarshal(raw.AuthInfoBytes))
+			edit(&authInfo)
+			bz, err := authInfo.Marshal()
+			require.NoError(t, err)
+			raw.AuthInfoBytes = bz
+		}
+	}
+
+	spkd := ante.NewSetPubKeyDecorator(suite.accountKeeper)
+	svd := ante.NewSigVerificationDecorator(suite.accountKeeper, suite.clientCtx.TxConfig.SignModeHandler())
+	antehandler := sdk.ChainAnteDecorators(spkd, svd)
+
+	testCases := []struct {
+		name      string
+		signMode  signing.SignMode
+		build     func(authtx.ExtensionOptionsTxBuilder) // applied before signing
+		mutate    func(*testing.T, *txtypes.TxRaw)       // applied to the signed tx
+		expErr    error
+		expErrMsg string
+	}{
+		{
+			name:     "valid tx",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+		},
+		{
+			name:     "fee payer in canonical encoding",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			build:    func(b authtx.ExtensionOptionsTxBuilder) { b.SetFeePayer(addr) },
+		},
+		{
+			name:     "extension_options are left to RejectExtensionOptionsDecorator",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			build:    func(b authtx.ExtensionOptionsTxBuilder) { b.SetExtensionOptions(extOpt) },
+		},
+		{
+			name:      "SIGN_MODE_DIRECT",
+			signMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			expErr:    sdkerrors.ErrNotSupported,
+			expErrMsg: "unsupported sign mode SIGN_MODE_DIRECT",
+		},
+		{
+			name:      "SIGN_MODE_LEGACY_AMINO_JSON",
+			signMode:  signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
+			expErr:    sdkerrors.ErrNotSupported,
+			expErrMsg: "unsupported sign mode SIGN_MODE_LEGACY_AMINO_JSON",
+		},
+		{
+			name:     "unknown body field",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			mutate: func(_ *testing.T, raw *txtypes.TxRaw) {
+				// field 1050 has the non-critical bit (1024) set
+				raw.BodyBytes = protowire.AppendVarint(protowire.AppendTag(raw.BodyBytes, 1050, protowire.VarintType), 1)
+			},
+			expErr:    sdkerrors.ErrInvalidRequest,
+			expErrMsg: "does not support unknown tx body fields",
+		},
+		{
+			name:     "unknown field in a message",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			mutate: func(t *testing.T, raw *txtypes.TxRaw) {
+				t.Helper()
+				var body txtypes.TxBody
+				require.NoError(t, body.Unmarshal(raw.BodyBytes))
+				msg := body.Messages[0]
+				msg.Value = protowire.AppendVarint(protowire.AppendTag(msg.Value, 1050, protowire.VarintType), 1)
+				bz, err := body.Marshal()
+				require.NoError(t, err)
+				raw.BodyBytes = bz
+			},
+			expErr:    sdkerrors.ErrInvalidRequest,
+			expErrMsg: "does not support unknown tx body fields",
+		},
+		{
+			name:      "non_critical_extension_options",
+			signMode:  signing.SignMode_SIGN_MODE_EIP_712,
+			build:     func(b authtx.ExtensionOptionsTxBuilder) { b.SetNonCriticalExtensionOptions(extOpt) },
+			expErr:    sdkerrors.ErrInvalidRequest,
+			expErrMsg: "does not support non-critical extension options",
+		},
+		{
+			name:     "tip",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			mutate: editAuthInfo(func(authInfo *txtypes.AuthInfo) {
+				authInfo.Tip = &txtypes.Tip{Amount: testdata.NewTestFeeAmount(), Tipper: addr.String()} //nolint:staticcheck // SA1019: this case sets the deprecated tip
+			}),
+			expErr:    sdkerrors.ErrInvalidRequest,
+			expErrMsg: "does not support tips",
+		},
+		{
+			name:     "fee payer in non-canonical encoding",
+			signMode: signing.SignMode_SIGN_MODE_EIP_712,
+			build:    func(b authtx.ExtensionOptionsTxBuilder) { b.SetFeePayer(addr) },
+			mutate: editAuthInfo(func(authInfo *txtypes.AuthInfo) {
+				authInfo.Fee.Payer = strings.TrimPrefix(authInfo.Fee.Payer, "0x")
+			}),
+			expErr:    sdkerrors.ErrInvalidAddress,
+			expErrMsg: "must be encoded as",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			suite.txBuilder = suite.clientCtx.TxConfig.NewTxBuilder()
+			require.NoError(t, suite.txBuilder.SetMsgs(&testdata.TestMsg{Signers: []string{signer}}))
+			suite.txBuilder.SetFeeAmount(testdata.NewTestFeeAmount())
+			suite.txBuilder.SetGasLimit(testdata.NewTestGasLimit())
+			if tc.build != nil {
+				tc.build(suite.txBuilder.(authtx.ExtensionOptionsTxBuilder))
+			}
+			signedTx, err := suite.CreateTestTx(suite.ctx, []cryptotypes.PrivKey{priv}, []uint64{1000}, []uint64{0}, suite.ctx.ChainID(), tc.signMode)
+			require.NoError(t, err)
+
+			txBytes, err := suite.clientCtx.TxConfig.TxEncoder()(signedTx)
+			require.NoError(t, err)
+			if tc.mutate != nil {
+				var raw txtypes.TxRaw
+				require.NoError(t, raw.Unmarshal(txBytes))
+				tc.mutate(t, &raw)
+				txBytes, err = raw.Marshal()
+				require.NoError(t, err)
+			}
+			decodedTx, err := suite.clientCtx.TxConfig.TxDecoder()(txBytes)
+			require.NoError(t, err)
+
+			// CheckTx and block execution apply the same rules.
+			for _, isCheckTx := range []bool{true, false} {
+				_, err = antehandler(suite.ctx.WithIsCheckTx(isCheckTx), decodedTx, false)
+				if tc.expErr == nil {
+					require.NoError(t, err)
+				} else {
+					require.ErrorIs(t, err, tc.expErr)
+					require.ErrorContains(t, err, tc.expErrMsg)
+				}
+			}
+		})
 	}
 }
 

@@ -104,10 +104,11 @@ func (w *wrapper) GetSigningTxData() txsigning.TxData {
 		NonCriticalExtensionOptions: nonCriticalExtOptions,
 	}
 	txData := txsigning.TxData{
-		AuthInfo:      txAuthInfo,
-		AuthInfoBytes: w.getAuthInfoBytes(),
-		Body:          txBody,
-		BodyBytes:     w.getBodyBytes(),
+		AuthInfo:                   txAuthInfo,
+		AuthInfoBytes:              w.getAuthInfoBytes(),
+		Body:                       txBody,
+		BodyBytes:                  w.getBodyBytes(),
+		BodyHasUnknownNonCriticals: w.txBodyHasUnknownNonCriticals,
 	}
 	return txData
 }
