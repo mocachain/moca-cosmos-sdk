@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/bls"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/cometbft/cometbft/votepool"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"cosmossdk.io/math"
@@ -34,13 +35,16 @@ func (s *KeeperTestSuite) execExpectCalls() {
 // handler verifies via CheckBlsProof. The proof is bound to the BLS key (not the
 // operator address), but the handler enforces BLS-key uniqueness, so a new pair is
 // generated per validator to avoid collisions when a test creates several.
-func newTestBlsKeyProof() (blsPk, blsProof string) {
-	blsSecretKey, _ := bls.GenerateBlsKey()
-	blsPk = hex.EncodeToString(blsSecretKey.PublicKey().Marshal())
-	blsProofBuf, _ := blsSecretKey.Sign(tmhash.Sum(blsSecretKey.PublicKey().Marshal()), votepool.DST)
-	blsProofBts, _ := blsProofBuf.Marshal()
-	blsProof = hex.EncodeToString(blsProofBts)
-	return blsPk, blsProof
+func newTestBlsKeyProof(t *testing.T) (blsPk, blsProof string) {
+	t.Helper()
+	blsSecretKey, err := bls.GenerateBlsKey()
+	require.NoError(t, err)
+	blsPubKeyBz := blsSecretKey.PublicKey().Marshal()
+	blsProofBuf, err := blsSecretKey.Sign(tmhash.Sum(blsPubKeyBz), votepool.DST)
+	require.NoError(t, err)
+	blsProofBts, err := blsProofBuf.Marshal()
+	require.NoError(t, err)
+	return hex.EncodeToString(blsPubKeyBz), hex.EncodeToString(blsProofBts)
 }
 
 func (s *KeeperTestSuite) TestMsgCreateValidator() {
@@ -54,7 +58,7 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 	pubkey, err := codectypes.NewAnyWithValue(pk1)
 	require.NoError(err)
 
-	blsKey, blsProof := newTestBlsKeyProof()
+	blsKey, blsProof := newTestBlsKeyProof(s.T())
 
 	testCases := []struct {
 		name      string
@@ -290,7 +294,7 @@ func (s *KeeperTestSuite) TestMsgEditValidator() {
 	require.NotNil(pk)
 
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
-	blsPk, blsProof := newTestBlsKeyProof()
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
 	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 
@@ -464,7 +468,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 
-	blsPk, blsProof := newTestBlsKeyProof()
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
 	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 
@@ -589,7 +593,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 	amt := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))}
 
-	blsPk, blsProof := newTestBlsKeyProof()
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
 	msg, err := stakingtypes.NewMsgCreateValidator(srcValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
@@ -597,7 +601,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 	require.NotNil(res)
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), addr2, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 
-	dstBlsPk, dstBlsProof := newTestBlsKeyProof()
+	dstBlsPk, dstBlsProof := newTestBlsKeyProof(s.T())
 	msg, err = stakingtypes.NewMsgCreateValidator(dstValAddr.String(), dstPk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), addr2, addr2, addr2, addr2, dstBlsPk, dstBlsProof)
 	require.NoError(err)
 
@@ -752,7 +756,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 	amt := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))}
 
-	blsPk, blsProof := newTestBlsKeyProof()
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
 	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
@@ -877,7 +881,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), Addr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 
-	blsPk, blsProof := newTestBlsKeyProof()
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
 	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
