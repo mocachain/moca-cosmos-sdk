@@ -500,7 +500,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -510,7 +510,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "validator does not exist",
@@ -641,7 +641,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 				Amount:              sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -652,7 +652,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 				Amount:              sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "invalid destination validator",
@@ -793,7 +793,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: shares.RoundInt()},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -803,7 +803,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: shares.RoundInt()},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "validator does not exist",
@@ -927,7 +927,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 				CreationHeight:   10,
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -938,7 +938,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 				CreationHeight:   10,
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "entry not found at height",
