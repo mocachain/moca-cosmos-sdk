@@ -32,7 +32,6 @@ require (
 	github.com/cosmos/ledger-cosmos-go v1.0.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/ethereum/go-ethereum v1.10.26
-	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gofuzz v1.2.0
