@@ -177,6 +177,14 @@ The auth module provides `AnteDecorator`s that are recursively chained together 
 
 * `IncrementSequenceDecorator`: Increments the account sequence for each signer to prevent replay attacks.
 
+### Genesis transactions
+
+`InitChain` delivers the genesis transactions at block height 0, outside `CheckTx`. While it does, `SetPubKeyDecorator`, `SigGasConsumeDecorator` and `SigVerificationDecorator` skip their checks: they set no public keys, consume no signature gas and verify no signatures. Upstream Cosmos SDK has no such skip and verifies genesis transactions against account number 0.
+
+The skip applies only to this genesis block execution. `CheckTx`, `ReCheckTx` and simulation run the three decorators at every block height, including 0. When `SigVerificationDecorator` verifies a signature in `CheckTx`, it uses the signer's account number at every height. Upstream uses account number 0 whenever the block height is 0.
+
+A chain whose `initial_height` is above 1 delivers its genesis transactions at that height, so the decorators check them like any other transaction.
+
 ## Keepers
 
 The auth module only exposes one keeper, the account keeper, which can be used to read and write accounts.
