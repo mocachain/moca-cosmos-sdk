@@ -494,6 +494,43 @@ func TestRejectUnknownFieldsNested(t *testing.T) {
 	}
 }
 
+func TestRejectUnknownFieldsAnyNestingDepth(t *testing.T) {
+	// nestedAny returns a message that is levels messages deep, each level
+	// wrapping the next one in its google.protobuf.Any field G.
+	nestedAny := func(levels int) proto.Message {
+		msg := &testdata.TestVersion3{X: 1}
+		for i := 1; i < levels; i++ {
+			msg = &testdata.TestVersion3{
+				G: &types.Any{TypeUrl: "/testpb.TestVersion3", Value: mustMarshal(msg)},
+			}
+		}
+		return msg
+	}
+
+	// The depths are literals rather than maxAnyNestingDepth because the cap
+	// decides which transactions decode, so changing it must fail this test.
+	tests := []struct {
+		name    string
+		levels  int
+		wantErr bool
+	}{
+		{name: "64 levels, at the cap", levels: 64},
+		{name: "65 levels, over the cap", levels: 65, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			protoBlob := mustMarshal(nestedAny(tt.levels))
+			_, gotErr := RejectUnknownFields(protoBlob, new(testdata.TestVersion3), false, DefaultAnyResolver{})
+			if tt.wantErr {
+				require.EqualError(t, gotErr, "recursion limit reached")
+			} else {
+				require.NoError(t, gotErr)
+			}
+		})
+	}
+}
+
 func TestRejectUnknownFieldsFlat(t *testing.T) {
 	tests := []struct {
 		name    string

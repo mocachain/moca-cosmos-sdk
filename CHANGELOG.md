@@ -80,6 +80,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### State Machine Breaking
 
+* (codec, x/tx) [#421](https://github.com/mocachain/moca-cosmos-sdk/pull/421) Port [#26587](https://github.com/cosmos/cosmos-sdk/pull/26587): `RejectUnknownFields` in `codec/unknownproto` and `x/tx/decode` now stops at 64 levels of nested messages (a `google.protobuf.Any` and the message it packs count as one level) instead of 10,000, matching upstream. The transaction decoder runs this check in `CheckTx` and block execution, so a transaction nested deeper than 64 levels no longer decodes; ship as a coordinated upgrade rather than an independent point release. (MOCA-2184)
 * (x/auth/signing) [#390](https://github.com/mocachain/moca-cosmos-sdk/pull/390) `EIP712VerifySignature` now validates that a signature is in canonical low-S form before recovering the signer's pubkey, matching the check `crypto.VerifySignature` already performs on the EVM tx-signing path. Every Cosmos-layer single-signature transaction is verified through this adapter, so a signature with a non-canonical `s` value is now rejected instead of accepted; signers using this fork's `ethsecp256k1` keyring (mocad, moca-cmd, moca-go-sdk, storage-provider) already produce canonical signatures and are unaffected. This narrows what a given transaction's signature accepts for the same inputs, so nodes on old and new binaries can disagree — ship as a coordinated upgrade rather than an independent point release. (MOCA-815)
 
 ## [v0.53.7](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.53.7) - 2026-04-14
