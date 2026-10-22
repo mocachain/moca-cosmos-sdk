@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 
-	sdkmath "cosmossdk.io/math"
 	gogogrpc "github.com/cosmos/gogoproto/grpc"
 	"github.com/spf13/pflag"
 
@@ -86,25 +85,13 @@ func BroadcastTx(clientCtx client.Context, txf Factory, msgs ...sdk.Msg) error {
 			return errors.New("cannot estimate gas in offline mode")
 		}
 
-		gInfo, adjusted, err := CalculateGas(clientCtx, txf, msgs...)
+		_, adjusted, err := CalculateGas(clientCtx, txf, msgs...)
 		if err != nil {
 			return err
 		}
 
 		txf = txf.WithGas(adjusted)
 		_, _ = fmt.Fprintf(os.Stderr, "%s\n", GasEstimateResponse{GasEstimate: txf.Gas()})
-
-		parsedGasPrice, err := sdk.ParseCoinNormalized(gInfo.GasInfo.MinGasPrice)
-		if err != nil {
-			return err
-		}
-
-		if !parsedGasPrice.IsNil() && !parsedGasPrice.IsZero() {
-			fees := make(sdk.Coins, 1)
-			fees[0] = sdk.NewCoin(parsedGasPrice.Denom, parsedGasPrice.Amount.Mul(sdkmath.NewInt(int64(adjusted))))
-
-			txf = txf.WithFees(fees.String())
-		}
 	}
 
 	if clientCtx.Simulate {
