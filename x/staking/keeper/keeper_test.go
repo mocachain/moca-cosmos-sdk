@@ -12,6 +12,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -63,6 +64,8 @@ func (s *KeeperTestSuite) SetupTest() {
 		authzKeeper,
 		bankKeeper,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+		addresscodec.NewBech32Codec(sdk.Bech32PrefixValAddr),
+		addresscodec.NewBech32Codec(sdk.Bech32PrefixConsAddr),
 	)
 	require.NoError(keeper.SetParams(ctx, stakingtypes.DefaultParams()))
 

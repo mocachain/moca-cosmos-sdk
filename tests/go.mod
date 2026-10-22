@@ -26,17 +26,14 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tendermint/go-amino v0.16.0
-	go.uber.org/mock v0.6.0 // indirect
+	go.uber.org/mock v0.6.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.3.0
 )
 
-require (
-	github.com/0xPolygon/polygon-edge v1.3.3
-	github.com/golang/mock v1.6.0
-)
+require github.com/0xPolygon/polygon-edge v1.3.3
 
 require (
 	cel.dev/expr v0.25.1 // indirect
