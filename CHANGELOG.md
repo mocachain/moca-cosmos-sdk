@@ -40,6 +40,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+* (x/auth/ante) [#422](https://github.com/mocachain/moca-cosmos-sdk/pull/422) `SetPubKeyDecorator`, `SigGasConsumeDecorator` and `SigVerificationDecorator` now skip their checks only while the genesis block is executed (block height 0 outside CheckTx). CheckTx, ReCheckTx and simulate run them at every height, as upstream does, and verify signatures with the signer's account number. Block execution is unchanged at every height. Also fixes the `x/auth/ante` test suite setup, which passed a bech32 prefix that `NewAccountKeeper` no longer takes, so the package's tests compile. (MOCA-2190)
 * (types) [#384](https://github.com/mocachain/moca-cosmos-sdk/pull/384) `AccAddressFromHexUnsafe` now rejects a bech32 account address whose payload is not 20 bytes, matching its hex branch and the application address verifier; a longer payload used to parse and then render and index as its last 20 bytes. Also repairs `TestMustAccAddressFromBech32`, which referenced a function the fork does not provide and kept the `types` test package from compiling. (MOCA-1435)
 * (x/staking) [#25649](https://github.com/cosmos/cosmos-sdk/pull/25649) Add missing `defer iterator.Close()` calls in `IterateDelegatorRedelegations` and `GetRedelegations` to prevent resource leaks. (MOCA-416, MOCA-417)
 * (x/staking) Add missing `defer iterator.Close()` in the `migrateDelegationsByValidatorIndex` (v4→v5) store migration to prevent an iterator/resource leak. (MOCA-418)

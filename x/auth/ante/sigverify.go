@@ -47,6 +47,14 @@ func init() {
 // This is where apps can define their own PubKey
 type SignatureVerificationGasConsumer = func(meter storetypes.GasMeter, sig signing.SignatureV2, params types.Params) error
 
+// isGenesisBlockExec reports whether ctx executes the genesis block, i.e. InitChain
+// delivering genesis transactions at block height 0. CheckTx, ReCheckTx and simulate
+// are never genesis block execution, even when their context reports block height 0.
+// IsCheckTx, not ExecMode, tells them apart: InitChain's context reports ExecModeCheck.
+func isGenesisBlockExec(ctx sdk.Context) bool {
+	return ctx.BlockHeight() == 0 && !ctx.IsCheckTx()
+}
+
 // SetPubKeyDecorator sets PubKeys in context for any signer which does not already have pubkey set
 // PubKeys must be set in context for all signers before any other sigverify decorators run
 // CONTRACT: Tx must implement SigVerifiableTx interface
@@ -61,7 +69,7 @@ func NewSetPubKeyDecorator(ak AccountKeeper) SetPubKeyDecorator {
 }
 
 func (spkd SetPubKeyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if ctx.BlockHeight() == 0 {
+	if isGenesisBlockExec(ctx) {
 		// skip the signature verification on the genesis block
 		return next(ctx, tx, simulate)
 	}
@@ -182,7 +190,7 @@ func NewSigGasConsumeDecorator(ak AccountKeeper, sigGasConsumer SignatureVerific
 }
 
 func (sgcd SigGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	if ctx.BlockHeight() == 0 {
+	if isGenesisBlockExec(ctx) {
 		// skip the signature verification on the genesis block
 		return next(ctx, tx, simulate)
 	}
@@ -317,7 +325,7 @@ func OnlyLegacyAminoSigners(sigData signing.SignatureData) bool {
 }
 
 func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
-	if ctx.BlockHeight() == 0 {
+	if isGenesisBlockExec(ctx) {
 		// skip the signature verification on the genesis block
 		return next(ctx, tx, simulate)
 	}
@@ -386,7 +394,7 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		}
 
 		// retrieve signer data
-		genesis := ctx.BlockHeight() == 0
+		genesis := isGenesisBlockExec(ctx)
 		chainID := ctx.ChainID()
 		var accNum uint64
 		if !genesis {
