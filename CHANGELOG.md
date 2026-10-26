@@ -79,6 +79,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 * (ci) Bump stale `go-version` pins in `test.yml` for jobs whose module's `go.mod` directive exceeds the pinned version (e.g. `test-e2e` pinned to `1.23` while root `go.mod` requires `1.25.0`), which fails under `GOTOOLCHAIN=local`.
 * (x/auth) [#26567](https://github.com/cosmos/cosmos-sdk/pull/26567) More human-readable signature-verification error messages.
 * (ci) [#26498](https://github.com/cosmos/cosmos-sdk/pull/26498) Add an explicit `actions/setup-go` step (tracking `go.mod` via `go-version-file`) to the `test-system`/`test-system-legacy` jobs in `systemtests.yml`, which previously had none and relied on whatever Go the runner image happened to ship.
+* (ci) Run CI jobs on GitHub-hosted `ubuntu-latest` runners again, as before the v0.53.7 upgrade. That upgrade brought in upstream's `depot-ubuntu-22.04-4` and `depot-ubuntu-22.04-16` runner labels, which no runner serves for this repository, so those jobs stayed queued until GitHub cancelled them. Remove `docker.yml` and `proto-docker.yml`, which build images with Depot's own build actions.
 
 ### State Machine Breaking
 
