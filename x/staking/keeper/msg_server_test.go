@@ -1,14 +1,18 @@
 package keeper_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/polygon-edge/bls"
+	"github.com/cometbft/cometbft/crypto/tmhash"
+	"github.com/cometbft/cometbft/votepool"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"cosmossdk.io/math"
 
-	"github.com/cosmos/cosmos-sdk/codec/address"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -23,8 +27,24 @@ var (
 )
 
 func (s *KeeperTestSuite) execExpectCalls() {
-	s.accountKeeper.EXPECT().AddressCodec().Return(address.NewBech32Codec("cosmos")).AnyTimes()
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), Addr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+}
+
+// newTestBlsKeyProof returns a freshly generated BLS public key and its
+// proof-of-possession (both hex-encoded), matching what moca's CreateValidator
+// handler verifies via CheckBlsProof. The proof is bound to the BLS key (not the
+// operator address), but the handler enforces BLS-key uniqueness, so a new pair is
+// generated per validator to avoid collisions when a test creates several.
+func newTestBlsKeyProof(t *testing.T) (blsPk, blsProof string) {
+	t.Helper()
+	blsSecretKey, err := bls.GenerateBlsKey()
+	require.NoError(t, err)
+	blsPubKeyBz := blsSecretKey.PublicKey().Marshal()
+	blsProofBuf, err := blsSecretKey.Sign(tmhash.Sum(blsPubKeyBz), votepool.DST)
+	require.NoError(t, err)
+	blsProofBts, err := blsProofBuf.Marshal()
+	require.NoError(t, err)
+	return hex.EncodeToString(blsPubKeyBz), hex.EncodeToString(blsProofBts)
 }
 
 func (s *KeeperTestSuite) TestMsgCreateValidator() {
@@ -37,6 +57,8 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 
 	pubkey, err := codectypes.NewAnyWithValue(pk1)
 	require.NoError(err)
+
+	blsKey, blsProof := newTestBlsKeyProof(s.T())
 
 	testCases := []struct {
 		name      string
@@ -58,6 +80,10 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				ValidatorAddress:  ValAddr.String(),
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10000),
+				RelayerAddress:    Addr.String(),
+				ChallengerAddress: Addr.String(),
+				BlsKey:            blsKey,
+				BlsProof:          blsProof,
 			},
 			expErr:    true,
 			expErrMsg: "empty description",
@@ -75,7 +101,7 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				},
 				MinSelfDelegation: math.NewInt(1),
 				DelegatorAddress:  Addr.String(),
-				ValidatorAddress:  sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorAddress:  "invalid",
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10000),
 			},
@@ -158,6 +184,10 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				ValidatorAddress:  ValAddr.String(),
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10000),
+				RelayerAddress:    Addr.String(),
+				ChallengerAddress: Addr.String(),
+				BlsKey:            blsKey,
+				BlsProof:          blsProof,
 			},
 			expErr:    true,
 			expErrMsg: "minimum self delegation must be a positive integer",
@@ -178,6 +208,10 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				ValidatorAddress:  ValAddr.String(),
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10000),
+				RelayerAddress:    Addr.String(),
+				ChallengerAddress: Addr.String(),
+				BlsKey:            blsKey,
+				BlsProof:          blsProof,
 			},
 			expErr:    true,
 			expErrMsg: "minimum self delegation must be a positive integer",
@@ -198,6 +232,10 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				ValidatorAddress:  ValAddr.String(),
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10),
+				RelayerAddress:    Addr.String(),
+				ChallengerAddress: Addr.String(),
+				BlsKey:            blsKey,
+				BlsProof:          blsProof,
 			},
 			expErr:    true,
 			expErrMsg: "validator's self delegation must be greater than their minimum self delegation",
@@ -222,6 +260,11 @@ func (s *KeeperTestSuite) TestMsgCreateValidator() {
 				ValidatorAddress:  ValAddr.String(),
 				Pubkey:            pubkey,
 				Value:             sdk.NewInt64Coin("stake", 10000),
+				From:              Addr.String(),
+				RelayerAddress:    Addr.String(),
+				ChallengerAddress: Addr.String(),
+				BlsKey:            blsKey,
+				BlsProof:          blsProof,
 			},
 			expErr: false,
 		},
@@ -251,7 +294,8 @@ func (s *KeeperTestSuite) TestMsgEditValidator() {
 	require.NotNil(pk)
 
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
-	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 
 	res, err := msgServer.CreateValidator(ctx, msg)
@@ -280,7 +324,7 @@ func (s *KeeperTestSuite) TestMsgEditValidator() {
 				Description: stakingtypes.Description{
 					Moniker: "TestValidator",
 				},
-				ValidatorAddress:  sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorAddress:  "invalid",
 				CommissionRate:    &newRate,
 				MinSelfDelegation: &newSelfDel,
 			},
@@ -424,7 +468,8 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 
-	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, sdk.NewCoin("stake", math.NewInt(10)), stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 
 	res, err := msgServer.CreateValidator(ctx, msg)
@@ -441,7 +486,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 			name: "invalid validator",
 			input: &stakingtypes.MsgDelegate{
 				DelegatorAddress: Addr.String(),
-				ValidatorAddress: sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorAddress: "invalid",
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
@@ -455,7 +500,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: empty address string is not allowed",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -465,7 +510,7 @@ func (s *KeeperTestSuite) TestMsgDelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: decoding bech32 failed",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "validator does not exist",
@@ -548,14 +593,16 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 	amt := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))}
 
-	msg, err := stakingtypes.NewMsgCreateValidator(srcValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
+	msg, err := stakingtypes.NewMsgCreateValidator(srcValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
 	require.NotNil(res)
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), addr2, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 
-	msg, err = stakingtypes.NewMsgCreateValidator(dstValAddr.String(), dstPk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	dstBlsPk, dstBlsProof := newTestBlsKeyProof(s.T())
+	msg, err = stakingtypes.NewMsgCreateValidator(dstValAddr.String(), dstPk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), addr2, addr2, addr2, addr2, dstBlsPk, dstBlsProof)
 	require.NoError(err)
 
 	res, err = msgServer.CreateValidator(ctx, msg)
@@ -565,7 +612,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 	shares := math.LegacyNewDec(100)
 	del := stakingtypes.NewDelegation(Addr.String(), srcValAddr.String(), shares)
 	require.NoError(keeper.SetDelegation(ctx, del))
-	_, err = keeper.GetDelegation(ctx, Addr, srcValAddr)
+	_, err = keeper.GetDelegation(ctx, Addr, sdk.AccAddress(srcValAddr))
 	require.NoError(err)
 
 	testCases := []struct {
@@ -578,7 +625,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 			name: "invalid source validator",
 			input: &stakingtypes.MsgBeginRedelegate{
 				DelegatorAddress:    Addr.String(),
-				ValidatorSrcAddress: sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorSrcAddress: "invalid",
 				ValidatorDstAddress: dstValAddr.String(),
 				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, shares.RoundInt()),
 			},
@@ -594,7 +641,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 				Amount:              sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: empty address string is not allowed",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -605,14 +652,14 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 				Amount:              sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: decoding bech32 failed: invalid bech32 string length 7",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "invalid destination validator",
 			input: &stakingtypes.MsgBeginRedelegate{
 				DelegatorAddress:    Addr.String(),
 				ValidatorSrcAddress: srcValAddr.String(),
-				ValidatorDstAddress: sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorDstAddress: "invalid",
 				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, shares.RoundInt()),
 			},
 			expErr:    true,
@@ -709,7 +756,8 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
 	amt := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))}
 
-	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
@@ -718,7 +766,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 	shares := math.LegacyNewDec(100)
 	del := stakingtypes.NewDelegation(Addr.String(), ValAddr.String(), shares)
 	require.NoError(keeper.SetDelegation(ctx, del))
-	_, err = keeper.GetDelegation(ctx, Addr, ValAddr)
+	_, err = keeper.GetDelegation(ctx, Addr, sdk.AccAddress(ValAddr))
 	require.NoError(err)
 
 	testCases := []struct {
@@ -731,7 +779,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 			name: "invalid validator",
 			input: &stakingtypes.MsgUndelegate{
 				DelegatorAddress: Addr.String(),
-				ValidatorAddress: sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorAddress: "invalid",
 				Amount:           sdk.NewCoin(sdk.DefaultBondDenom, shares.RoundInt()),
 			},
 			expErr:    true,
@@ -745,7 +793,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: shares.RoundInt()},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: empty address string is not allowed",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -755,7 +803,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: shares.RoundInt()},
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: decoding bech32 failed",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "validator does not exist",
@@ -822,7 +870,7 @@ func (s *KeeperTestSuite) TestMsgUndelegate() {
 }
 
 func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
-	ctx, keeper, msgServer, ak := s.ctx, s.stakingKeeper, s.msgServer, s.accountKeeper
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
 	require := s.Require()
 
 	pk := ed25519.GenPrivKey().PubKey()
@@ -833,7 +881,8 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), Addr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 
-	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	blsPk, blsProof := newTestBlsKeyProof(s.T())
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt(), Addr, Addr, Addr, Addr, blsPk, blsProof)
 	require.NoError(err)
 	res, err := msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
@@ -842,13 +891,13 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 	shares := math.LegacyNewDec(100)
 	del := stakingtypes.NewDelegation(Addr.String(), ValAddr.String(), shares)
 	require.NoError(keeper.SetDelegation(ctx, del))
-	resDel, err := keeper.GetDelegation(ctx, Addr, ValAddr)
+	resDel, err := keeper.GetDelegation(ctx, Addr, sdk.AccAddress(ValAddr))
 	require.NoError(err)
 	require.Equal(del, resDel)
 
-	ubd := stakingtypes.NewUnbondingDelegation(Addr, ValAddr, 10, ctx.BlockTime().Add(time.Minute*10), shares.RoundInt(), 0, keeper.ValidatorAddressCodec(), ak.AddressCodec())
+	ubd := stakingtypes.NewUnbondingDelegation(Addr, sdk.AccAddress(ValAddr), 10, ctx.BlockTime().Add(time.Minute*10), shares.RoundInt(), 0)
 	require.NoError(keeper.SetUnbondingDelegation(ctx, ubd))
-	resUnbond, err := keeper.GetUnbondingDelegation(ctx, Addr, ValAddr)
+	resUnbond, err := keeper.GetUnbondingDelegation(ctx, Addr, sdk.AccAddress(ValAddr))
 	require.NoError(err)
 	require.Equal(ubd, resUnbond)
 
@@ -862,7 +911,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 			name: "invalid validator",
 			input: &stakingtypes.MsgCancelUnbondingDelegation{
 				DelegatorAddress: Addr.String(),
-				ValidatorAddress: sdk.AccAddress([]byte("invalid")).String(),
+				ValidatorAddress: "invalid",
 				Amount:           sdk.NewCoin(sdk.DefaultBondDenom, shares.RoundInt()),
 				CreationHeight:   10,
 			},
@@ -878,7 +927,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 				CreationHeight:   10,
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: empty address string is not allowed",
+			expErrMsg: "invalid delegator address: decoding address from hex string failed: empty address",
 		},
 		{
 			name: "invalid delegator",
@@ -889,7 +938,7 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 				CreationHeight:   10,
 			},
 			expErr:    true,
-			expErrMsg: "invalid delegator address: decoding bech32 failed",
+			expErrMsg: "invalid delegator address: invalid address hex length",
 		},
 		{
 			name: "entry not found at height",
