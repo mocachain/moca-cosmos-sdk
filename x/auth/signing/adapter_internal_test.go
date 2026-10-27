@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 // type sets mirror traverseFields output for a permission Statement
 func statementTypesNoResources() apitypes.Types {
 	return apitypes.Types{
