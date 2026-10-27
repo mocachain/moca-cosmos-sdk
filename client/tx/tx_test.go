@@ -3,13 +3,21 @@ package tx
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
+	rpcclient "github.com/cometbft/cometbft/rpc/client"
+	rpcclientmock "github.com/cometbft/cometbft/rpc/client/mock"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -98,6 +106,117 @@ func TestCalculateGas(t *testing.T) {
 				require.Error(t, err)
 				require.Nil(t, simRes)
 			}
+		})
+	}
+}
+
+// mockCometRPC is a mock CometBFT RPC client that answers every ABCI query with a
+// simulation response carrying the given gas info and records the broadcast tx,
+// used to unit test BroadcastTx.
+type mockCometRPC struct {
+	rpcclientmock.Client
+
+	gasInfo sdk.GasInfo
+	txBytes []byte
+}
+
+func (m *mockCometRPC) ABCIQueryWithOptions(
+	context.Context, string, cmtbytes.HexBytes, rpcclient.ABCIQueryOptions,
+) (*coretypes.ResultABCIQuery, error) {
+	bz, err := (&txtypes.SimulateResponse{GasInfo: &m.gasInfo, Result: &sdk.Result{}}).Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	return &coretypes.ResultABCIQuery{Response: abci.ResponseQuery{Value: bz}}, nil
+}
+
+func (m *mockCometRPC) BroadcastTxSync(_ context.Context, tx cmttypes.Tx) (*coretypes.ResultBroadcastTx, error) {
+	m.txBytes = tx
+	return &coretypes.ResultBroadcastTx{}, nil
+}
+
+func TestBroadcastTxGasAutoFees(t *testing.T) {
+	txCfg, cdc := newTestTxConfig()
+	banktypes.RegisterInterfaces(cdc.InterfaceRegistry()) // to decode the broadcast tx
+	kb, err := keyring.New(t.Name(), "test", t.TempDir(), nil, cdc)
+	require.NoError(t, err)
+
+	path := hd.CreateHDPath(118, 0, 0).String()
+	k, _, err := kb.NewMnemonic("test_key1", keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
+	require.NoError(t, err)
+	from, err := k.GetAddress()
+	require.NoError(t, err)
+
+	// The node simulates 100000 gas, which the 1.5 gas adjustment turns into a
+	// 150000 gas limit. As upstream, the min gas price the node reports never
+	// sets the fee.
+	const nodeMinGasPrice = "25.000000000000000000stake"
+
+	testCases := []struct {
+		name        string
+		fees        string
+		gasPrices   string
+		minGasPrice string
+		expFees     string
+	}{
+		{
+			name:        "fees are kept",
+			fees:        "7stake",
+			minGasPrice: nodeMinGasPrice,
+			expFees:     "7stake",
+		},
+		{
+			name:        "gas prices apply to the adjusted gas limit",
+			gasPrices:   "2stake",
+			minGasPrice: nodeMinGasPrice,
+			expFees:     "300000stake",
+		},
+		{
+			name:        "no fees or gas prices sets no fee",
+			minGasPrice: nodeMinGasPrice,
+		},
+		{
+			name:    "fees with an empty node min gas price",
+			fees:    "7stake",
+			expFees: "7stake",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := &mockCometRPC{gasInfo: sdk.GasInfo{GasUsed: 100000, MinGasPrice: tc.minGasPrice}}
+			clientCtx := client.Context{}.
+				WithClient(node).
+				WithCodec(cdc).
+				WithTxConfig(txCfg).
+				WithKeyring(kb).
+				WithFromName("test_key1").
+				WithFromAddress(from).
+				WithChainID(sdktestutil.DefaultChainId).
+				WithBroadcastMode(flags.BroadcastSync).
+				WithSkipConfirmation(true).
+				WithOutput(io.Discard)
+
+			txf := Factory{}.
+				WithTxConfig(txCfg).
+				WithAccountRetriever(client.MockAccountRetriever{ReturnAccNum: 50, ReturnAccSeq: 23}).
+				WithKeybase(kb).
+				WithFromName("test_key1").
+				WithChainID(sdktestutil.DefaultChainId).
+				WithSignMode(signingtypes.SignMode_SIGN_MODE_DIRECT).
+				WithSimulateAndExecute(true).
+				WithGasAdjustment(1.5).
+				WithFees(tc.fees).
+				WithGasPrices(tc.gasPrices)
+
+			err := BroadcastTx(clientCtx, txf, banktypes.NewMsgSend(from, sdk.AccAddress("to"), nil))
+			require.NoError(t, err)
+
+			tx, err := txCfg.TxDecoder()(node.txBytes)
+			require.NoError(t, err)
+			require.Equal(t, tc.expFees, tx.(sdk.FeeTx).GetFee().String())
+			require.Equal(t, uint64(150000), tx.(sdk.FeeTx).GetGas())
 		})
 	}
 }

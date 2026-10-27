@@ -38,6 +38,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+### CLI Breaking Changes
+
+* (client/tx) [#423](https://github.com/mocachain/moca-cosmos-sdk/pull/423) `--gas auto` now works as upstream: `BroadcastTx` sets the simulated, adjusted gas limit and takes the fee from `--fees`, or from `--gas-prices` times that gas limit. It no longer sets the fee from the minimum gas price in the node's simulate response, so `--fees` is used as given, `--gas-prices` no longer fails with `cannot provide both fees and gas prices`, and an empty minimum gas price no longer fails to parse. Commands that relied on `--gas auto` alone to set the fee must now pass `--gas-prices`, or a `--fees` large enough for the gas limit, that the chain accepts; on moca that means at least the feemarket minimum gas price, not the node's `minimum-gas-prices`. (MOCA-2191)
+
 ### Bug Fixes
 
 * (x/auth/ante) [#422](https://github.com/mocachain/moca-cosmos-sdk/pull/422) `SetPubKeyDecorator`, `SigGasConsumeDecorator` and `SigVerificationDecorator` now skip their checks only while the genesis block is executed (block height 0 outside CheckTx). CheckTx, ReCheckTx and simulate run them at every height, as upstream does, and verify signatures with the signer's account number. Block execution is unchanged at every height. Also fixes the `x/auth/ante` test suite setup, which passed a bech32 prefix that `NewAccountKeeper` no longer takes, so the package's tests compile. (MOCA-2190)
