@@ -308,7 +308,9 @@ func wrapTxToTypedData(
 	msgData := txData["msgs"].([]interface{})
 	for i := range signDoc.GetMsgs() {
 		txData[fmt.Sprintf("msg%d", i+1)] = msgData[i]
-		cleanTypesAndMsgValue(msgTypes, fmt.Sprintf("Msg%d", i+1), msgData[i].(map[string]interface{}))
+		if err := cleanTypesAndMsgValue(msgTypes, fmt.Sprintf("Msg%d", i+1), msgData[i].(map[string]interface{}), true); err != nil {
+			return apitypes.TypedData{}, err
+		}
 	}
 	delete(txData, "msgs")
 
@@ -519,7 +521,42 @@ func isProtobufOneOf(tag reflect.StructTag) bool {
 	return tag.Get("protobuf_oneof") != ""
 }
 
-func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValue map[string]interface{}) {
+// isEmptyEIP712Value reports whether v is a JSON zero value that jsonpb's
+// EmitDefaults emits for an unset omitempty field: null, an empty string, or an
+// empty array or object. A type that omits such a value still commits the whole
+// message to the signature, so it is safe to drop. A non-empty value the type
+// omits would not be covered, so it must not be dropped silently.
+func isEmptyEIP712Value(v interface{}) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case string:
+		return x == ""
+	case []interface{}:
+		return len(x) == 0
+	case map[string]interface{}:
+		return len(x) == 0
+	default:
+		return false
+	}
+}
+
+// cleanTypesAndMsgValue reconciles the EmitDefaults JSON of one message with the
+// EIP-712 type that traverseFields derived from it, so the resulting hash
+// commits to every field the message carries.
+//
+// The element type of a repeated struct field is derived from the first element
+// alone. allowTypeShrink marks the contexts that establish that template — the
+// whole message, a singleton struct, and the first element of a list — where a
+// field this value leaves unset is dropped from the type. Every later list
+// element is reconciled with allowTypeShrink=false: a non-empty field it carries
+// that the template omits, or a template field it lacks, means the list is not
+// uniformly shaped, so it cannot be represented in EIP-712 and the whole
+// transaction is rejected rather than signed or verified over a subset of its
+// contents. This mirrors cosmos/evm, which types an array from its first element
+// and lets the hasher reject any element that does not match it. For a uniformly
+// shaped message no rejection path is reached and the encoding is unchanged.
+func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValue map[string]interface{}, allowTypeShrink bool) error {
 	// 1. the proto codec will set *types.Any's type struct name to be "@type". Need remove prefix "@"
 	if msgValue["@type"] != nil {
 		msgValue["type"] = msgValue["@type"]
@@ -565,8 +602,17 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		switch {
 		case encType[len(encType)-1:] == "]":
 			if typedData[encType[:len(encType)-2]] != nil {
-				for i := 0; i < len(msgValue[encName].([]interface{})); i++ {
-					cleanTypesAndMsgValue(typedData, encType[:len(encType)-2], msgValue[encName].([]interface{})[i].(map[string]interface{}))
+				elems, _ := msgValue[encName].([]interface{})
+				for j := 0; j < len(elems); j++ {
+					elem, ok := elems[j].(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("eip-712: element %d of field %q is not an object", j, encName)
+					}
+					// The first element defines the list's element type; every
+					// later element must match it without shrinking that type.
+					if err := cleanTypesAndMsgValue(typedData, encType[:len(encType)-2], elem, allowTypeShrink && j == 0); err != nil {
+						return err
+					}
 				}
 			} else if encType == "bytes[]" {
 				// convert string to type
@@ -583,12 +629,17 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		case typedData[encType] != nil:
 			subType, ok := msgValue[encName].(map[string]interface{})
 			if !ok {
+				if !allowTypeShrink {
+					return fmt.Errorf("eip-712: field %q is part of the signed type but is not set in this list element", encName)
+				}
 				// Delete nil struct
 				typedData[primaryType] = append(typedData[primaryType][:i], typedData[primaryType][i+1:]...)
 				delete(typedData, encType)
 				delete(msgValue, encName)
 			} else {
-				cleanTypesAndMsgValue(typedData, encType, subType)
+				if err := cleanTypesAndMsgValue(typedData, encType, subType, allowTypeShrink); err != nil {
+					return err
+				}
 			}
 		case encValue == nil:
 			// For nil primitive value, fill in default value
@@ -609,7 +660,10 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		}
 	}
 
-	// Delete nil struct
+	// A key the type does not cover is dropped only when it is empty (an
+	// omitempty field EmitDefaults still emitted). A non-empty uncovered value
+	// would not be bound by the signature, so reject the transaction instead of
+	// hashing a subset of its contents.
 	for key := range msgValue {
 		var isExist bool
 		for _, field := range typedData[primaryType] {
@@ -618,9 +672,13 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 			}
 		}
 		if !isExist {
+			if !isEmptyEIP712Value(msgValue[key]) {
+				return fmt.Errorf("eip-712: field %q is set in the message but not covered by the signed type", key)
+			}
 			delete(msgValue, key)
 		}
 	}
+	return nil
 }
 
 func unwrapField(fieldType reflect.Type, field reflect.Value, fieldName string) (reflect.Type, reflect.Value, string) {
