@@ -173,7 +173,7 @@ The auth module provides `AnteDecorator`s that are recursively chained together 
 
 * `SigGasConsumeDecorator`: Consumes parameter-defined amount of gas for each signature. This requires pubkeys to be set in context for all signers as part of `SetPubKeyDecorator`.
 
-* `SigVerificationDecorator`: Verifies all signatures are valid. This requires pubkeys to be set in context for all signers as part of `SetPubKeyDecorator`.
+* `SigVerificationDecorator`: Verifies all signatures are valid. This requires pubkeys to be set in context for all signers as part of `SetPubKeyDecorator`. Every signer must declare `SIGN_MODE_EIP_712`, and the transaction must not carry unknown body fields, `non_critical_extension_options` or a tip; a fee payer, when set, must be encoded as `sdk.AccAddress` renders it.
 
 * `IncrementSequenceDecorator`: Increments the account sequence for each signer to prevent replay attacks.
 

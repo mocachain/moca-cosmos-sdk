@@ -23,6 +23,7 @@ import (
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -422,11 +423,12 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 			txData := adaptableTx.GetSigningTxData()
 			switch data := sig.Data.(type) {
 			case *signing.SingleSignatureData:
-				// if data.SignMode == signing.SignMode_SIGN_MODE_EIP_712 {
-				// 	err = authsigning.EIP712VerifySignature(ctx, signerData, tx, data.Signature, pubKey)
-				// } else {
-				// 	err = authsigning.VerifySignature(ctx, pubKey, signerData, sig.Data, svd.signModeHandler, txData)
-				// }
+				if data.SignMode != signing.SignMode_SIGN_MODE_EIP_712 {
+					return ctx, errorsmod.Wrapf(sdkerrors.ErrNotSupported, "unsupported sign mode %s, expected %s", data.SignMode, signing.SignMode_SIGN_MODE_EIP_712)
+				}
+				if err := checkEIP712TxData(txData); err != nil {
+					return ctx, err
+				}
 				err = authsigning.EIP712VerifySignature(ctx, signerData, tx, data.Signature, pubKey)
 				if err != nil {
 					errMsg := fmt.Sprintf("signature verification failed; please verify account number (%d) and chain-id (%s): (%s), pubkeyType: %s, txData: (%+v)", accNum, chainID, err.Error(), pubKey.Type(), txData)
@@ -442,6 +444,42 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+// checkEIP712TxData applies the checks upstream runs before building
+// SIGN_MODE_LEGACY_AMINO_JSON sign bytes: no unknown non-critical TxBody fields
+// (the decoder already rejects unknown critical ones) and no non-critical
+// extension options. Critical extension options are left to
+// RejectExtensionOptionsDecorator, since apps may accept some of them. It also
+// rejects the deprecated tip and requires a fee payer, when set, to be encoded
+// the way sdk.AccAddress renders it.
+func checkEIP712TxData(txData txsigning.TxData) error {
+	if txData.BodyHasUnknownNonCriticals {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "%s does not support unknown tx body fields", signing.SignMode_SIGN_MODE_EIP_712)
+	}
+	if len(txData.Body.GetNonCriticalExtensionOptions()) > 0 {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "%s does not support non-critical extension options", signing.SignMode_SIGN_MODE_EIP_712)
+	}
+
+	// TxData.AuthInfo leaves out the deprecated tip, so read the raw auth info.
+	var authInfo txtypes.AuthInfo
+	if err := authInfo.Unmarshal(txData.AuthInfoBytes); err != nil {
+		return errorsmod.Wrap(sdkerrors.ErrTxDecode, err.Error())
+	}
+	if authInfo.Tip != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "%s does not support tips", signing.SignMode_SIGN_MODE_EIP_712)
+	}
+	if payer := authInfo.GetFee().GetPayer(); payer != "" {
+		payerAddr, err := sdk.AccAddressFromHexUnsafe(payer)
+		if err != nil {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid fee payer %s: %s", payer, err)
+		}
+		if payer != payerAddr.String() {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "fee payer %s must be encoded as %s", payer, payerAddr)
+		}
+	}
+
+	return nil
 }
 
 // verifyUnorderedNonce verifies the unordered nonce of an unordered transaction.
