@@ -521,11 +521,7 @@ func isProtobufOneOf(tag reflect.StructTag) bool {
 	return tag.Get("protobuf_oneof") != ""
 }
 
-// isEmptyEIP712Value reports whether v is a JSON zero value that jsonpb's
-// EmitDefaults emits for an unset omitempty field: null, an empty string, or an
-// empty array or object. A type that omits such a value still commits the whole
-// message to the signature, so it is safe to drop. A non-empty value the type
-// omits would not be covered, so it must not be dropped silently.
+// isEmptyEIP712Value reports whether v is a JSON zero value: nil, "", [] or {}.
 func isEmptyEIP712Value(v interface{}) bool {
 	switch x := v.(type) {
 	case nil:
@@ -541,21 +537,7 @@ func isEmptyEIP712Value(v interface{}) bool {
 	}
 }
 
-// cleanTypesAndMsgValue reconciles the EmitDefaults JSON of one message with the
-// EIP-712 type that traverseFields derived from it, so the resulting hash
-// commits to every field the message carries.
-//
-// The element type of a repeated struct field is derived from the first element
-// alone. allowTypeShrink marks the contexts that establish that template — the
-// whole message, a singleton struct, and the first element of a list — where a
-// field this value leaves unset is dropped from the type. Every later list
-// element is reconciled with allowTypeShrink=false: a non-empty field it carries
-// that the template omits, or a template field it lacks, means the list is not
-// uniformly shaped, so it cannot be represented in EIP-712 and the whole
-// transaction is rejected rather than signed or verified over a subset of its
-// contents. This mirrors cosmos/evm, which types an array from its first element
-// and lets the hasher reject any element that does not match it. For a uniformly
-// shaped message no rejection path is reached and the encoding is unchanged.
+// cleanTypesAndMsgValue reconciles a message with its EIP-712 type; only the template contexts (allowTypeShrink) may drop fields from the type.
 func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValue map[string]interface{}, allowTypeShrink bool) error {
 	// 1. the proto codec will set *types.Any's type struct name to be "@type". Need remove prefix "@"
 	if msgValue["@type"] != nil {
@@ -608,8 +590,7 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 					if !ok {
 						return fmt.Errorf("eip-712: element %d of field %q is not an object", j, encName)
 					}
-					// The first element defines the list's element type; every
-					// later element must match it without shrinking that type.
+					// later elements must match the first element's type
 					if err := cleanTypesAndMsgValue(typedData, encType[:len(encType)-2], elem, allowTypeShrink && j == 0); err != nil {
 						return err
 					}
@@ -660,10 +641,7 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		}
 	}
 
-	// A key the type does not cover is dropped only when it is empty (an
-	// omitempty field EmitDefaults still emitted). A non-empty uncovered value
-	// would not be bound by the signature, so reject the transaction instead of
-	// hashing a subset of its contents.
+	// an uncovered non-empty value would escape the signature
 	for key := range msgValue {
 		var isExist bool
 		for _, field := range typedData[primaryType] {
