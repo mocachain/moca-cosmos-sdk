@@ -58,6 +58,9 @@ type StakingKeeper interface {
 
 	// IsValidatorJailed returns if the validator is jailed.
 	IsValidatorJailed(ctx context.Context, addr sdk.ConsAddress) (bool, error)
+
+	// MinSelfDelegation returns the staking module's global minimum self-delegation.
+	MinSelfDelegation(context.Context) (math.Int, error)
 }
 
 // StakingHooks event hooks for staking validator object (noalias)

@@ -350,6 +350,21 @@ func (mr *MockStakingKeeperMockRecorder) MaxValidators(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MaxValidators", reflect.TypeOf((*MockStakingKeeper)(nil).MaxValidators), arg0)
 }
 
+// MinSelfDelegation mocks base method.
+func (m *MockStakingKeeper) MinSelfDelegation(arg0 context.Context) (math.Int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MinSelfDelegation", arg0)
+	ret0, _ := ret[0].(math.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MinSelfDelegation indicates an expected call of MinSelfDelegation.
+func (mr *MockStakingKeeperMockRecorder) MinSelfDelegation(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MinSelfDelegation", reflect.TypeOf((*MockStakingKeeper)(nil).MinSelfDelegation), arg0)
+}
+
 // Slash mocks base method.
 func (m *MockStakingKeeper) Slash(arg0 context.Context, arg1 types.ConsAddress, arg2, arg3 int64, arg4 math.LegacyDec) (math.Int, error) {
 	m.ctrl.T.Helper()
