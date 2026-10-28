@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+// Package nestedpb defines a message whose repeated field carries elements that
+// each have an omitempty repeated field and a nullable sub-message. That is the
+// shape the EIP-712 list-element fix (MOCA-2186) is about: the encoder derives
+// the element type from the first element, so an element shaped differently has
+// to be rejected rather than reshaped. No SDK message has this shape, so it is
+// defined here to regression-test the x/auth/signing encoder against a realistic
+// transaction built, encoded and decoded through the normal pipeline. The merged
+// adapter_eip712_array_test.go covers the same property with stand-in SDK
+// messages; this package pins it on a single self-contained message. Test only.
+package nestedpb;
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/auth/signing/internal/nestedpb";
+
+enum Tag {
+  option (gogoproto.goproto_enum_prefix) = false;
+
+  TAG_UNSPECIFIED = 0;
+  TAG_READ = 1;
+  TAG_WRITE = 2;
+  TAG_ALL = 99;
+}
+
+enum Mode {
+  option (gogoproto.goproto_enum_prefix) = false;
+
+  MODE_UNSPECIFIED = 0;
+  MODE_ALLOW = 1;
+  MODE_DENY = 2;
+}
+
+enum OwnerType {
+  option (gogoproto.goproto_enum_prefix) = false;
+
+  OWNER_TYPE_UNSPECIFIED = 0;
+  OWNER_TYPE_ACCOUNT = 1;
+  OWNER_TYPE_GROUP = 2;
+}
+
+// UInt64Value is a nullable uint64 wrapper, so that an unset value is a nil
+// message rather than a zero value.
+message UInt64Value {
+  uint64 value = 1;
+}
+
+// Owner is a nullable sub-message held directly on the parent message.
+message Owner {
+  OwnerType type = 1;
+  string value = 2;
+}
+
+// NestedItem is the repeated element. `labels` is an omitempty repeated string
+// and `limit` is a nullable sub-message; either is empty or nil on the common
+// element and set only on a scoped one, which is what makes an items list
+// non-uniformly shaped.
+message NestedItem {
+  Mode mode = 1;
+  repeated Tag tags = 2;
+  repeated string labels = 3;
+  google.protobuf.Timestamp expiry = 4 [
+    (gogoproto.stdtime) = true,
+    (gogoproto.nullable) = true
+  ];
+  UInt64Value limit = 5 [(gogoproto.nullable) = true];
+}
+
+// MsgNestedFields carries a repeated NestedItem. The EIP-712 encoder derives the
+// element type from the first item, so a later item shaped differently is the
+// MOCA-2186 case.
+message MsgNestedFields {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Owner owner = 2;
+  string scope = 3;
+  repeated NestedItem items = 4;
+  google.protobuf.Timestamp expiry = 5 [
+    (gogoproto.stdtime) = true,
+    (gogoproto.nullable) = true
+  ];
+}
+
+message MsgNestedFieldsResponse {
+  string id = 1;
+}
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+  rpc Do(MsgNestedFields) returns (MsgNestedFieldsResponse);
+}
