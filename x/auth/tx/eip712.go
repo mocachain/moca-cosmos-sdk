@@ -232,7 +232,9 @@ func WrapTxToTypedData(
 	msgData := txData["msgs"].([]interface{})
 	for i := range signDoc.GetMsgs() {
 		txData[fmt.Sprintf("msg%d", i+1)] = msgData[i]
-		cleanTypesAndMsgValue(msgTypes, fmt.Sprintf("Msg%d", i+1), msgData[i].(map[string]interface{}))
+		if err := cleanTypesAndMsgValue(msgTypes, fmt.Sprintf("Msg%d", i+1), msgData[i].(map[string]interface{}), true); err != nil {
+			return apitypes.TypedData{}, err
+		}
 	}
 	delete(txData, "msgs")
 
@@ -443,7 +445,24 @@ func isProtobufOneOf(tag reflect.StructTag) bool {
 	return tag.Get("protobuf_oneof") != ""
 }
 
-func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValue map[string]interface{}) {
+// isEmptyEIP712Value reports whether v is a JSON zero value: nil, "", [] or {}.
+func isEmptyEIP712Value(v interface{}) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case string:
+		return x == ""
+	case []interface{}:
+		return len(x) == 0
+	case map[string]interface{}:
+		return len(x) == 0
+	default:
+		return false
+	}
+}
+
+// cleanTypesAndMsgValue reconciles a message with its EIP-712 type; only the template contexts (allowTypeShrink) may drop fields from the type.
+func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValue map[string]interface{}, allowTypeShrink bool) error {
 	// 1. the proto codec will set *types.Any's type struct name to be "@type". Need remove prefix "@"
 	if msgValue["@type"] != nil {
 		msgValue["type"] = msgValue["@type"]
@@ -489,8 +508,16 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		switch {
 		case encType[len(encType)-1:] == "]":
 			if typedData[encType[:len(encType)-2]] != nil {
-				for i := 0; i < len(msgValue[encName].([]interface{})); i++ {
-					cleanTypesAndMsgValue(typedData, encType[:len(encType)-2], msgValue[encName].([]interface{})[i].(map[string]interface{}))
+				elems, _ := msgValue[encName].([]interface{})
+				for j := 0; j < len(elems); j++ {
+					elem, ok := elems[j].(map[string]interface{})
+					if !ok {
+						return fmt.Errorf("eip-712: element %d of field %q is not an object", j, encName)
+					}
+					// later elements must match the first element's type
+					if err := cleanTypesAndMsgValue(typedData, encType[:len(encType)-2], elem, allowTypeShrink && j == 0); err != nil {
+						return err
+					}
 				}
 			} else if encType == "bytes[]" {
 				// convert string to type
@@ -507,12 +534,17 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		case typedData[encType] != nil:
 			subType, ok := msgValue[encName].(map[string]interface{})
 			if !ok {
+				if !allowTypeShrink {
+					return fmt.Errorf("eip-712: field %q is part of the signed type but is not set in this list element", encName)
+				}
 				// Delete nil struct
 				typedData[primaryType] = append(typedData[primaryType][:i], typedData[primaryType][i+1:]...)
 				delete(typedData, encType)
 				delete(msgValue, encName)
 			} else {
-				cleanTypesAndMsgValue(typedData, encType, subType)
+				if err := cleanTypesAndMsgValue(typedData, encType, subType, allowTypeShrink); err != nil {
+					return err
+				}
 			}
 		case encValue == nil:
 			// For nil primitive value, fill in default value
@@ -533,7 +565,7 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 		}
 	}
 
-	// Delete nil struct
+	// an uncovered non-empty value would escape the signature
 	for key := range msgValue {
 		var isExist bool
 		for _, field := range typedData[primaryType] {
@@ -542,9 +574,13 @@ func cleanTypesAndMsgValue(typedData apitypes.Types, primaryType string, msgValu
 			}
 		}
 		if !isExist {
+			if !isEmptyEIP712Value(msgValue[key]) {
+				return fmt.Errorf("eip-712: field %q is set in the message but not covered by the signed type", key)
+			}
 			delete(msgValue, key)
 		}
 	}
+	return nil
 }
 
 func unwrapField(fieldType reflect.Type, field reflect.Value, fieldName string) (reflect.Type, reflect.Value, string) {
