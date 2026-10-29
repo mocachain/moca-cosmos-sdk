@@ -109,6 +109,11 @@ func SimulateMsgUnjail(
 			return simtypes.NoOpMsg(types.ModuleName, msgType, "self delegation is nil"), nil, nil
 		}
 
+		minSelfBond, err := unjailMinSelfDelegation(ctx, sk, validator.GetMinSelfDelegation())
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to get min self delegation"), nil, nil
+		}
+
 		account := ak.GetAccount(ctx, bz)
 		spendable := bk.SpendableCoins(ctx, account.GetAddress())
 
@@ -143,7 +148,7 @@ func SimulateMsgUnjail(
 		if info.Tombstoned ||
 			ctx.BlockHeader().Time.Before(info.JailedUntil) ||
 			selfDel.GetShares().IsNil() ||
-			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
+			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(minSelfBond) {
 			if res != nil && err == nil {
 				if info.Tombstoned {
 					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator should not have been unjailed if validator tombstoned")
@@ -152,7 +157,7 @@ func SimulateMsgUnjail(
 					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator unjailed while validator still in jail period")
 				}
 				if selfDel.GetShares().IsNil() ||
-					validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
+					validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(minSelfBond) {
 					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator unjailed even though self-delegation too low")
 				}
 			}
