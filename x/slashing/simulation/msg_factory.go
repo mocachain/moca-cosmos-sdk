@@ -46,6 +46,11 @@ func MsgUnjailFactory(k keeper.Keeper, sk types.StakingKeeper) simsx.SimMsgFacto
 			reporter.Skip("no self delegation")
 			return nil, nil, nil
 		}
+		minSelfBond, err := unjailMinSelfDelegation(ctx, sk, validator.GetMinSelfDelegation())
+		if err != nil {
+			reporter.Skip(err.Error())
+			return nil, nil, nil
+		}
 		var handler simsx.SimDeliveryResultHandler
 		// result should fail if:
 		// - validator cannot be unjailed due to tombstone
@@ -54,7 +59,7 @@ func MsgUnjailFactory(k keeper.Keeper, sk types.StakingKeeper) simsx.SimMsgFacto
 		if info.Tombstoned ||
 			simsx.BlockTime(ctx).Before(info.JailedUntil) ||
 			selfDel.GetShares().IsNil() ||
-			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
+			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(minSelfBond) {
 			handler = func(err error) error {
 				if err == nil {
 					switch {
@@ -62,7 +67,7 @@ func MsgUnjailFactory(k keeper.Keeper, sk types.StakingKeeper) simsx.SimMsgFacto
 						return errors.New("validator should not have been unjailed if validator tombstoned")
 					case simsx.BlockTime(ctx).Before(info.JailedUntil):
 						return errors.New("validator unjailed while validator still in jail period")
-					case selfDel.GetShares().IsNil() || validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()):
+					case selfDel.GetShares().IsNil() || validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(minSelfBond):
 						return errors.New("validator unjailed even though self-delegation too low")
 					}
 				}
@@ -89,6 +94,19 @@ func MsgUpdateParamsFactory() simsx.SimMsgFactoryFn[*types.MsgUpdateParams] {
 			Params:    params,
 		}
 	}
+}
+
+// unjailMinSelfDelegation returns the self-delegation Unjail requires: the greater of the
+// validator's own minimum and the staking module's global minimum.
+func unjailMinSelfDelegation(ctx context.Context, sk types.StakingKeeper, validatorMin sdkmath.Int) (sdkmath.Int, error) {
+	globalMin, err := sk.MinSelfDelegation(ctx)
+	if err != nil {
+		return sdkmath.Int{}, err
+	}
+	if globalMin.GT(validatorMin) {
+		return globalMin, nil
+	}
+	return validatorMin, nil
 }
 
 func must[T any](r T, err error) T {

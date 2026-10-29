@@ -216,6 +216,7 @@ func (s *KeeperTestSuite) TestUnjail() {
 				del := types.NewDelegation(addr.String(), valAddr.String(), sdkmath.LegacyNewDec(100))
 
 				s.stakingKeeper.EXPECT().Delegation(s.ctx, addr, valAddr).Return(del, nil)
+				s.stakingKeeper.EXPECT().MinSelfDelegation(s.ctx).Return(sdkmath.OneInt(), nil)
 
 				return &slashingtypes.MsgUnjail{
 					ValidatorAddr: addr.String(),
@@ -246,6 +247,7 @@ func (s *KeeperTestSuite) TestUnjail() {
 				del := types.NewDelegation(addr.String(), valAddr.String(), sdkmath.LegacyNewDec(100))
 
 				s.stakingKeeper.EXPECT().Delegation(s.ctx, addr, valAddr).Return(del, nil)
+				s.stakingKeeper.EXPECT().MinSelfDelegation(s.ctx).Return(sdkmath.OneInt(), nil)
 
 				return &slashingtypes.MsgUnjail{
 					ValidatorAddr: addr.String(),
@@ -276,6 +278,7 @@ func (s *KeeperTestSuite) TestUnjail() {
 				del := types.NewDelegation(addr.String(), valAddr.String(), sdkmath.LegacyNewDec(10000))
 
 				s.stakingKeeper.EXPECT().Delegation(s.ctx, addr, valAddr).Return(del, nil)
+				s.stakingKeeper.EXPECT().MinSelfDelegation(s.ctx).Return(sdkmath.OneInt(), nil)
 
 				return &slashingtypes.MsgUnjail{
 					ValidatorAddr: addr.String(),
@@ -306,6 +309,7 @@ func (s *KeeperTestSuite) TestUnjail() {
 				del := types.NewDelegation(addr.String(), valAddr.String(), sdkmath.LegacyNewDec(100))
 
 				s.stakingKeeper.EXPECT().Delegation(s.ctx, addr, valAddr).Return(del, nil)
+				s.stakingKeeper.EXPECT().MinSelfDelegation(s.ctx).Return(sdkmath.OneInt(), nil)
 				s.stakingKeeper.EXPECT().Unjail(s.ctx, sdk.ConsAddress(addr)).Return(nil)
 
 				return &slashingtypes.MsgUnjail{
@@ -313,6 +317,37 @@ func (s *KeeperTestSuite) TestUnjail() {
 				}
 			},
 			expErr: false,
+		},
+		{
+			name: "self-delegation below the global minimum: invalid request",
+			malleate: func() *slashingtypes.MsgUnjail {
+				_, pubKey, addr := testdata.KeyTestPubAddr()
+				valAddr := addr
+
+				val, err := types.NewSimpleValidator(valAddr.String(), pubKey, types.Description{Moniker: "test"})
+				val.Tokens = sdkmath.NewInt(1000)
+				val.DelegatorShares = sdkmath.LegacyNewDec(1)
+				val.Jailed = true
+
+				s.Require().NoError(err)
+
+				info := slashingtypes.NewValidatorSigningInfo(sdk.ConsAddress(addr), int64(4), int64(3),
+					time.Unix(2, 0), false, int64(10))
+
+				s.Require().NoError(s.slashingKeeper.SetValidatorSigningInfo(s.ctx, sdk.ConsAddress(addr), info))
+
+				s.stakingKeeper.EXPECT().Validator(s.ctx, valAddr).Return(val, nil)
+				del := types.NewDelegation(addr.String(), valAddr.String(), sdkmath.LegacyNewDec(100))
+
+				s.stakingKeeper.EXPECT().Delegation(s.ctx, addr, valAddr).Return(del, nil)
+				s.stakingKeeper.EXPECT().MinSelfDelegation(s.ctx).Return(sdkmath.NewInt(1_000_000), nil)
+
+				return &slashingtypes.MsgUnjail{
+					ValidatorAddr: addr.String(),
+				}
+			},
+			expErr:    true,
+			expErrMsg: "self delegation less than minimum",
 		},
 	}
 

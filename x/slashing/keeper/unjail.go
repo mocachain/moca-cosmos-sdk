@@ -35,7 +35,16 @@ func (k Keeper) Unjail(ctx context.Context, validatorAddr sdk.AccAddress) error 
 	}
 
 	tokens := validator.TokensFromShares(selfDel.GetShares()).TruncateInt()
+	// require the greater of the validator's own and the staking module's global
+	// minimum self-delegation
 	minSelfBond := validator.GetMinSelfDelegation()
+	globalMinSelfBond, err := k.sk.MinSelfDelegation(ctx)
+	if err != nil {
+		return err
+	}
+	if globalMinSelfBond.GT(minSelfBond) {
+		minSelfBond = globalMinSelfBond
+	}
 	if tokens.LT(minSelfBond) {
 		return errors.Wrapf(
 			types.ErrSelfDelegationTooLowToUnjail, "%s less than %s", tokens, minSelfBond,
