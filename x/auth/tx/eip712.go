@@ -30,6 +30,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/gogoproto/jsonpb"
+	gogoproto "github.com/cosmos/gogoproto/proto"
 )
 
 var (
@@ -160,7 +161,11 @@ func GetMsgTypes(signerData signing.SignerData, tx sdk.Tx, typedChainID *big.Int
 		},
 	}
 	for i, msg := range protoTx.GetMsgs() {
-		tmpMsgTypes, err := extractMsgTypes(msg, i+1)
+		typedMsg, err := gogoMsg(msg, msgAnys[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		tmpMsgTypes, err := extractMsgTypes(typedMsg, i+1)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -255,6 +260,26 @@ func WrapTxToTypedData(
 	return typedData, nil
 }
 
+// gogoMsg returns msg as its registered gogoproto type, decoded from msgAny, when msg is of
+// another type such as an autocli dynamicpb message
+func gogoMsg(msg sdk.Msg, msgAny *codectypes.Any) (sdk.Msg, error) {
+	if msgAny == nil {
+		return msg, nil
+	}
+	goType := gogoproto.MessageType(strings.TrimPrefix(msgAny.TypeUrl, "/"))
+	if goType == nil || reflect.TypeOf(msg) == goType {
+		return msg, nil
+	}
+	typedMsg, ok := reflect.New(goType.Elem()).Interface().(sdk.Msg)
+	if !ok {
+		return msg, nil
+	}
+	if err := gogoproto.Unmarshal(msgAny.Value, typedMsg); err != nil {
+		return nil, err
+	}
+	return typedMsg, nil
+}
+
 func extractMsgTypes(msg sdk.Msg, index int) (apitypes.Types, error) {
 	rootTypes := apitypes.Types{
 		fmt.Sprintf("Msg%d", index): {
@@ -313,7 +338,7 @@ func traverseFields(
 		}
 
 		fieldType := t.Field(i).Type
-		fieldName := jsonNameFromTag(t.Field(i).Tag)
+		fieldName := fieldNameFromTag(t.Field(i).Tag)
 		isOmitEmpty := isOmitEmpty(t.Field(i).Tag)
 
 		if fieldName == "" {
@@ -329,7 +354,7 @@ func traverseFields(
 					}
 				}
 				field = field.Field(0)
-				fieldName = jsonNameFromTag(fieldType.Field(0).Tag)
+				fieldName = fieldNameFromTag(fieldType.Field(0).Tag)
 				fieldType = fieldType.Field(0).Type
 			} else {
 				panic("empty json tag")
@@ -419,6 +444,17 @@ func traverseFields(
 	}
 
 	return nil
+}
+
+// fieldNameFromTag returns the field's protobuf name, or its json name when the field has no
+// protobuf tag
+func fieldNameFromTag(tag reflect.StructTag) string {
+	for _, part := range strings.Split(tag.Get("protobuf"), ",") {
+		if name, ok := strings.CutPrefix(part, "name="); ok {
+			return name
+		}
+	}
+	return jsonNameFromTag(tag)
 }
 
 // jsonNameFromTag gets json name
