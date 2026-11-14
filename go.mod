@@ -59,7 +59,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tendermint/go-amino v0.16.0
 	github.com/tendermint/tendermint v0.35.9
-	github.com/tidwall/gjson v1.19.0
+	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/wealdtech/go-eth2-util v1.8.2
 	go.uber.org/mock v0.6.0
